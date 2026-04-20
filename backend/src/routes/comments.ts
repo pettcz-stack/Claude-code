@@ -25,6 +25,7 @@ commentsRouter.get("/", async (req, res) => {
     accountId,
     from,
     to,
+    q,
     limit = "100",
     offset = "0",
   } = req.query as Record<string, string | undefined>;
@@ -38,6 +39,14 @@ commentsRouter.get("/", async (req, res) => {
       ...(from ? { gte: new Date(from) } : {}),
       ...(to ? { lte: new Date(to) } : {}),
     };
+  }
+  if (q && q.trim().length > 0) {
+    const needle = q.trim();
+    where.OR = [
+      { text: { contains: needle } },
+      { authorName: { contains: needle } },
+      { authorId: { contains: needle } },
+    ];
   }
 
   const take = Math.min(500, Number(limit) || 100);
@@ -91,6 +100,92 @@ commentsRouter.get("/", async (req, res) => {
     })),
     total: filtered.length,
   });
+});
+
+commentsRouter.get("/export.csv", async (req, res) => {
+  const { from, to, category } = req.query as Record<string, string | undefined>;
+  const where: Record<string, unknown> = {};
+  if (from || to) {
+    where.fetchedAt = {
+      ...(from ? { gte: new Date(from) } : {}),
+      ...(to ? { lte: new Date(to) } : {}),
+    };
+  }
+
+  const comments = await prisma.comment.findMany({
+    where,
+    include: {
+      post: { include: { account: true } },
+      classifications: { orderBy: { classifiedAt: "desc" }, take: 1 },
+      actions: { orderBy: { performedAt: "desc" }, take: 1 },
+    },
+    orderBy: { fetchedAt: "desc" },
+    take: 10000,
+  });
+
+  const filtered = category
+    ? comments.filter((c) => c.classifications[0]?.category === category)
+    : comments;
+
+  const header = [
+    "fetched_at",
+    "platform",
+    "page_name",
+    "author_name",
+    "author_id",
+    "platform_comment_id",
+    "text",
+    "category",
+    "confidence",
+    "recommended_action",
+    "detected_language",
+    "model_used",
+    "status",
+    "last_action",
+    "performed_by",
+    "permalink",
+  ];
+
+  const esc = (v: unknown) => {
+    if (v === null || v === undefined) return "";
+    const s = String(v).replace(/\r?\n/g, " ").replace(/"/g, '""');
+    return `"${s}"`;
+  };
+
+  const lines = [header.join(";")];
+  for (const c of filtered) {
+    const cls = c.classifications[0];
+    const act = c.actions[0];
+    lines.push(
+      [
+        c.fetchedAt.toISOString(),
+        c.post.account.platform,
+        c.post.account.pageName,
+        c.authorName,
+        c.authorId,
+        c.platformCommentId,
+        c.text,
+        cls?.category,
+        cls?.confidence,
+        cls?.recommendedAction,
+        cls?.detectedLanguage,
+        cls?.modelUsed,
+        c.status,
+        act?.actionType,
+        act?.performedBy,
+        c.post.permalink,
+      ]
+        .map(esc)
+        .join(";")
+    );
+  }
+
+  res.setHeader("content-type", "text/csv; charset=utf-8");
+  res.setHeader(
+    "content-disposition",
+    `attachment; filename="comments-${new Date().toISOString().slice(0, 10)}.csv"`
+  );
+  res.send("\uFEFF" + lines.join("\r\n"));
 });
 
 commentsRouter.get("/stats/summary", async (_req, res) => {

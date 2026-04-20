@@ -13,6 +13,7 @@ import { statsRouter } from "./routes/stats";
 import { webhooksRouter } from "./routes/webhooks";
 import { adminRouter } from "./routes/admin";
 import { metricsRouter } from "./routes/metrics";
+import { templatesRouter } from "./routes/templates";
 import { dashboardAuth } from "./middleware/auth";
 import { startScheduler } from "./jobs/scheduler";
 
@@ -49,6 +50,7 @@ function createApp(): express.Express {
   app.use("/api/audit", auditRouter);
   app.use("/api/stats", statsRouter);
   app.use("/api/admin", adminRouter);
+  app.use("/api/templates", templatesRouter);
 
   // Serve built frontend if present.
   const frontendDist = path.resolve(__dirname, "../../frontend/dist");

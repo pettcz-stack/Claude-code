@@ -12,6 +12,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "seed": "tsx src/seed.ts",
     "webhooks:subscribe": "tsx src/bin/webhook-subscribe.ts",
+    "classify": "tsx src/bin/classify.ts",
     "test": "vitest run",
     "lint": "eslint src --ext .ts"
   },

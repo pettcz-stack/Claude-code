@@ -26,6 +26,9 @@ export default function Queue() {
   const [reclassifying, setReclassifying] = useState<string | null>(null);
   const [cursor, setCursor] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [templates, setTemplates] = useState<Awaited<ReturnType<typeof api.listTemplates>>>([]);
   const itemRefs = useRef<Array<HTMLTableRowElement | null>>([]);
 
   const load = async () => {
@@ -37,6 +40,7 @@ export default function Queue() {
           status: filter.status || undefined,
           platform: filter.platform || undefined,
           category: filter.category || undefined,
+          q: search || undefined,
           limit: "200",
         }),
         api.summary(),
@@ -44,6 +48,7 @@ export default function Queue() {
       setItems(data.items);
       setSummary(s);
       setSelected(new Set());
+      setCursor(0);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -56,7 +61,7 @@ export default function Queue() {
     const t = setInterval(load, 30_000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter.status, filter.platform, filter.category]);
+  }, [filter.status, filter.platform, filter.category, search]);
 
   useEffect(() => {
     const onKey = async (e: KeyboardEvent) => {
@@ -108,6 +113,14 @@ export default function Queue() {
     const row = itemRefs.current[cursor];
     if (row) row.scrollIntoView({ block: "nearest" });
   }, [cursor]);
+
+  useEffect(() => {
+    if (!replyTarget) return;
+    api
+      .listTemplates(replyTarget.classification?.category ?? undefined)
+      .then(setTemplates)
+      .catch(() => setTemplates([]));
+  }, [replyTarget]);
 
   const allSelected = useMemo(
     () => items.length > 0 && items.every((i) => selected.has(i.id)),
@@ -183,9 +196,41 @@ export default function Queue() {
             ))}
           </select>
         </div>
+        <div>
+          <label className="block text-xs text-slate-500">Hledat</label>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              setSearch(searchInput);
+            }}
+            className="flex gap-1"
+          >
+            <input
+              className="border border-slate-300 rounded px-2 py-1 text-sm"
+              placeholder="text, autor…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+            {search && (
+              <button
+                type="button"
+                className="btn-muted"
+                onClick={() => {
+                  setSearchInput("");
+                  setSearch("");
+                }}
+              >
+                ×
+              </button>
+            )}
+          </form>
+        </div>
         <button className="btn-muted" onClick={load} disabled={loading}>
           {loading ? "Načítám…" : "Obnovit"}
         </button>
+        <a className="btn-muted" href="/api/comments/export.csv">
+          Export CSV
+        </a>
         <button className="btn-muted" onClick={() => setShowHelp(true)} title="Klávesové zkratky (?)">
           ?
         </button>
@@ -398,6 +443,36 @@ export default function Queue() {
             <div className="text-xs text-slate-500 bg-slate-50 p-2 rounded whitespace-pre-wrap">
               {replyTarget.text}
             </div>
+            {templates.length > 0 && (
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-slate-500">Šablona:</label>
+                <select
+                  className="border border-slate-300 rounded px-2 py-1 text-sm flex-1"
+                  onChange={async (e) => {
+                    const id = e.target.value;
+                    if (!id) return;
+                    try {
+                      const r = await api.renderTemplate(id, {
+                        author: replyTarget.authorName ?? "",
+                      });
+                      setReplyText(r.rendered);
+                    } catch (err) {
+                      alert(`Šablona selhala: ${err}`);
+                    }
+                    e.target.value = "";
+                  }}
+                  defaultValue=""
+                >
+                  <option value="">— vybrat —</option>
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                      {t.category ? ` (${t.category})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <textarea
               className="w-full border border-slate-300 rounded px-2 py-1 text-sm min-h-[120px]"
               placeholder="Text odpovědi v češtině, zdvořilý tón, žádné osobní útoky."

@@ -22,6 +22,47 @@ async function main(): Promise<void> {
     update: {},
   });
 
+  const templates = [
+    {
+      name: "Oprávněná kritika – obecná odpověď",
+      category: "legitimate_criticism",
+      language: "cs",
+      body:
+        "Dobrý den {author}, děkujeme za zpětnou vazbu. Mrzí nás, že jste měl/a nepříjemnou zkušenost. " +
+        "Ozvěte se prosím na info@albixon.cz nebo do DM, ať můžeme situaci prověřit a najít řešení. Tým ALBIXON",
+    },
+    {
+      name: "Dotaz na cenu / produkt",
+      category: "neutral",
+      language: "cs",
+      body:
+        "Dobrý den {author}, rádi Vám poskytneme aktuální informace. Napište nám prosím do DM nebo na " +
+        "info@albixon.cz a obchodní oddělení se Vám ozve. Tým ALBIXON",
+    },
+    {
+      name: "Pochvala – poděkování",
+      category: "positive",
+      language: "cs",
+      body: "Děkujeme mockrát za hezkou zpětnou vazbu, {author}! Moc si toho vážíme. Tým ALBIXON",
+    },
+    {
+      name: "Útok na značku – odpověď s pozváním do DM",
+      category: "brand_attack",
+      language: "cs",
+      body:
+        "Dobrý den {author}, Vaše tvrzení nemůžeme nechat bez odpovědi. Ozvěte se nám prosím přímo na " +
+        "info@albixon.cz s konkrétními detaily, abychom mohli situaci věcně posoudit. Tým ALBIXON",
+    },
+  ];
+
+  for (const t of templates) {
+    const exists = await prisma.replyTemplate.findFirst({ where: { name: t.name } });
+    if (!exists) {
+      await prisma.replyTemplate.create({ data: t });
+      logger.info("seeded template", { name: t.name });
+    }
+  }
+
   logger.info("seed complete");
   await prisma.$disconnect();
 }

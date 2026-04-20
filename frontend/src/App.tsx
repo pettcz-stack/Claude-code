@@ -5,11 +5,13 @@ import Rules from "./pages/Rules";
 import Accounts from "./pages/Accounts";
 import Stats from "./pages/Stats";
 import Admin from "./pages/Admin";
+import Templates from "./pages/Templates";
 
 const links = [
   { to: "/queue", label: "Fronta" },
   { to: "/audit", label: "Audit" },
   { to: "/rules", label: "Pravidla" },
+  { to: "/templates", label: "Šablony" },
   { to: "/accounts", label: "Účty" },
   { to: "/stats", label: "Statistiky" },
   { to: "/admin", label: "Admin" },
@@ -51,6 +53,7 @@ export default function App() {
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/templates" element={<Templates />} />
         </Routes>
       </main>
       <footer className="text-center text-xs text-slate-400 py-4">

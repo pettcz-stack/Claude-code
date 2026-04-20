@@ -121,6 +121,19 @@ model Setting {
   updatedAt DateTime @updatedAt
 }
 
+model ReplyTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  category    String?  // optional match: shows only for matching classification
+  body        String   // supports {author} placeholder
+  language    String?  // cs|sk|en|de|pl|null=auto
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+}
+
 model Evidence {
   id             String   @id @default(cuid())
   commentId      String

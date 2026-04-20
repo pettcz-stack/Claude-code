@@ -97,6 +97,22 @@ export const api = {
     }),
   suggestReply: (id: string) =>
     request<{ suggestion: string }>(`/api/comments/${id}/suggest-reply`, { method: "POST" }),
+  listTemplates: (category?: string) =>
+    request<
+      Array<{
+        id: string;
+        name: string;
+        category: string | null;
+        body: string;
+        language: string | null;
+        enabled: boolean;
+      }>
+    >(`/api/templates${category ? `?category=${encodeURIComponent(category)}` : ""}`),
+  renderTemplate: (id: string, vars: Record<string, string>) =>
+    request<{ rendered: string }>(`/api/templates/${id}/render`, {
+      method: "POST",
+      body: JSON.stringify({ vars }),
+    }),
   reclassify: (id: string, smart = false) =>
     request<{ id: string; category: string; confidence: number }>(`/api/comments/${id}/reclassify`, {
       method: "POST",

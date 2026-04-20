@@ -102,6 +102,17 @@ npm --workspace backend run webhooks:subscribe -- --dry-run
 
 Script přihlásí každou aktivní FB stránku ke `feed,comments,mention` fieldům.
 
+## Ladění promptu
+
+Rychlá klasifikace libovolného textu z příkazové řádky (užitečné při úpravách
+systémového promptu):
+
+```bash
+npm --workspace backend run classify -- "Tohle je hrozný produkt!"
+npm --workspace backend run classify -- --smart --author "Jan Novák" "Nefunguje mi ovládání..."
+cat samples.txt | npm --workspace backend run classify -- --stdin
+```
+
 ---
 
 ## Architektura
@@ -154,7 +165,10 @@ Meta Graph API  ──┐
 | POST  | `/api/comments/:id/action` | Provést akci (hide / delete / keep / reply / unhide) |
 | POST  | `/api/comments/:id/suggest-reply` | Claude vygeneruje návrh odpovědi (sonnet-4-6) |
 | POST  | `/api/comments/:id/reclassify` | Znovu klasifikovat (volitelně `{ "smart": true }`) |
+| GET   | `/api/comments/export.csv` | Export všech komentářů + klasifikací |
 | POST  | `/api/comments/bulk-action` | Hromadná akce |
+| CRUD  | `/api/templates` | Šablony odpovědí (s placeholderem `{author}`) |
+| POST  | `/api/templates/:id/render` | Vyrenderovat šablonu s proměnnými |
 | GET   | `/api/comments/stats/summary` | Počet čekajících a zpracovaných |
 | GET   | `/api/accounts` | Seznam připojených účtů |
 | PATCH/DELETE | `/api/accounts/:id` | Aktivace / odpojení |
