@@ -19,6 +19,9 @@ export default function Queue() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState({ status: "classified", platform: "", category: "" });
   const [summary, setSummary] = useState<{ totalPending: number; actioned24h: number } | null>(null);
+  const [replyTarget, setReplyTarget] = useState<CommentItem | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [replySending, setReplySending] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -234,6 +237,15 @@ export default function Queue() {
                       <button className="btn-muted" onClick={() => doAction(c.id, "keep")}>
                         Ponechat
                       </button>
+                      <button
+                        className="btn-primary"
+                        onClick={() => {
+                          setReplyTarget(c);
+                          setReplyText("");
+                        }}
+                      >
+                        Odpovědět
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -242,6 +254,53 @@ export default function Queue() {
           </tbody>
         </table>
       </div>
+
+      {replyTarget && (
+        <div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+          onClick={() => setReplyTarget(null)}
+        >
+          <div
+            className="bg-white rounded shadow-lg w-full max-w-xl p-4 space-y-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-semibold">
+              Odpovědět uživateli {replyTarget.authorName ?? "(anonym)"}
+            </h3>
+            <div className="text-xs text-slate-500 bg-slate-50 p-2 rounded whitespace-pre-wrap">
+              {replyTarget.text}
+            </div>
+            <textarea
+              className="w-full border border-slate-300 rounded px-2 py-1 text-sm min-h-[120px]"
+              placeholder="Text odpovědi v češtině, zdvořilý tón, žádné osobní útoky."
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+            />
+            <div className="flex justify-end gap-2">
+              <button className="btn-muted" onClick={() => setReplyTarget(null)}>
+                Zrušit
+              </button>
+              <button
+                className="btn-primary"
+                disabled={replySending || !replyText.trim()}
+                onClick={async () => {
+                  setReplySending(true);
+                  try {
+                    const r = await api.action(replyTarget.id, "reply", replyText.trim());
+                    if (!r.success) alert(`Odpověď selhala: ${r.error ?? "neznámá chyba"}`);
+                    setReplyTarget(null);
+                    await load();
+                  } finally {
+                    setReplySending(false);
+                  }
+                }}
+              >
+                {replySending ? "Odesílám…" : "Odeslat odpověď"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

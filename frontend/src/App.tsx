@@ -4,6 +4,7 @@ import Audit from "./pages/Audit";
 import Rules from "./pages/Rules";
 import Accounts from "./pages/Accounts";
 import Stats from "./pages/Stats";
+import Admin from "./pages/Admin";
 
 const links = [
   { to: "/queue", label: "Fronta" },
@@ -11,6 +12,7 @@ const links = [
   { to: "/rules", label: "Pravidla" },
   { to: "/accounts", label: "Účty" },
   { to: "/stats", label: "Statistiky" },
+  { to: "/admin", label: "Admin" },
 ];
 
 export default function App() {
@@ -48,6 +50,7 @@ export default function App() {
           <Route path="/rules" element={<Rules />} />
           <Route path="/accounts" element={<Accounts />} />
           <Route path="/stats" element={<Stats />} />
+          <Route path="/admin" element={<Admin />} />
         </Routes>
       </main>
       <footer className="text-center text-xs text-slate-400 py-4">

@@ -154,6 +154,11 @@ Meta Graph API  ──┐
 | GET   | `/api/audit/actions` | Audit provedených akcí |
 | GET   | `/api/audit/export.csv` | CSV export (BOM pro Excel) |
 | GET   | `/api/stats/overview?days=N` | Statistiky za N dní |
+| GET   | `/api/admin/status` | Počet aktivních účtů, pending, akce za 24 h |
+| POST  | `/api/admin/poll/run` | Ruční spuštění fetch + klasifikace |
+| POST  | `/api/admin/tokens/check` | Ruční kontrola expirace tokenů |
+| POST  | `/api/admin/retention/run` | Ruční anonymizace starších komentářů |
+| POST  | `/api/admin/test-notification` | Test Slack/email notifikace |
 
 Všechny `/api/*` endpointy vyžadují HTTP Basic auth (výchozí `admin` /
 `change-me`, změň v `.env`).
@@ -218,8 +223,12 @@ Doporučené:
 ## Roadmapa
 
 - **Fáze 1 (MVP)** ✅ — polling fetcher, Claude klasifikace, dashboard, audit
-- **Fáze 2** — webhooky real-time, rozšířené auto-moderace, bulk akce
-- **Fáze 3** — statistiky, Reply API, integrace s brand monitoring agentem, notifikace
+- **Fáze 2** ✅ — webhooky real-time, rozšířené auto-moderace, bulk akce,
+  dark post / ad comments, reply UI, retention job, token monitor
+- **Fáze 3** ✅ — statistiky, notifikace (Slack/email) při `brand_attack`,
+  admin rozhraní pro manuální polling/retenci
+- **Fáze 4** (budoucí) — integrace s brand monitoring agentem, nodemailer
+  SMTP (místo stub), PostgreSQL migrace, integration testy proti Meta sandboxu
 
 ---
 

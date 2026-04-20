@@ -1,6 +1,8 @@
 import cron from "node-cron";
 import { fetchAllAccounts } from "../meta/fetcher";
 import { classifyNewComments } from "../classifier/runner";
+import { checkTokenExpiry } from "./token-monitor";
+import { runRetention } from "./retention";
 import { config } from "../config";
 import { logger } from "../utils/logger";
 
@@ -25,9 +27,28 @@ export function startScheduler(): void {
     }
   });
 
+  // Daily at 06:00 — check token expiry.
+  cron.schedule("0 6 * * *", async () => {
+    try {
+      await checkTokenExpiry();
+    } catch (err) {
+      logger.error("token-monitor error", { err: String(err) });
+    }
+  });
+
+  // Daily at 03:15 — GDPR retention anonymization.
+  cron.schedule("15 3 * * *", async () => {
+    try {
+      await runRetention();
+    } catch (err) {
+      logger.error("retention error", { err: String(err) });
+    }
+  });
+
   // Run once at startup (best-effort; don't block startup).
   setTimeout(() => {
     fetchAllAccounts().catch(() => undefined);
     classifyNewComments(100).catch(() => undefined);
+    checkTokenExpiry().catch(() => undefined);
   }, 5000);
 }

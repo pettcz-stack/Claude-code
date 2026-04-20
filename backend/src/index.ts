@@ -11,6 +11,7 @@ import { rulesRouter } from "./routes/rules";
 import { auditRouter } from "./routes/audit";
 import { statsRouter } from "./routes/stats";
 import { webhooksRouter } from "./routes/webhooks";
+import { adminRouter } from "./routes/admin";
 import { dashboardAuth } from "./middleware/auth";
 import { startScheduler } from "./jobs/scheduler";
 
@@ -43,6 +44,7 @@ function createApp(): express.Express {
   app.use("/api/rules", rulesRouter);
   app.use("/api/audit", auditRouter);
   app.use("/api/stats", statsRouter);
+  app.use("/api/admin", adminRouter);
 
   // Serve built frontend if present.
   const frontendDist = path.resolve(__dirname, "../../frontend/dist");

@@ -148,6 +148,20 @@ export const api = {
       >;
     }>(`/api/audit/actions?${qs.toString()}`);
   },
+  adminStatus: () =>
+    request<{ activeAccounts: number; pending: number; actions24h: number }>("/api/admin/status"),
+  adminTestNotify: () => request<{ ok: true }>("/api/admin/test-notification", { method: "POST" }),
+  adminPollRun: () =>
+    request<{
+      fetched: Array<{ accountId: string; postsSeen: number; newComments: number; errors: number }>;
+      classified: number;
+    }>("/api/admin/poll/run", { method: "POST" }),
+  adminTokenCheck: () => request<{ ok: true }>("/api/admin/tokens/check", { method: "POST" }),
+  adminRetention: (days: number) =>
+    request<{ anonymized: number; retentionDays: number }>("/api/admin/retention/run", {
+      method: "POST",
+      body: JSON.stringify({ days }),
+    }),
   statsOverview: (days = 7) =>
     request<{
       windowDays: number;

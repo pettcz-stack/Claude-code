@@ -2,6 +2,7 @@ import { prisma } from "../db";
 import { classify, isLowConfidence } from "./claude";
 import { logger } from "../utils/logger";
 import { audit } from "../services/audit";
+import { notify } from "../services/notify";
 import { runAutoModeration } from "../moderation/auto-moderator";
 
 export async function classifyNewComments(limit = 50): Promise<number> {
@@ -69,6 +70,28 @@ export async function classifyNewComments(limit = 50): Promise<number> {
           model: result.model,
         },
       });
+
+      // Notify operators for anything that needs human review.
+      if (result.category === "brand_attack" || result.recommended_action === "review") {
+        const severity = result.category === "brand_attack" ? "critical" : "warn";
+        await notify({
+          severity,
+          title:
+            result.category === "brand_attack"
+              ? "Detekován možný útok na značku"
+              : `Komentář vyžaduje review (${result.category})`,
+          text: [
+            `Platforma: ${c.post.account.platform} — ${c.post.account.pageName}`,
+            c.authorName ? `Autor: ${c.authorName}` : null,
+            `Komentář: "${c.text.slice(0, 500)}"`,
+            `Confidence: ${Math.round(result.confidence * 100)}%`,
+            `AI zdůvodnění: ${result.reasoning}`,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          url: c.post.permalink ?? undefined,
+        }).catch((err) => logger.warn("notify failed", { commentId: c.id, err: String(err) }));
+      }
 
       // Trigger auto-moderation if rules match.
       await runAutoModeration(c.id).catch((err) =>

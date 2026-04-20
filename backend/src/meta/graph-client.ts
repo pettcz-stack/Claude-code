@@ -111,6 +111,21 @@ export const graph = {
     );
   },
 
+  // Dark posts / promotable (ad) posts have different endpoint.
+  // Returns posts that may only exist as ad creatives and won't appear in /posts.
+  listPromotablePosts: async (pageId: string, pageAccessToken: string, limit = 25) => {
+    return request<{ data: Array<{ id: string; message?: string; created_time?: string; permalink_url?: string }> }>(
+      "GET",
+      `/${pageId}/promotable_posts`,
+      {
+        access_token: pageAccessToken,
+        fields: "id,message,created_time,permalink_url",
+        is_inline_created: false,
+        limit,
+      }
+    );
+  },
+
   listPostComments: async (postId: string, pageAccessToken: string, limit = 50) => {
     return request<{
       data: Array<{

@@ -41,7 +41,21 @@ export async function fetchAccount(accountId: string): Promise<FetchResult> {
   }
 
   if (acc.platform === "FB") {
-    const posts = await withBackoff(() => graph.listRecentPosts(acc.pageId, token));
+    const [organic, promotable] = await Promise.all([
+      withBackoff(() => graph.listRecentPosts(acc.pageId, token)),
+      withBackoff(() => graph.listPromotablePosts(acc.pageId, token)).catch((err) => {
+        logger.warn("promotable_posts fetch failed (permission?)", { err: String(err) });
+        return { data: [] as Array<{ id: string; message?: string; created_time?: string; permalink_url?: string }> };
+      }),
+    ]);
+
+    const seen = new Set<string>();
+    const posts = { data: [...organic.data, ...promotable.data].filter((p) => {
+      if (seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    }) };
+
     for (const p of posts.data) {
       postsSeen++;
       const post = await prisma.post.upsert({
