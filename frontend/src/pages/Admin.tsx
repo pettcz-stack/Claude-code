@@ -9,6 +9,8 @@ export default function Admin() {
   const [reclassifyHours, setReclassifyHours] = useState(24);
   const [log, setLog] = useState<string[]>([]);
   const [ready, setReady] = useState<Awaited<ReturnType<typeof api.adminReady>> | null>(null);
+  const [settings, setSettings] = useState<Awaited<ReturnType<typeof api.getSettings>> | null>(null);
+  const [keywordsText, setKeywordsText] = useState("");
 
   const load = async () => {
     setStatus(await api.adminStatus());
@@ -16,6 +18,13 @@ export default function Admin() {
       setReady(await api.adminReady());
     } catch {
       setReady(null);
+    }
+    try {
+      const s = await api.getSettings();
+      setSettings(s);
+      setKeywordsText(s.criticalKeywords.join(", "));
+    } catch {
+      setSettings(null);
     }
   };
   useEffect(() => {
@@ -27,6 +36,80 @@ export default function Admin() {
 
   return (
     <div className="space-y-6">
+      {settings && (
+        <section className={`rounded shadow-sm p-4 border-2 ${settings.replyEnabled ? "bg-amber-50 border-amber-300" : "bg-emerald-50 border-emerald-300"}`}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold">
+                Odpovědi na komentáře:{" "}
+                <span className={settings.replyEnabled ? "text-amber-700" : "text-emerald-700"}>
+                  {settings.replyEnabled ? "POVOLENÉ" : "VYPNUTÉ (kill switch)"}
+                </span>
+              </h2>
+              <p className="text-sm text-slate-600 mt-1">
+                {settings.replyEnabled
+                  ? "Aplikace může publikovat odpovědi a generovat AI návrhy. Při obavách o bezpečnost vypni."
+                  : "Aplikace NEmůže publikovat na tvé profily ani generovat AI návrhy. Hide/Delete/Keep stále funguje."}
+              </p>
+            </div>
+            <button
+              className={settings.replyEnabled ? "btn-danger" : "btn-primary"}
+              onClick={async () => {
+                const next = !settings.replyEnabled;
+                if (next && !confirm("Opravdu povolit odpovědi? Aplikace pak může psát na vaše Facebook/Instagram profily.")) {
+                  return;
+                }
+                await api.setReplyEnabled(next);
+                push(`Odpovědi: ${next ? "ZAPNUTÉ" : "VYPNUTÉ"}`);
+                await load();
+              }}
+            >
+              {settings.replyEnabled ? "VYPNOUT odpovědi" : "Zapnout odpovědi"}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {settings && (
+        <section className="bg-white rounded shadow-sm p-4 space-y-3">
+          <div>
+            <h2 className="font-semibold">Kritická klíčová slova</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              Komentáře obsahující libovolné z těchto slov (bez ohledu na AI kategorii) spustí
+              okamžitou notifikaci. Oddělené čárkami.
+            </p>
+          </div>
+          <form
+            className="flex gap-2"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const kws = keywordsText.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+              const r = await api.setCriticalKeywords(kws);
+              setKeywordsText(r.criticalKeywords.join(", "));
+              push(`Kritická slova: ${r.criticalKeywords.length}`);
+              await load();
+            }}
+          >
+            <input
+              className="flex-1 border border-slate-300 rounded px-2 py-1 text-sm"
+              placeholder="např. podvod, kradou, žaloba, policie"
+              value={keywordsText}
+              onChange={(e) => setKeywordsText(e.target.value)}
+            />
+            <button className="btn-primary">Uložit</button>
+          </form>
+          {settings.criticalKeywords.length > 0 && (
+            <div className="text-xs text-slate-500">
+              Aktivní: {settings.criticalKeywords.map((k) => (
+                <span key={k} className="inline-block bg-red-100 text-red-800 rounded px-1.5 py-0.5 mr-1">
+                  {k}
+                </span>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
       {ready && (
         <section className="bg-white rounded shadow-sm p-4">
           <h2 className="font-semibold mb-2">Kontrola připravenosti</h2>

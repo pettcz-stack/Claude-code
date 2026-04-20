@@ -5,6 +5,7 @@ import { currentUser } from "../middleware/auth";
 import { suggestReply } from "../classifier/reply-suggester";
 import { classify, isLowConfidence } from "../classifier/claude";
 import { audit } from "../services/audit";
+import { isReplyEnabled } from "../services/feature-flags";
 
 export const commentsRouter: Router = Router();
 
@@ -232,6 +233,12 @@ commentsRouter.get("/:id", async (req, res) => {
 });
 
 commentsRouter.post("/:id/suggest-reply", async (req, res) => {
+  if (!(await isReplyEnabled())) {
+    return res.status(403).json({
+      error: "reply_disabled",
+      message: "Odpovědi jsou vypnuté — zapni v Admin → Odpovědi.",
+    });
+  }
   const { id } = req.params;
   const comment = await prisma.comment.findUniqueOrThrow({
     where: { id },

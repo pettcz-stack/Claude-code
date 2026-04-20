@@ -4,6 +4,7 @@ import { config } from "../config";
 import { logger } from "../utils/logger";
 import { SYSTEM_PROMPT, buildUserMessage } from "./prompt";
 import { classifyOffline } from "./offline";
+import { recordUsage } from "../services/usage";
 
 const CATEGORIES = ["spam", "vulgarity", "brand_attack", "legitimate_criticism", "neutral", "positive"] as const;
 const ACTIONS = ["hide", "delete", "keep", "review"] as const;
@@ -61,7 +62,8 @@ export async function classify(input: ClassifyInput, opts?: { smart?: boolean })
   // false-positive compile error.
   const resp = await client().messages.create({
     model,
-    max_tokens: 400,
+    // Tight cap — the JSON payload fits in ~100 tokens. Prevents runaway output.
+    max_tokens: 200,
     system: [
       {
         type: "text",
@@ -90,10 +92,30 @@ export async function classify(input: ClassifyInput, opts?: { smart?: boolean })
     usage: resp.usage,
   });
 
+  // Record token spend for the dashboard "Token spotřeba" view.
+  const usage = (resp.usage ?? {}) as {
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+  };
+  recordUsage({
+    feature: opts?.smart ? "classify_smart" : "classify",
+    model,
+    inputTokens: usage.input_tokens ?? 0,
+    outputTokens: usage.output_tokens ?? 0,
+    cacheCreationTokens: usage.cache_creation_input_tokens ?? 0,
+    cacheReadTokens: usage.cache_read_input_tokens ?? 0,
+  }).catch((err) => logger.warn("recordUsage failed", { err: String(err) }));
+
   return { ...parsed, model };
 }
 
 export function isLowConfidence(c: ClassificationResult): boolean {
   if (c.category === "positive" || c.category === "neutral") return false;
+  // Spam is rarely ambiguous — if haiku is confident enough to act, don't waste
+  // 4× the tokens on sonnet. Only escalate if the haiku pass is borderline.
+  if (c.category === "spam" && c.confidence >= 0.85) return false;
+  if (c.category === "vulgarity" && c.confidence >= 0.85) return false;
   return c.confidence < 0.7;
 }

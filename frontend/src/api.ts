@@ -244,6 +244,38 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ days }),
     }),
+  getSettings: () =>
+    request<{
+      replyEnabled: boolean;
+      usageAlertUsd: number | null;
+      criticalKeywords: string[];
+    }>("/api/settings"),
+  setReplyEnabled: (enabled: boolean) =>
+    request<{ enabled: boolean }>("/api/settings/reply", {
+      method: "POST",
+      body: JSON.stringify({ enabled }),
+    }),
+  setUsageAlert: (usd: number | null) =>
+    request<{ usageAlertUsd: number | null }>("/api/settings/usage-alert", {
+      method: "POST",
+      body: JSON.stringify({ usd }),
+    }),
+  setCriticalKeywords: (keywords: string[]) =>
+    request<{ criticalKeywords: string[] }>("/api/settings/critical-keywords", {
+      method: "POST",
+      body: JSON.stringify({ keywords }),
+    }),
+  usageSummary: (days = 30) =>
+    request<{
+      window: { days: number; since: string };
+      totalUsd: number;
+      todayUsd: number;
+      monthUsd: number;
+      byFeature: Array<{ feature: string; calls: number; usd: number; inputTokens: number; outputTokens: number }>;
+      byModel: Array<{ model: string; calls: number; usd: number }>;
+      perDay: Array<{ day: string; usd: number; calls: number }>;
+      thresholdUsd: number | null;
+    }>(`/api/usage/summary?days=${days}`),
   statsOverview: (days = 7) =>
     request<{
       windowDays: number;

@@ -1,23 +1,23 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { config } from "../config";
+import { recordUsage } from "../services/usage";
+import { logger } from "../utils/logger";
 
-const SYSTEM_PROMPT = `Jsi asistent zákaznické péče pro ALBIXON a.s. (značky ALBIXON, BRILIX — bazény, zastřešení, spa, sauny).
+const SYSTEM_PROMPT = `Asistent zákaznické péče ALBIXON (značky ALBIXON, BRILIX — bazény, zastřešení, spa, sauny).
 
-Úkol: navrhnout zdvořilou a profesionální odpověď na komentář na Facebooku nebo Instagramu.
+Navrhni odpověď na FB/IG komentář.
 
 Zásady:
-1. Tón: lidský, empatický, věcný. Nikdy arogantní, defenzivní ani marketingový.
-2. Jazyk: odpovídej ve stejném jazyce jako komentář (cs/sk/en/de/pl).
-3. Legitimní kritika: omluv se za nepříjemnost, požádej o kontakt v DM nebo na info@albixon.cz, nabídni řešení.
-4. Dotaz: odpověz stručně a faktiky, nabídni kontakt pro detaily.
-5. Pozitivní: krátké poděkování, případně pozvání sledovat další novinky.
-6. Nikdy nevymýšlej konkrétní čísla, ceny, termíny, záruky — odkaz na kontakt s obchodním oddělením.
-7. NEPIŠ slovní tvary jako "v kontextu AI", "jako AI asistent". Odpověď musí vypadat lidsky.
-8. Maximum 3 věty (≤ 500 znaků).
-9. Bez emojis, pokud je kontext formální.
-10. Podepiš se jako "Tým ALBIXON".
+- Jazyk: stejný jako komentář (cs/sk/en/de/pl).
+- Tón: lidský, empatický, věcný. Žádný marketing.
+- Kritika → omluva + nabídka řešení + kontakt (info@albixon.cz nebo DM).
+- Dotaz → stručně + odkaz na obchodní kontakt.
+- Pozitivní → krátké poděkování.
+- NIKDY nevymýšlej ceny, termíny, záruky — odkaž na obchod.
+- Max 3 věty (≤500 znaků). Podepiš "Tým ALBIXON".
+- Nezmiňuj, že jsi AI.
 
-Vrať POUZE text odpovědi, bez hvězdiček, bez JSON, bez úvodu.`;
+Vrať POUZE text odpovědi.`;
 
 let clientInstance: Anthropic | null = null;
 function client(): Anthropic {
@@ -45,7 +45,8 @@ export async function suggestReply(input: SuggestInput): Promise<string> {
 
   const resp = await client().messages.create({
     model: config.anthropic.modelSmart,
-    max_tokens: 400,
+    // Replies capped to 3 sentences (~500 chars ≈ 150 tokens) per prompt rules.
+    max_tokens: 250,
     // See note in ./claude.ts — cache_control requires type assertion on SDK 0.30.
     system: [
       {
@@ -74,5 +75,21 @@ export async function suggestReply(input: SuggestInput): Promise<string> {
   const textBlock = resp.content.find((c) => c.type === "text");
   const raw = textBlock && textBlock.type === "text" ? textBlock.text.trim() : "";
   if (!raw) throw new Error("Empty reply suggestion");
+
+  const usage = (resp.usage ?? {}) as {
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+  };
+  recordUsage({
+    feature: "suggest_reply",
+    model: config.anthropic.modelSmart,
+    inputTokens: usage.input_tokens ?? 0,
+    outputTokens: usage.output_tokens ?? 0,
+    cacheCreationTokens: usage.cache_creation_input_tokens ?? 0,
+    cacheReadTokens: usage.cache_read_input_tokens ?? 0,
+  }).catch((err) => logger.warn("recordUsage failed", { err: String(err) }));
+
   return raw;
 }

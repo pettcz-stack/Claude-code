@@ -7,6 +7,7 @@ import Accounts from "./pages/Accounts";
 import Stats from "./pages/Stats";
 import Admin from "./pages/Admin";
 import Templates from "./pages/Templates";
+import Usage from "./pages/Usage";
 import { api } from "./api";
 import ErrorBoundary from "./components/ErrorBoundary";
 
@@ -17,6 +18,7 @@ const links = [
   { to: "/templates", label: "Šablony" },
   { to: "/accounts", label: "Účty" },
   { to: "/stats", label: "Statistiky" },
+  { to: "/usage", label: "Tokeny" },
   { to: "/admin", label: "Admin" },
 ];
 
@@ -83,6 +85,7 @@ export default function App() {
             <Route path="/stats" element={<Stats />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/templates" element={<Templates />} />
+            <Route path="/usage" element={<Usage />} />
           </Routes>
         </ErrorBoundary>
       </main>

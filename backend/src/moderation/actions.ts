@@ -3,6 +3,7 @@ import { decrypt } from "../crypto";
 import { graph, GraphApiError } from "../meta/graph-client";
 import { audit } from "../services/audit";
 import { logger } from "../utils/logger";
+import { isReplyEnabled } from "../services/feature-flags";
 
 export type ActionType = "hide" | "delete" | "keep" | "reply" | "unhide";
 
@@ -39,6 +40,30 @@ export async function performAction(
       metadata: { performedBy: opts.performedBy },
     });
     return { success: true };
+  }
+
+  // Reply is a write action that publishes on a public profile — protected
+  // by a runtime kill switch. If disabled, refuse hard (no silent fallback).
+  if (action === "reply") {
+    if (!(await isReplyEnabled())) {
+      const err = "Odpovědi jsou vypnuté (kill switch). Zapni v Admin → Odpovědi.";
+      await prisma.action.create({
+        data: {
+          commentId,
+          actionType: action,
+          performedBy: opts.performedBy,
+          success: false,
+          errorMessage: err,
+        },
+      });
+      await audit({
+        entityType: "Comment",
+        entityId: commentId,
+        event: "action.reply.blocked",
+        metadata: { reason: "kill_switch", by: opts.performedBy },
+      });
+      return { success: false, error: err };
+    }
   }
 
   const token = decrypt(comment.post.account.accessTokenEncrypted);

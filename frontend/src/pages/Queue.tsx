@@ -31,6 +31,7 @@ export default function Queue() {
   const [searchInput, setSearchInput] = useState("");
   const [templates, setTemplates] = useState<Awaited<ReturnType<typeof api.listTemplates>>>([]);
   const [drawerId, setDrawerId] = useState<string | null>(null);
+  const [replyEnabled, setReplyEnabled] = useState(false);
   const itemRefs = useRef<Array<HTMLTableRowElement | null>>([]);
 
   const load = async () => {
@@ -66,6 +67,13 @@ export default function Queue() {
   }, [filter.status, filter.platform, filter.category, search]);
 
   useEffect(() => {
+    api
+      .getSettings()
+      .then((s) => setReplyEnabled(s.replyEnabled))
+      .catch(() => setReplyEnabled(false));
+  }, []);
+
+  useEffect(() => {
     const onKey = async (e: KeyboardEvent) => {
       if (replyTarget) return;
       const target = e.target as HTMLElement | null;
@@ -96,7 +104,7 @@ export default function Queue() {
         if (confirm(`Smazat komentář od ${cur.authorName ?? "(anonym)"}?`)) await doAction(cur.id, "delete");
       } else if (e.key === "p" && cur) {
         await doAction(cur.id, "keep");
-      } else if (e.key === "r" && cur) {
+      } else if (e.key === "r" && cur && replyEnabled) {
         setReplyTarget(cur);
         setReplyText("");
       } else if (e.key === "o" && cur?.post.permalink) {
@@ -111,7 +119,7 @@ export default function Queue() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, cursor, replyTarget]);
+  }, [items, cursor, replyTarget, replyEnabled]);
 
   useEffect(() => {
     const row = itemRefs.current[cursor];
@@ -354,15 +362,17 @@ export default function Queue() {
                       <button className="btn-muted" onClick={() => doAction(c.id, "keep")}>
                         Ponechat
                       </button>
-                      <button
-                        className="btn-primary"
-                        onClick={() => {
-                          setReplyTarget(c);
-                          setReplyText("");
-                        }}
-                      >
-                        Odpovědět
-                      </button>
+                      {replyEnabled && (
+                        <button
+                          className="btn-primary"
+                          onClick={() => {
+                            setReplyTarget(c);
+                            setReplyText("");
+                          }}
+                        >
+                          Odpovědět
+                        </button>
+                      )}
                       <button
                         className="btn-muted"
                         title="Detail komentáře (Enter)"
