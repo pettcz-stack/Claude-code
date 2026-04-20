@@ -3,13 +3,12 @@ import crypto from "node:crypto";
 import express from "express";
 import request from "supertest";
 
-vi.hoisted(() => {
+const { fetchAccountMock } = vi.hoisted(() => {
   process.env.META_APP_SECRET = "test-secret";
   process.env.META_WEBHOOK_VERIFY_TOKEN = "verify-abc";
   process.env.TOKEN_ENCRYPTION_KEY = "a".repeat(64);
+  return { fetchAccountMock: vi.fn() };
 });
-
-const fetchAccountMock = vi.fn();
 
 vi.mock("../meta/fetcher", () => ({
   fetchAccount: fetchAccountMock,
@@ -47,6 +46,7 @@ function sign(body: string): string {
 
 beforeEach(() => {
   fetchAccountMock.mockReset();
+  fetchAccountMock.mockResolvedValue(undefined);
 });
 
 describe("webhooks/meta", () => {

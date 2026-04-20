@@ -48,6 +48,9 @@ function extractJson(raw: string): unknown {
 export async function classify(input: ClassifyInput, opts?: { smart?: boolean }): Promise<ClassificationResult> {
   const model = opts?.smart ? config.anthropic.modelSmart : config.anthropic.modelFast;
 
+  // `cache_control` enables prompt caching. Supported by the API but not
+  // yet exposed in the SDK 0.30 TextBlockParam type — cast to avoid a
+  // false-positive compile error.
   const resp = await client().messages.create({
     model,
     max_tokens: 400,
@@ -57,7 +60,7 @@ export async function classify(input: ClassifyInput, opts?: { smart?: boolean })
         text: SYSTEM_PROMPT,
         cache_control: { type: "ephemeral" },
       },
-    ],
+    ] as unknown as string,
     messages: [
       {
         role: "user",

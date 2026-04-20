@@ -9,6 +9,7 @@ export const dashboardAuth = basicAuth({
 });
 
 export function currentUser(req: Request): string {
-  const auth = req.auth as { user?: string } | undefined;
+  // express-basic-auth decorates Request with `auth` but doesn't ship types.
+  const auth = (req as unknown as { auth?: { user?: string } }).auth;
   return auth?.user ?? "unknown";
 }

@@ -40,13 +40,14 @@ export async function suggestReply(input: SuggestInput): Promise<string> {
   const resp = await client().messages.create({
     model: config.anthropic.modelSmart,
     max_tokens: 400,
+    // See note in ./claude.ts — cache_control requires type assertion on SDK 0.30.
     system: [
       {
         type: "text",
         text: SYSTEM_PROMPT,
         cache_control: { type: "ephemeral" },
       },
-    ],
+    ] as unknown as string,
     messages: [
       {
         role: "user",
