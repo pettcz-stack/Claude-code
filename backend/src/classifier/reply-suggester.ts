@@ -37,6 +37,12 @@ export interface SuggestInput {
 }
 
 export async function suggestReply(input: SuggestInput): Promise<string> {
+  // Offline stub — lets the UI button work without an API key.
+  if (!config.anthropic.apiKey) {
+    const name = input.authorName ?? "zákazník";
+    return `Dobrý den ${name}, děkujeme za Vaši zprávu. Ozvěte se nám prosím na info@albixon.cz nebo do DM, ať situaci společně vyřešíme. Tým ALBIXON\n\n(Vygenerováno v offline demo režimu — pro skutečné návrhy odpovědí nastavte ANTHROPIC_API_KEY.)`;
+  }
+
   const resp = await client().messages.create({
     model: config.anthropic.modelSmart,
     max_tokens: 400,

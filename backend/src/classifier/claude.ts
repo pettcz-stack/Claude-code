@@ -3,6 +3,7 @@ import { z } from "zod";
 import { config } from "../config";
 import { logger } from "../utils/logger";
 import { SYSTEM_PROMPT, buildUserMessage } from "./prompt";
+import { classifyOffline } from "./offline";
 
 const CATEGORIES = ["spam", "vulgarity", "brand_attack", "legitimate_criticism", "neutral", "positive"] as const;
 const ACTIONS = ["hide", "delete", "keep", "review"] as const;
@@ -46,6 +47,13 @@ function extractJson(raw: string): unknown {
 }
 
 export async function classify(input: ClassifyInput, opts?: { smart?: boolean }): Promise<ClassificationResult> {
+  // Demo / offline mode — no API key configured. Use keyword heuristic
+  // so the UI (reclassify button, new-comment flow) still works without
+  // Anthropic credit. Logs a warning so it's visible in production.
+  if (!config.anthropic.apiKey) {
+    logger.warn("classifier offline mode (ANTHROPIC_API_KEY missing) — using keyword heuristic");
+    return classifyOffline(input);
+  }
   const model = opts?.smart ? config.anthropic.modelSmart : config.anthropic.modelFast;
 
   // `cache_control` enables prompt caching. Supported by the API but not
