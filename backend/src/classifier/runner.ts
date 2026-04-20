@@ -3,6 +3,7 @@ import { classify, isLowConfidence } from "./claude";
 import { logger } from "../utils/logger";
 import { audit } from "../services/audit";
 import { notify } from "../services/notify";
+import { captureEvidence } from "../services/evidence";
 import { runAutoModeration } from "../moderation/auto-moderator";
 
 export async function classifyNewComments(limit = 50): Promise<number> {
@@ -70,6 +71,13 @@ export async function classifyNewComments(limit = 50): Promise<number> {
           model: result.model,
         },
       });
+
+      // Capture legal evidence snapshot for brand_attack / vulgarity —
+      // preserves the state at detection time even after the comment is
+      // deleted from Meta's side.
+      await captureEvidence(c.id, result.category).catch((err) =>
+        logger.warn("evidence capture failed", { commentId: c.id, err: String(err) })
+      );
 
       // Notify operators for anything that needs human review.
       if (result.category === "brand_attack" || result.recommended_action === "review") {

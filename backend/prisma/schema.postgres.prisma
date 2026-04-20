@@ -1,17 +1,25 @@
-// Prisma schema for ALBIXON Meta comment moderator
+// Production variant: PostgreSQL.
+// Usage:
+//   cp prisma/schema.postgres.prisma prisma/schema.prisma
+//   (then update DATABASE_URL in .env to postgresql://...)
+//
+// The schema is identical to the SQLite version. Prisma raw-SQL used by
+// stats routes is SQLite-specific (substr/julianday) — rewrite to
+// date_trunc / EXTRACT(EPOCH ...) before switching to Postgres. See
+// README.md "Production deployment" section for details.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model Account {
   id                     String    @id @default(cuid())
-  platform               String    // "FB" | "IG"
+  platform               String
   pageId                 String    @unique
   pageName               String
   accessTokenEncrypted   String
@@ -50,7 +58,7 @@ model Comment {
   text               String
   createdAtPlatform  DateTime?
   parentCommentId    String?
-  status             String    @default("new") // new|classified|actioned|ignored
+  status             String    @default("new")
   fetchedAt          DateTime  @default(now())
 
   post               Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -65,10 +73,10 @@ model Comment {
 model Classification {
   id                 String    @id @default(cuid())
   commentId          String
-  category           String    // spam|vulgarity|brand_attack|legitimate_criticism|neutral|positive
+  category           String
   confidence         Float
   reasoning          String
-  recommendedAction  String    // hide|delete|keep|review
+  recommendedAction  String
   detectedLanguage   String?
   modelUsed          String
   classifiedAt       DateTime  @default(now())
@@ -82,10 +90,10 @@ model Classification {
 model Action {
   id                 String    @id @default(cuid())
   commentId          String
-  actionType         String    // hide|delete|keep|reply|unhide
-  performedBy        String    // "auto" or user email
+  actionType         String
+  performedBy        String
   performedAt        DateTime  @default(now())
-  apiResponse        String?   // JSON stringified
+  apiResponse        String?
   success            Boolean   @default(true)
   errorMessage       String?
 
@@ -98,9 +106,9 @@ model Action {
 model Rule {
   id               String   @id @default(cuid())
   name             String
-  category         String   // matches Classification.category
+  category         String
   minConfidence    Float    @default(0.9)
-  action           String   // hide|delete
+  action           String
   enabled          Boolean  @default(true)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -108,7 +116,7 @@ model Rule {
 
 model ListEntry {
   id        String   @id @default(cuid())
-  kind      String   // "whitelist_word"|"blacklist_word"|"whitelist_author"|"blacklist_author"
+  kind      String
   value     String
   createdAt DateTime @default(now())
 
@@ -122,12 +130,12 @@ model Setting {
 }
 
 model Evidence {
-  id             String   @id @default(cuid())
-  commentId      String
-  category       String
-  capturedAt     DateTime @default(now())
-  contentHash    String   // sha256 of canonical JSON snapshot
-  snapshotJson   String   // full comment+classification state at capture time
+  id                 String   @id @default(cuid())
+  commentId          String
+  category           String
+  capturedAt         DateTime @default(now())
+  contentHash        String
+  snapshotJson       String
   permalinkAtCapture String?
 
   @@index([commentId])
@@ -140,7 +148,7 @@ model AuditLog {
   entityType String
   entityId   String
   event      String
-  metadata   String?  // JSON string
+  metadata   String?
   createdAt  DateTime @default(now())
 
   @@index([createdAt])

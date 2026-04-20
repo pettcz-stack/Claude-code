@@ -165,6 +165,9 @@ Meta Graph API  ──┐
 | GET   | `/api/audit` | Obecný audit log |
 | GET   | `/api/audit/actions` | Audit provedených akcí |
 | GET   | `/api/audit/export.csv` | CSV export (BOM pro Excel) |
+| GET   | `/api/audit/evidence` | Seznam evidence snapshotů (pro právní použití) |
+| GET   | `/api/audit/evidence/:id` | Stáhnout snapshot jako JSON (integrita přes SHA-256) |
+| GET   | `/metrics` | Prometheus scrape endpoint (veřejný, omez síťovou politikou) |
 | GET   | `/api/stats/overview?days=N` | Statistiky za N dní |
 | GET   | `/api/admin/status` | Počet aktivních účtů, pending, akce za 24 h |
 | POST  | `/api/admin/poll/run` | Ruční spuštění fetch + klasifikace |
@@ -225,10 +228,18 @@ NODE_ENV=production npm start
 Doporučené:
 
 - reverse proxy s TLS (Caddy/nginx)
-- PostgreSQL místo SQLite — v `schema.prisma` změň `provider = "postgresql"`
-  a aktualizuj `DATABASE_URL`
+- **PostgreSQL** místo SQLite:
+  ```bash
+  cp backend/prisma/schema.postgres.prisma backend/prisma/schema.prisma
+  # update .env: DATABASE_URL=postgresql://...
+  npm run prisma:generate && npm run prisma:deploy
+  # stats routes use sqlite-specific SQL (substr/julianday) —
+  # rewrite to date_trunc before switching, or disable /api/stats
+  ```
+  nebo prostě `docker compose -f docker-compose.postgres.yml up -d`
 - systemd service nebo Docker container
-- denní backup SQLite / PostgreSQL
+- denní backup DB (evidence snapshot musí být ZÁLOHOVÁN — právní důkaz)
+- Prometheus scrape `http://localhost:3000/metrics` (napojit na Grafana)
 
 ---
 
@@ -239,7 +250,9 @@ Doporučené:
   dark post / ad comments, reply UI, retention job, token monitor
 - **Fáze 3** ✅ — statistiky, notifikace (Slack/email) při `brand_attack`,
   admin rozhraní pro manuální polling/retenci, AI návrhy odpovědí,
-  reclassify s `sonnet-4-6`, blacklist autorů, webhook subscribe helper
+  reclassify s `sonnet-4-6`, blacklist autorů, webhook subscribe helper,
+  evidence snapshoty pro právní použití (SHA-256 hash), `/metrics`
+  endpoint, keyboard shortcuts ve frontě, PostgreSQL profil
 - **Fáze 4** (budoucí) — integrace s brand monitoring agentem, nodemailer
   SMTP (místo stub), PostgreSQL migrace, integration testy proti Meta sandboxu
 

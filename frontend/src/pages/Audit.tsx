@@ -2,22 +2,33 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 
 type Row = Awaited<ReturnType<typeof api.listActions>>["items"][number];
+type EvidenceRow = Awaited<ReturnType<typeof api.listEvidence>>["items"][number];
 
 export default function Audit() {
+  const [tab, setTab] = useState<"actions" | "evidence">("actions");
   const [rows, setRows] = useState<Row[]>([]);
+  const [evidence, setEvidence] = useState<EvidenceRow[]>([]);
   const [filter, setFilter] = useState({ from: "", to: "", performedBy: "" });
   const [loading, setLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
     try {
-      const res = await api.listActions({
-        from: filter.from || undefined,
-        to: filter.to || undefined,
-        performedBy: filter.performedBy || undefined,
-        limit: "500",
-      });
-      setRows(res.items);
+      if (tab === "actions") {
+        const res = await api.listActions({
+          from: filter.from || undefined,
+          to: filter.to || undefined,
+          performedBy: filter.performedBy || undefined,
+          limit: "500",
+        });
+        setRows(res.items);
+      } else {
+        const res = await api.listEvidence({
+          from: filter.from || undefined,
+          to: filter.to || undefined,
+        });
+        setEvidence(res.items);
+      }
     } finally {
       setLoading(false);
     }
@@ -26,7 +37,7 @@ export default function Audit() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [tab]);
 
   const exportUrl = () => {
     const qs = new URLSearchParams();
@@ -37,6 +48,20 @@ export default function Audit() {
 
   return (
     <div className="space-y-4">
+      <div className="flex gap-1">
+        <button
+          className={`btn ${tab === "actions" ? "btn-primary" : "btn-muted"}`}
+          onClick={() => setTab("actions")}
+        >
+          Akce
+        </button>
+        <button
+          className={`btn ${tab === "evidence" ? "btn-primary" : "btn-muted"}`}
+          onClick={() => setTab("evidence")}
+        >
+          Evidence snapshots
+        </button>
+      </div>
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <label className="block text-xs text-slate-500">Od</label>
@@ -73,6 +98,55 @@ export default function Audit() {
         </a>
       </div>
 
+      {tab === "evidence" ? (
+        <div className="bg-white rounded shadow-sm overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-slate-600">
+              <tr>
+                <th className="p-2 text-left">Čas</th>
+                <th className="p-2 text-left">Kategorie</th>
+                <th className="p-2 text-left">Content hash</th>
+                <th className="p-2 text-left">Permalink</th>
+                <th className="p-2 text-right">Akce</th>
+              </tr>
+            </thead>
+            <tbody>
+              {evidence.map((e) => (
+                <tr key={e.id} className="border-t border-slate-100">
+                  <td className="p-2 whitespace-nowrap">{new Date(e.capturedAt).toLocaleString("cs-CZ")}</td>
+                  <td className="p-2">
+                    <span className="pill bg-red-100 text-red-800 ring-red-300">{e.category}</span>
+                  </td>
+                  <td className="p-2 font-mono text-xs text-slate-500" title={e.contentHash}>
+                    {e.contentHash.slice(0, 16)}…
+                  </td>
+                  <td className="p-2">
+                    {e.permalinkAtCapture ? (
+                      <a className="text-brand-700 hover:underline" href={e.permalinkAtCapture} target="_blank" rel="noreferrer">
+                        otevřít
+                      </a>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="p-2 text-right">
+                    <a className="btn-muted" href={`/api/audit/evidence/${e.id}`}>
+                      Stáhnout JSON
+                    </a>
+                  </td>
+                </tr>
+              ))}
+              {evidence.length === 0 && !loading && (
+                <tr>
+                  <td colSpan={5} className="p-6 text-center text-slate-500">
+                    Žádné snapshoty
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : (
       <div className="bg-white rounded shadow-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-600">
@@ -120,6 +194,7 @@ export default function Audit() {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }

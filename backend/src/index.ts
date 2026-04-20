@@ -12,6 +12,7 @@ import { auditRouter } from "./routes/audit";
 import { statsRouter } from "./routes/stats";
 import { webhooksRouter } from "./routes/webhooks";
 import { adminRouter } from "./routes/admin";
+import { metricsRouter } from "./routes/metrics";
 import { dashboardAuth } from "./middleware/auth";
 import { startScheduler } from "./jobs/scheduler";
 
@@ -36,6 +37,9 @@ function createApp(): express.Express {
   app.get("/health", (_req, res) => {
     res.json({ ok: true, version: "0.1.0" });
   });
+
+  // Prometheus scrape endpoint — unprotected but restrict via network policy.
+  app.use("/metrics", metricsRouter);
 
   // Dashboard API — protected.
   app.use("/api", dashboardAuth);

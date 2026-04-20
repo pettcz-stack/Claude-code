@@ -56,6 +56,51 @@ auditRouter.get("/actions", async (req, res) => {
   res.json({ items });
 });
 
+auditRouter.get("/evidence", async (req, res) => {
+  const { category, from, to } = req.query as Record<string, string | undefined>;
+  const where: Record<string, unknown> = {};
+  if (category) where.category = category;
+  if (from || to) {
+    where.capturedAt = {
+      ...(from ? { gte: new Date(from) } : {}),
+      ...(to ? { lte: new Date(to) } : {}),
+    };
+  }
+  const items = await prisma.evidence.findMany({
+    where,
+    orderBy: { capturedAt: "desc" },
+    take: 500,
+    select: {
+      id: true,
+      commentId: true,
+      category: true,
+      capturedAt: true,
+      contentHash: true,
+      permalinkAtCapture: true,
+    },
+  });
+  res.json({ items });
+});
+
+auditRouter.get("/evidence/:id", async (req, res) => {
+  const ev = await prisma.evidence.findUnique({ where: { id: req.params.id } });
+  if (!ev) return res.status(404).json({ error: "not_found" });
+  res.setHeader("content-type", "application/json; charset=utf-8");
+  res.setHeader(
+    "content-disposition",
+    `attachment; filename="evidence-${ev.id}.json"`
+  );
+  const body = {
+    id: ev.id,
+    commentId: ev.commentId,
+    category: ev.category,
+    capturedAt: ev.capturedAt.toISOString(),
+    contentHash: ev.contentHash,
+    snapshot: JSON.parse(ev.snapshotJson),
+  };
+  return res.send(JSON.stringify(body, null, 2));
+});
+
 auditRouter.get("/export.csv", async (req, res) => {
   const { from, to } = req.query as Record<string, string | undefined>;
   const where: Record<string, unknown> = {};

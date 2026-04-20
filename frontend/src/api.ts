@@ -140,6 +140,20 @@ export const api = {
     }),
   deleteListEntry: (id: string) =>
     request<{ ok: true }>(`/api/rules/lists/${id}`, { method: "DELETE" }),
+  listEvidence: (params: Record<string, string | undefined>) => {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) if (v) qs.set(k, v);
+    return request<{
+      items: Array<{
+        id: string;
+        commentId: string;
+        category: string;
+        capturedAt: string;
+        contentHash: string;
+        permalinkAtCapture: string | null;
+      }>;
+    }>(`/api/audit/evidence?${qs.toString()}`);
+  },
   listActions: (params: Record<string, string | undefined>) => {
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) if (v) qs.set(k, v);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type CommentItem } from "../api";
 import CategoryPill from "../components/CategoryPill";
 
@@ -24,6 +24,9 @@ export default function Queue() {
   const [replySending, setReplySending] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [reclassifying, setReclassifying] = useState<string | null>(null);
+  const [cursor, setCursor] = useState(0);
+  const [showHelp, setShowHelp] = useState(false);
+  const itemRefs = useRef<Array<HTMLTableRowElement | null>>([]);
 
   const load = async () => {
     setLoading(true);
@@ -54,6 +57,57 @@ export default function Queue() {
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter.status, filter.platform, filter.category]);
+
+  useEffect(() => {
+    const onKey = async (e: KeyboardEvent) => {
+      if (replyTarget) return;
+      const target = e.target as HTMLElement | null;
+      if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
+
+      if (e.key === "?") {
+        setShowHelp((v) => !v);
+        return;
+      }
+      if (e.key === "Escape") {
+        setShowHelp(false);
+        return;
+      }
+      if (items.length === 0) return;
+      const cur = items[cursor];
+
+      if (e.key === "j") {
+        setCursor((c) => Math.min(items.length - 1, c + 1));
+      } else if (e.key === "k") {
+        setCursor((c) => Math.max(0, c - 1));
+      } else if (e.key === "g") {
+        setCursor(0);
+      } else if (e.key === "G") {
+        setCursor(items.length - 1);
+      } else if (e.key === "h" && cur) {
+        await doAction(cur.id, "hide");
+      } else if (e.key === "x" && cur) {
+        if (confirm(`Smazat komentář od ${cur.authorName ?? "(anonym)"}?`)) await doAction(cur.id, "delete");
+      } else if (e.key === "p" && cur) {
+        await doAction(cur.id, "keep");
+      } else if (e.key === "r" && cur) {
+        setReplyTarget(cur);
+        setReplyText("");
+      } else if (e.key === "o" && cur?.post.permalink) {
+        window.open(cur.post.permalink, "_blank", "noopener,noreferrer");
+      } else if (e.key === " " && cur) {
+        e.preventDefault();
+        toggle(cur.id);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, cursor, replyTarget]);
+
+  useEffect(() => {
+    const row = itemRefs.current[cursor];
+    if (row) row.scrollIntoView({ block: "nearest" });
+  }, [cursor]);
 
   const allSelected = useMemo(
     () => items.length > 0 && items.every((i) => selected.has(i.id)),
@@ -132,6 +186,9 @@ export default function Queue() {
         <button className="btn-muted" onClick={load} disabled={loading}>
           {loading ? "Načítám…" : "Obnovit"}
         </button>
+        <button className="btn-muted" onClick={() => setShowHelp(true)} title="Klávesové zkratky (?)">
+          ?
+        </button>
         {summary && (
           <div className="ml-auto text-sm text-slate-500">
             <span className="mr-4">
@@ -184,11 +241,20 @@ export default function Queue() {
                 </td>
               </tr>
             )}
-            {items.map((c) => {
+            {items.map((c, idx) => {
               const cls = c.classification;
               const rec = cls?.recommendedAction;
+              const isCursor = idx === cursor;
               return (
-                <tr key={c.id} className="border-t border-slate-100 align-top">
+                <tr
+                  key={c.id}
+                  ref={(el) => {
+                    itemRefs.current[idx] = el;
+                  }}
+                  className={`border-t border-slate-100 align-top ${
+                    isCursor ? "bg-brand-50 outline outline-2 outline-brand-500" : ""
+                  }`}
+                >
                   <td className="p-2">
                     <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
                   </td>
@@ -272,6 +338,50 @@ export default function Queue() {
           </tbody>
         </table>
       </div>
+
+      {showHelp && (
+        <div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+          onClick={() => setShowHelp(false)}
+        >
+          <div
+            className="bg-white rounded shadow-lg w-full max-w-md p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-semibold mb-3">Klávesové zkratky</h3>
+            <table className="w-full text-sm">
+              <tbody>
+                {[
+                  ["j / k", "další / předchozí komentář"],
+                  ["g / G", "začátek / konec seznamu"],
+                  ["Mezerník", "označit / odznačit"],
+                  ["h", "skrýt aktuální"],
+                  ["x", "smazat aktuální (s potvrzením)"],
+                  ["p", "ponechat aktuální"],
+                  ["r", "odpovědět (otevře modal)"],
+                  ["o", "otevřít permalink v novém tabu"],
+                  ["?", "zobrazit / skrýt tuto nápovědu"],
+                  ["Esc", "zavřít okno"],
+                ].map(([k, desc]) => (
+                  <tr key={k}>
+                    <td className="py-1 pr-3">
+                      <kbd className="bg-slate-100 border border-slate-300 rounded px-1.5 py-0.5 text-xs font-mono">
+                        {k}
+                      </kbd>
+                    </td>
+                    <td className="text-slate-700">{desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="mt-3 text-right">
+              <button className="btn-muted" onClick={() => setShowHelp(false)}>
+                Zavřít
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {replyTarget && (
         <div
