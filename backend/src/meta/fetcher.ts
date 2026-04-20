@@ -58,6 +58,12 @@ export async function fetchAccount(accountId: string): Promise<FetchResult> {
 
     for (const p of posts.data) {
       postsSeen++;
+      // Fall back to a synthetic permalink when Graph doesn't return one
+      // (dark posts often lack permalink_url). Operators can still click
+      // through and FB will redirect to the canonical URL.
+      const postLocal = p.id.includes("_") ? p.id.split("_")[1] : p.id;
+      const permalink = p.permalink_url ?? `https://www.facebook.com/${acc.pageId}/posts/${postLocal}`;
+
       const post = await prisma.post.upsert({
         where: { platformPostId: p.id },
         create: {
@@ -65,11 +71,11 @@ export async function fetchAccount(accountId: string): Promise<FetchResult> {
           platformPostId: p.id,
           postedAt: p.created_time ? new Date(p.created_time) : null,
           contentPreview: p.message?.slice(0, 280),
-          permalink: p.permalink_url,
+          permalink,
         },
         update: {
           contentPreview: p.message?.slice(0, 280),
-          permalink: p.permalink_url,
+          permalink,
         },
       });
       try {

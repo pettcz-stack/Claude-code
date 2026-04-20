@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type CommentItem } from "../api";
 import CategoryPill from "../components/CategoryPill";
+import CommentDrawer from "../components/CommentDrawer";
 
 const CATEGORIES = [
   "",
@@ -29,6 +30,7 @@ export default function Queue() {
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [templates, setTemplates] = useState<Awaited<ReturnType<typeof api.listTemplates>>>([]);
+  const [drawerId, setDrawerId] = useState<string | null>(null);
   const itemRefs = useRef<Array<HTMLTableRowElement | null>>([]);
 
   const load = async () => {
@@ -102,6 +104,8 @@ export default function Queue() {
       } else if (e.key === " " && cur) {
         e.preventDefault();
         toggle(cur.id);
+      } else if (e.key === "Enter" && cur) {
+        setDrawerId(cur.id);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -361,6 +365,13 @@ export default function Queue() {
                       </button>
                       <button
                         className="btn-muted"
+                        title="Detail komentáře (Enter)"
+                        onClick={() => setDrawerId(c.id)}
+                      >
+                        i
+                      </button>
+                      <button
+                        className="btn-muted"
                         disabled={reclassifying === c.id}
                         title="Překlasifikovat (smart model)"
                         onClick={async () => {
@@ -384,6 +395,8 @@ export default function Queue() {
         </table>
       </div>
 
+      {drawerId && <CommentDrawer id={drawerId} onClose={() => setDrawerId(null)} />}
+
       {showHelp && (
         <div
           className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
@@ -400,6 +413,7 @@ export default function Queue() {
                   ["j / k", "další / předchozí komentář"],
                   ["g / G", "začátek / konec seznamu"],
                   ["Mezerník", "označit / odznačit"],
+                  ["Enter", "detail aktuálního komentáře"],
                   ["h", "skrýt aktuální"],
                   ["x", "smazat aktuální (s potvrzením)"],
                   ["p", "ponechat aktuální"],

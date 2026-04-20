@@ -218,6 +218,19 @@ commentsRouter.post("/:id/action", async (req, res) => {
   return res.json(result);
 });
 
+commentsRouter.get("/:id", async (req, res) => {
+  const c = await prisma.comment.findUnique({
+    where: { id: req.params.id },
+    include: {
+      post: { include: { account: true } },
+      classifications: { orderBy: { classifiedAt: "desc" } },
+      actions: { orderBy: { performedAt: "desc" } },
+    },
+  });
+  if (!c) return res.status(404).json({ error: "not_found" });
+  return res.json(c);
+});
+
 commentsRouter.post("/:id/suggest-reply", async (req, res) => {
   const { id } = req.params;
   const comment = await prisma.comment.findUniqueOrThrow({

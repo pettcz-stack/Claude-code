@@ -95,6 +95,42 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ action, replyMessage }),
     }),
+  getComment: (id: string) =>
+    request<{
+      id: string;
+      text: string;
+      authorName: string | null;
+      authorId: string | null;
+      status: string;
+      fetchedAt: string;
+      createdAtPlatform: string | null;
+      platformCommentId: string;
+      post: {
+        id: string;
+        platformPostId: string;
+        permalink: string | null;
+        contentPreview: string | null;
+        account: { id: string; platform: string; pageName: string };
+      };
+      classifications: Array<{
+        id: string;
+        category: string;
+        confidence: number;
+        reasoning: string;
+        recommendedAction: string;
+        detectedLanguage: string | null;
+        modelUsed: string;
+        classifiedAt: string;
+      }>;
+      actions: Array<{
+        id: string;
+        actionType: string;
+        performedBy: string;
+        performedAt: string;
+        success: boolean;
+        errorMessage: string | null;
+      }>;
+    }>(`/api/comments/${id}`),
   suggestReply: (id: string) =>
     request<{ suggestion: string }>(`/api/comments/${id}/suggest-reply`, { method: "POST" }),
   listTemplates: (category?: string) =>
