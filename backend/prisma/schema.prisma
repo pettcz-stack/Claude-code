@@ -1,0 +1,134 @@
+// Prisma schema for ALBIXON Meta comment moderator
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                     String    @id @default(cuid())
+  platform               String    // "FB" | "IG"
+  pageId                 String    @unique
+  pageName               String
+  accessTokenEncrypted   String
+  tokenExpiresAt         DateTime?
+  active                 Boolean   @default(true)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  posts                  Post[]
+
+  @@index([platform])
+  @@index([active])
+}
+
+model Post {
+  id                String    @id @default(cuid())
+  accountId         String
+  platformPostId    String    @unique
+  postedAt          DateTime?
+  contentPreview    String?
+  permalink         String?
+  createdAt         DateTime  @default(now())
+
+  account           Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  comments          Comment[]
+
+  @@index([accountId])
+}
+
+model Comment {
+  id                 String    @id @default(cuid())
+  postId             String
+  platformCommentId  String    @unique
+  authorName         String?
+  authorId           String?
+  text               String
+  createdAtPlatform  DateTime?
+  parentCommentId    String?
+  status             String    @default("new") // new|classified|actioned|ignored
+  fetchedAt          DateTime  @default(now())
+
+  post               Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  classifications    Classification[]
+  actions            Action[]
+
+  @@index([status])
+  @@index([postId])
+  @@index([authorId])
+}
+
+model Classification {
+  id                 String    @id @default(cuid())
+  commentId          String
+  category           String    // spam|vulgarity|brand_attack|legitimate_criticism|neutral|positive
+  confidence         Float
+  reasoning          String
+  recommendedAction  String    // hide|delete|keep|review
+  detectedLanguage   String?
+  modelUsed          String
+  classifiedAt       DateTime  @default(now())
+
+  comment            Comment   @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([commentId])
+  @@index([category])
+}
+
+model Action {
+  id                 String    @id @default(cuid())
+  commentId          String
+  actionType         String    // hide|delete|keep|reply|unhide
+  performedBy        String    // "auto" or user email
+  performedAt        DateTime  @default(now())
+  apiResponse        String?   // JSON stringified
+  success            Boolean   @default(true)
+  errorMessage       String?
+
+  comment            Comment   @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([commentId])
+  @@index([performedAt])
+}
+
+model Rule {
+  id               String   @id @default(cuid())
+  name             String
+  category         String   // matches Classification.category
+  minConfidence    Float    @default(0.9)
+  action           String   // hide|delete
+  enabled          Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model ListEntry {
+  id        String   @id @default(cuid())
+  kind      String   // "whitelist_word"|"blacklist_word"|"whitelist_author"|"blacklist_author"
+  value     String
+  createdAt DateTime @default(now())
+
+  @@unique([kind, value])
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  event      String
+  metadata   String?  // JSON string
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+}

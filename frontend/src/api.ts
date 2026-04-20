@@ -1,0 +1,162 @@
+export interface Classification {
+  id: string;
+  category: "spam" | "vulgarity" | "brand_attack" | "legitimate_criticism" | "neutral" | "positive";
+  confidence: number;
+  reasoning: string;
+  recommendedAction: "hide" | "delete" | "keep" | "review";
+  detectedLanguage?: string | null;
+  modelUsed: string;
+  classifiedAt: string;
+}
+
+export interface ActionRecord {
+  id: string;
+  actionType: "hide" | "delete" | "keep" | "reply" | "unhide";
+  performedBy: string;
+  performedAt: string;
+  success: boolean;
+  errorMessage?: string | null;
+}
+
+export interface CommentItem {
+  id: string;
+  text: string;
+  authorName: string | null;
+  authorId: string | null;
+  status: "new" | "classified" | "actioned" | "ignored";
+  fetchedAt: string;
+  createdAtPlatform: string | null;
+  post: {
+    id: string;
+    platformPostId: string;
+    permalink: string | null;
+    contentPreview: string | null;
+    account: {
+      id: string;
+      platform: "FB" | "IG";
+      pageName: string;
+    };
+  };
+  classification: Classification | null;
+  actions: ActionRecord[];
+}
+
+export interface Account {
+  id: string;
+  platform: "FB" | "IG";
+  pageId: string;
+  pageName: string;
+  active: boolean;
+  tokenExpiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Rule {
+  id: string;
+  name: string;
+  category: string;
+  minConfidence: number;
+  action: "hide" | "delete";
+  enabled: boolean;
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    credentials: "include",
+    ...init,
+    headers: {
+      "content-type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API ${path} ${res.status}: ${text}`);
+  }
+  if (res.status === 204) return undefined as T;
+  return (await res.json()) as T;
+}
+
+export const api = {
+  listComments: (params: Record<string, string | undefined>) => {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) if (v) qs.set(k, v);
+    return request<{ items: CommentItem[]; total: number }>(`/api/comments?${qs.toString()}`);
+  },
+  summary: () =>
+    request<{
+      totalPending: number;
+      actioned24h: number;
+      byCategoryLast7d: Array<{ category: string; count: number }>;
+    }>("/api/comments/stats/summary"),
+  action: (id: string, action: string, replyMessage?: string) =>
+    request<{ success: boolean; error?: string }>(`/api/comments/${id}/action`, {
+      method: "POST",
+      body: JSON.stringify({ action, replyMessage }),
+    }),
+  bulkAction: (ids: string[], action: string) =>
+    request<{ results: Array<{ id: string; success: boolean; error?: string }> }>(
+      `/api/comments/bulk-action`,
+      {
+        method: "POST",
+        body: JSON.stringify({ ids, action }),
+      }
+    ),
+  listAccounts: () => request<Account[]>("/api/accounts"),
+  patchAccount: (id: string, body: { active?: boolean }) =>
+    request<Account>(`/api/accounts/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteAccount: (id: string) => request<{ ok: true }>(`/api/accounts/${id}`, { method: "DELETE" }),
+  triggerFetch: (id: string) =>
+    request<{ accountId: string; postsSeen: number; newComments: number; errors: number }>(
+      `/api/accounts/${id}/fetch`,
+      { method: "POST" }
+    ),
+  listRules: () => request<Rule[]>("/api/rules"),
+  createRule: (body: Omit<Rule, "id">) =>
+    request<Rule>("/api/rules", { method: "POST", body: JSON.stringify(body) }),
+  updateRule: (id: string, body: Partial<Omit<Rule, "id">>) =>
+    request<Rule>(`/api/rules/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteRule: (id: string) => request<{ ok: true }>(`/api/rules/${id}`, { method: "DELETE" }),
+  getPause: () => request<{ paused: boolean }>("/api/rules/settings/pause"),
+  setPause: (paused: boolean) =>
+    request<{ paused: boolean }>("/api/rules/settings/pause", {
+      method: "POST",
+      body: JSON.stringify({ paused }),
+    }),
+  listLists: () =>
+    request<Array<{ id: string; kind: string; value: string; createdAt: string }>>("/api/rules/lists"),
+  addListEntry: (kind: string, value: string) =>
+    request<{ id: string }>("/api/rules/lists", {
+      method: "POST",
+      body: JSON.stringify({ kind, value }),
+    }),
+  deleteListEntry: (id: string) =>
+    request<{ ok: true }>(`/api/rules/lists/${id}`, { method: "DELETE" }),
+  listActions: (params: Record<string, string | undefined>) => {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) if (v) qs.set(k, v);
+    return request<{
+      items: Array<
+        ActionRecord & {
+          comment: {
+            text: string;
+            authorName: string | null;
+            post: { account: { platform: string; pageName: string } };
+          };
+        }
+      >;
+    }>(`/api/audit/actions?${qs.toString()}`);
+  },
+  statsOverview: (days = 7) =>
+    request<{
+      windowDays: number;
+      totalComments: number;
+      totalActions: number;
+      byCategory: Array<{ category: string; count: number }>;
+      byAction: Array<{ actionType: string; count: number }>;
+      topNegativeAuthors: Array<{ authorName: string; count: number }>;
+      perDay: Array<{ day: string; count: number }>;
+      avgResponseSeconds: number;
+    }>(`/api/stats/overview?days=${days}`),
+};
