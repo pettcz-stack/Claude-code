@@ -89,16 +89,19 @@ export default function Stats() {
       <div className="bg-white rounded shadow-sm p-4">
         <h3 className="font-medium mb-3">Komentáře po dnech</h3>
         <div className="flex items-end gap-1 h-32">
-          {stats.perDay.map((d) => (
-            <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
-              <div
-                className="w-full bg-brand-500 rounded-t"
-                style={{ height: `${(d.count / maxPerDay) * 100}%` }}
-                title={`${d.day}: ${d.count}`}
-              />
-              <div className="text-[10px] text-slate-500">{d.day.slice(5)}</div>
-            </div>
-          ))}
+          {stats.perDay.map((d) => {
+            const day = d.day ?? "—";
+            return (
+              <div key={day} className="flex-1 flex flex-col items-center gap-1">
+                <div
+                  className="w-full bg-brand-500 rounded-t"
+                  style={{ height: `${(d.count / maxPerDay) * 100}%` }}
+                  title={`${day}: ${d.count}`}
+                />
+                <div className="text-[10px] text-slate-500">{day.length > 5 ? day.slice(5) : day}</div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

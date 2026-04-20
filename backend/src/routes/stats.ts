@@ -7,7 +7,17 @@ statsRouter.get("/overview", async (req, res) => {
   const days = Math.min(90, Number((req.query.days as string) ?? "7") || 7);
   const since = new Date(Date.now() - days * 24 * 3600 * 1000);
 
-  const [totalComments, byCategory, totalActions, byAction, topAuthors, responseTimes] = await Promise.all([
+  // Prisma + SQLite stores DateTime as integer (unix epoch ms). Raw SQL
+  // date functions are tricky across SQLite/Postgres, so we aggregate in JS.
+  const [
+    totalComments,
+    byCategory,
+    totalActions,
+    byAction,
+    negativeComments,
+    actionedComments,
+    commentsForDaily,
+  ] = await Promise.all([
     prisma.comment.count({ where: { fetchedAt: { gte: since } } }),
     prisma.classification.groupBy({
       by: ["category"],
@@ -20,46 +30,50 @@ statsRouter.get("/overview", async (req, res) => {
       _count: true,
       where: { performedAt: { gte: since } },
     }),
-    prisma.$queryRawUnsafe<Array<{ authorName: string; count: bigint }>>(
-      `
-      SELECT c.authorName as authorName, COUNT(*) as count
-      FROM "Comment" c
-      JOIN "Classification" cl ON cl.commentId = c.id
-      WHERE cl.category IN ('vulgarity', 'brand_attack', 'spam')
-        AND c.fetchedAt >= ?
-        AND c.authorName IS NOT NULL
-      GROUP BY c.authorName
-      ORDER BY count DESC
-      LIMIT 10
-      `,
-      since
-    ),
-    prisma.$queryRawUnsafe<Array<{ seconds: number }>>(
-      `
-      SELECT (julianday(a.performedAt) - julianday(c.fetchedAt)) * 86400 AS seconds
-      FROM "Action" a
-      JOIN "Comment" c ON c.id = a.commentId
-      WHERE a.performedAt >= ?
-      `,
-      since
-    ),
+    prisma.comment.findMany({
+      where: {
+        fetchedAt: { gte: since },
+        authorName: { not: null },
+        classifications: { some: { category: { in: ["vulgarity", "brand_attack", "spam"] } } },
+      },
+      select: { authorName: true },
+    }),
+    prisma.action.findMany({
+      where: { performedAt: { gte: since } },
+      select: {
+        performedAt: true,
+        comment: { select: { fetchedAt: true } },
+      },
+    }),
+    prisma.comment.findMany({
+      where: { fetchedAt: { gte: since } },
+      select: { fetchedAt: true },
+    }),
   ]);
 
-  const avgResponseSec =
-    responseTimes.length > 0
-      ? responseTimes.reduce((s, r) => s + (r.seconds ?? 0), 0) / responseTimes.length
-      : 0;
+  const authorCounts = new Map<string, number>();
+  for (const c of negativeComments) {
+    if (!c.authorName) continue;
+    authorCounts.set(c.authorName, (authorCounts.get(c.authorName) ?? 0) + 1);
+  }
+  const topNegativeAuthors = Array.from(authorCounts.entries())
+    .map(([authorName, count]) => ({ authorName, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
 
-  const perDay = await prisma.$queryRawUnsafe<Array<{ day: string; count: bigint }>>(
-    `
-    SELECT substr(datetime(fetchedAt), 1, 10) AS day, COUNT(*) AS count
-    FROM "Comment"
-    WHERE fetchedAt >= ?
-    GROUP BY day
-    ORDER BY day ASC
-    `,
-    since
+  const deltas = actionedComments.map((a) =>
+    Math.max(0, (a.performedAt.getTime() - a.comment.fetchedAt.getTime()) / 1000)
   );
+  const avgResponseSec = deltas.length > 0 ? deltas.reduce((s, v) => s + v, 0) / deltas.length : 0;
+
+  const perDayMap = new Map<string, number>();
+  for (const c of commentsForDaily) {
+    const day = c.fetchedAt.toISOString().slice(0, 10);
+    perDayMap.set(day, (perDayMap.get(day) ?? 0) + 1);
+  }
+  const perDay = Array.from(perDayMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([day, count]) => ({ day, count }));
 
   res.json({
     windowDays: days,
@@ -67,11 +81,8 @@ statsRouter.get("/overview", async (req, res) => {
     totalActions,
     byCategory: byCategory.map((b) => ({ category: b.category, count: b._count })),
     byAction: byAction.map((b) => ({ actionType: b.actionType, count: b._count })),
-    topNegativeAuthors: topAuthors.map((t) => ({
-      authorName: t.authorName,
-      count: Number(t.count),
-    })),
-    perDay: perDay.map((p) => ({ day: p.day, count: Number(p.count) })),
+    topNegativeAuthors,
+    perDay,
     avgResponseSeconds: Math.round(avgResponseSec),
   });
 });
