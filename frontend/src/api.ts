@@ -95,6 +95,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ action, replyMessage }),
     }),
+  suggestReply: (id: string) =>
+    request<{ suggestion: string }>(`/api/comments/${id}/suggest-reply`, { method: "POST" }),
+  reclassify: (id: string, smart = false) =>
+    request<{ id: string; category: string; confidence: number }>(`/api/comments/${id}/reclassify`, {
+      method: "POST",
+      body: JSON.stringify({ smart }),
+    }),
   bulkAction: (ids: string[], action: string) =>
     request<{ results: Array<{ id: string; success: boolean; error?: string }> }>(
       `/api/comments/bulk-action`,

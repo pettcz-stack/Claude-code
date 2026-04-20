@@ -121,6 +121,22 @@ describe("auto-moderator", () => {
     expect(actionCalls).toEqual([]);
   });
 
+  it("auto-hides comments from blacklisted authors regardless of category", async () => {
+    // @ts-expect-error test-only
+    db.prisma.__listEntries.push({ kind: "blacklist_author", value: "Known Troll" });
+    seedComment("cbl", "neutral", 0.9, { name: "Known Troll" });
+    await runAutoModeration("cbl");
+    expect(actionCalls).toEqual([{ id: "cbl", action: "hide", by: "auto:blacklist" }]);
+  });
+
+  it("does NOT auto-hide blacklisted author's legitimate_criticism", async () => {
+    // @ts-expect-error test-only
+    db.prisma.__listEntries.push({ kind: "blacklist_author", value: "Vocal Customer" });
+    seedComment("cbl2", "legitimate_criticism", 0.95, { name: "Vocal Customer" });
+    await runAutoModeration("cbl2");
+    expect(actionCalls).toEqual([]);
+  });
+
   it("uses custom rules in addition to defaults", async () => {
     // @ts-expect-error test-only
     db.prisma.__rules.push({

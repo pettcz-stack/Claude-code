@@ -2,6 +2,9 @@ import { Router } from "express";
 import { prisma } from "../db";
 import { performAction, type ActionType } from "../moderation/actions";
 import { currentUser } from "../middleware/auth";
+import { suggestReply } from "../classifier/reply-suggester";
+import { classify, isLowConfidence } from "../classifier/claude";
+import { audit } from "../services/audit";
 
 export const commentsRouter: Router = Router();
 
@@ -118,6 +121,87 @@ commentsRouter.post("/:id/action", async (req, res) => {
   const user = currentUser(req);
   const result = await performAction(id, action, { performedBy: user, replyMessage });
   return res.json(result);
+});
+
+commentsRouter.post("/:id/suggest-reply", async (req, res) => {
+  const { id } = req.params;
+  const comment = await prisma.comment.findUniqueOrThrow({
+    where: { id },
+    include: {
+      post: { include: { account: true } },
+      classifications: { orderBy: { classifiedAt: "desc" }, take: 1 },
+    },
+  });
+  try {
+    const suggestion = await suggestReply({
+      commentText: comment.text,
+      category: comment.classifications[0]?.category ?? null,
+      postPreview: comment.post.contentPreview,
+      authorName: comment.authorName,
+      platform: comment.post.account.platform,
+    });
+    res.json({ suggestion });
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
+commentsRouter.post("/:id/reclassify", async (req, res) => {
+  const { id } = req.params;
+  const { smart } = req.body as { smart?: boolean };
+  const comment = await prisma.comment.findUniqueOrThrow({
+    where: { id },
+    include: { post: { include: { account: true } } },
+  });
+
+  try {
+    let result = await classify(
+      {
+        commentText: comment.text,
+        postPreview: comment.post.contentPreview,
+        authorName: comment.authorName,
+        platform: comment.post.account.platform,
+      },
+      { smart: smart ?? false }
+    );
+    if (!smart && isLowConfidence(result)) {
+      result = await classify(
+        {
+          commentText: comment.text,
+          postPreview: comment.post.contentPreview,
+          authorName: comment.authorName,
+          platform: comment.post.account.platform,
+        },
+        { smart: true }
+      );
+    }
+
+    const classification = await prisma.classification.create({
+      data: {
+        commentId: comment.id,
+        category: result.category,
+        confidence: result.confidence,
+        reasoning: result.reasoning,
+        recommendedAction: result.recommended_action,
+        detectedLanguage: result.detected_language,
+        modelUsed: result.model,
+      },
+    });
+    await prisma.comment.update({
+      where: { id: comment.id },
+      data: { status: "classified" },
+    });
+    await audit({
+      entityType: "Comment",
+      entityId: comment.id,
+      event: "reclassified",
+      metadata: { by: currentUser(req), category: result.category, confidence: result.confidence },
+    });
+
+    res.json(classification);
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
 });
 
 commentsRouter.post("/bulk-action", async (req, res) => {

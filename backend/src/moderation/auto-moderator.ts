@@ -43,6 +43,13 @@ async function hasWhitelistedAuthor(authorId: string | null, authorName: string 
   return entries.some((e) => e.value === authorId || e.value === authorName);
 }
 
+async function hasBlacklistedAuthor(authorId: string | null, authorName: string | null): Promise<boolean> {
+  const entries = await prisma.listEntry.findMany({
+    where: { kind: "blacklist_author" },
+  });
+  return entries.some((e) => e.value === authorId || e.value === authorName);
+}
+
 export async function runAutoModeration(commentId: string): Promise<void> {
   if (await isAutoModerationPaused()) {
     logger.info("auto-moderation paused, skipping", { commentId });
@@ -61,6 +68,18 @@ export async function runAutoModeration(commentId: string): Promise<void> {
 
   if (await hasWhitelistedAuthor(comment.authorId, comment.authorName)) {
     logger.info("author whitelisted, skipping auto-moderation", { commentId });
+    return;
+  }
+
+  // Blacklisted authors: auto-hide regardless of category (except
+  // legitimate_criticism, which still requires a human — we don't want
+  // to silence legitimate customer complaints even from "known trolls").
+  if (
+    c.category !== "legitimate_criticism" &&
+    (await hasBlacklistedAuthor(comment.authorId, comment.authorName))
+  ) {
+    logger.info("author blacklisted, auto-hiding", { commentId });
+    await performAction(commentId, "hide", { performedBy: "auto:blacklist" });
     return;
   }
 

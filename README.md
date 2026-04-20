@@ -92,6 +92,16 @@ přístup, a zároveň se připojí i odpovídající Instagram Business účet.
 Během vývoje můžeš místo webhooků využívat polling — backend sám sleduje
 `POLL_INTERVAL_MINUTES` (výchozí 5 min).
 
+Po propojení stránek spustíš subscription na webhooky:
+
+```bash
+npm --workspace backend run webhooks:subscribe
+# nebo suchý běh bez volání API:
+npm --workspace backend run webhooks:subscribe -- --dry-run
+```
+
+Script přihlásí každou aktivní FB stránku ke `feed,comments,mention` fieldům.
+
 ---
 
 ## Architektura
@@ -142,6 +152,8 @@ Meta Graph API  ──┐
 | GET/POST | `/webhooks/meta` | Webhook endpoint (GET = verify, POST = událost) |
 | GET   | `/api/comments` | Fronta komentářů (filtry: status, platform, category, accountId, from, to) |
 | POST  | `/api/comments/:id/action` | Provést akci (hide / delete / keep / reply / unhide) |
+| POST  | `/api/comments/:id/suggest-reply` | Claude vygeneruje návrh odpovědi (sonnet-4-6) |
+| POST  | `/api/comments/:id/reclassify` | Znovu klasifikovat (volitelně `{ "smart": true }`) |
 | POST  | `/api/comments/bulk-action` | Hromadná akce |
 | GET   | `/api/comments/stats/summary` | Počet čekajících a zpracovaných |
 | GET   | `/api/accounts` | Seznam připojených účtů |
@@ -226,7 +238,8 @@ Doporučené:
 - **Fáze 2** ✅ — webhooky real-time, rozšířené auto-moderace, bulk akce,
   dark post / ad comments, reply UI, retention job, token monitor
 - **Fáze 3** ✅ — statistiky, notifikace (Slack/email) při `brand_attack`,
-  admin rozhraní pro manuální polling/retenci
+  admin rozhraní pro manuální polling/retenci, AI návrhy odpovědí,
+  reclassify s `sonnet-4-6`, blacklist autorů, webhook subscribe helper
 - **Fáze 4** (budoucí) — integrace s brand monitoring agentem, nodemailer
   SMTP (místo stub), PostgreSQL migrace, integration testy proti Meta sandboxu
 

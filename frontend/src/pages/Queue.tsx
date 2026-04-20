@@ -22,6 +22,8 @@ export default function Queue() {
   const [replyTarget, setReplyTarget] = useState<CommentItem | null>(null);
   const [replyText, setReplyText] = useState("");
   const [replySending, setReplySending] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [reclassifying, setReclassifying] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -246,6 +248,22 @@ export default function Queue() {
                       >
                         Odpovědět
                       </button>
+                      <button
+                        className="btn-muted"
+                        disabled={reclassifying === c.id}
+                        title="Překlasifikovat (smart model)"
+                        onClick={async () => {
+                          setReclassifying(c.id);
+                          try {
+                            await api.reclassify(c.id, true);
+                            await load();
+                          } finally {
+                            setReclassifying(null);
+                          }
+                        }}
+                      >
+                        {reclassifying === c.id ? "…" : "↻"}
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -277,6 +295,24 @@ export default function Queue() {
               onChange={(e) => setReplyText(e.target.value)}
             />
             <div className="flex justify-end gap-2">
+              <button
+                className="btn-muted"
+                disabled={suggesting}
+                onClick={async () => {
+                  if (!replyTarget) return;
+                  setSuggesting(true);
+                  try {
+                    const r = await api.suggestReply(replyTarget.id);
+                    setReplyText(r.suggestion);
+                  } catch (e) {
+                    alert(`Návrh selhal: ${e}`);
+                  } finally {
+                    setSuggesting(false);
+                  }
+                }}
+              >
+                {suggesting ? "Generuji…" : "Navrhnout odpověď (AI)"}
+              </button>
               <button className="btn-muted" onClick={() => setReplyTarget(null)}>
                 Zrušit
               </button>
