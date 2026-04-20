@@ -19,7 +19,26 @@ import { startScheduler } from "./jobs/scheduler";
 
 function createApp(): express.Express {
   const app = express();
-  app.use(cors({ origin: true, credentials: true }));
+
+  // Lock CORS to explicit allowlist. Reflecting any Origin with credentials
+  // enabled would let any site read API responses when a user has dashboard
+  // basic-auth cached.
+  const allowedOrigins = [
+    `http://localhost:${config.port}`,
+    "http://localhost:5173", // vite dev server
+    ...(process.env.CORS_EXTRA_ORIGIN ? process.env.CORS_EXTRA_ORIGIN.split(",") : []),
+  ];
+  app.use(
+    cors({
+      origin: (origin, cb) => {
+        // Same-origin requests (no Origin header) are always allowed.
+        if (!origin) return cb(null, true);
+        if (allowedOrigins.includes(origin)) return cb(null, true);
+        return cb(new Error("Origin not allowed by CORS"));
+      },
+      credentials: true,
+    })
+  );
 
   // Capture raw body for webhook signature verification.
   app.use(
