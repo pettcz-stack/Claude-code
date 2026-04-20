@@ -157,7 +157,8 @@ Meta Graph API  ──┐
 
 | Metoda | Cesta | Popis |
 |-------|-------|-------|
-| GET   | `/health` | Health check |
+| GET   | `/health` | Liveness probe (always 200) |
+| GET   | `/health/ready` | Readiness probe (DB, config, Anthropic, accounts) |
 | GET   | `/auth/start` | Spuštění Meta OAuth |
 | GET   | `/auth/callback` | Meta OAuth callback |
 | GET/POST | `/webhooks/meta` | Webhook endpoint (GET = verify, POST = událost) |
@@ -188,6 +189,7 @@ Meta Graph API  ──┐
 | POST  | `/api/admin/tokens/check` | Ruční kontrola expirace tokenů |
 | POST  | `/api/admin/retention/run` | Ruční anonymizace starších komentářů |
 | POST  | `/api/admin/test-notification` | Test Slack/email notifikace |
+| POST  | `/api/admin/reclassify/bulk` | Hromadná reklasifikace (`{hours, limit}`) |
 
 Všechny `/api/*` endpointy vyžadují HTTP Basic auth (výchozí `admin` /
 `change-me`, změň v `.env`).
@@ -256,6 +258,26 @@ Doporučené:
 - Prometheus scrape `http://localhost:3000/metrics` (napojit na Grafana)
 
 ---
+
+## Známé limity / TODO před produkcí
+
+- **SMTP notifikace** jsou stub — v `services/notify.ts` jen logují.
+  Pro produkci nahradit `nodemailer` transportem s firemním SMTP relay.
+- **Stats raw SQL** je SQLite-specifické (`substr`, `julianday`). Před
+  přepnutím na PostgreSQL je třeba přepsat na `date_trunc` /
+  `EXTRACT(EPOCH …)`.
+- **Webhook deduplication** není implementovaná — pokud Meta pošle stejný
+  event víckrát (retry), fetcher stáhne stejné komentáře a Prisma `upsert`
+  je idempotentně deduplikuje, ale zbytečně spotřebujeme Graph kvóty.
+- **Integration testy proti reálnému Meta sandboxu** zatím nejsou —
+  máme pouze unit testy s mockovaným `fetch`.
+- **Session management**: používá se HTTP Basic auth. Pro víc uživatelů
+  s individuálním audit logem je třeba přejít na session+OIDC.
+- **App Review u Meta**: scopes `pages_manage_engagement` a
+  `instagram_manage_comments` vyžadují schválení Meta před produkčním
+  nasazením. Pro dev testing stačí app v development módu + role tester.
+- **Rate-limit bucket** je in-memory — restart aplikace ho vynuluje.
+  Pro multi-instance deployment použít Redis token bucket.
 
 ## Roadmapa
 

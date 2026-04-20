@@ -39,6 +39,43 @@ function createApp(): express.Express {
     res.json({ ok: true, version: "0.1.0" });
   });
 
+  // Deep readiness check — used by orchestrators and the Admin status page.
+  app.get("/health/ready", async (_req, res) => {
+    const checks: Record<string, { ok: boolean; detail?: string }> = {};
+    try {
+      const { prisma } = await import("./db");
+      await prisma.$queryRawUnsafe("SELECT 1");
+      checks.db = { ok: true };
+    } catch (err) {
+      checks.db = { ok: false, detail: String(err) };
+    }
+    checks.anthropicKey = { ok: Boolean(config.anthropic.apiKey) };
+    checks.metaAppConfig = {
+      ok: Boolean(config.meta.appId && config.meta.appSecret),
+      detail:
+        config.meta.appId && config.meta.appSecret
+          ? undefined
+          : "META_APP_ID or META_APP_SECRET missing; OAuth will not work",
+    };
+    checks.tokenEncryption = {
+      ok: /^[0-9a-fA-F]{64}$/.test(config.security.tokenEncryptionKey),
+    };
+
+    try {
+      const { prisma } = await import("./db");
+      const active = await prisma.account.count({ where: { active: true } });
+      checks.accounts = {
+        ok: active > 0,
+        detail: active === 0 ? "No active accounts — link one via /auth/start" : `${active} active`,
+      };
+    } catch {
+      checks.accounts = { ok: false, detail: "unable to query accounts" };
+    }
+
+    const ok = Object.values(checks).every((c) => c.ok);
+    res.status(ok ? 200 : 503).json({ ok, checks });
+  });
+
   // Prometheus scrape endpoint — unprotected but restrict via network policy.
   app.use("/metrics", metricsRouter);
 

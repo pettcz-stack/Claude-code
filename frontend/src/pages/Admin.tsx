@@ -6,9 +6,18 @@ export default function Admin() {
     null
   );
   const [retention, setRetention] = useState(730);
+  const [reclassifyHours, setReclassifyHours] = useState(24);
   const [log, setLog] = useState<string[]>([]);
+  const [ready, setReady] = useState<Awaited<ReturnType<typeof api.adminReady>> | null>(null);
 
-  const load = async () => setStatus(await api.adminStatus());
+  const load = async () => {
+    setStatus(await api.adminStatus());
+    try {
+      setReady(await api.adminReady());
+    } catch {
+      setReady(null);
+    }
+  };
   useEffect(() => {
     load();
   }, []);
@@ -18,6 +27,27 @@ export default function Admin() {
 
   return (
     <div className="space-y-6">
+      {ready && (
+        <section className="bg-white rounded shadow-sm p-4">
+          <h2 className="font-semibold mb-2">Kontrola připravenosti</h2>
+          <ul className="text-sm space-y-1">
+            {Object.entries(ready.checks).map(([k, v]) => (
+              <li key={k} className="flex gap-2 items-center">
+                <span
+                  className={`inline-block w-2 h-2 rounded-full ${
+                    v.ok ? "bg-emerald-500" : "bg-red-500"
+                  }`}
+                />
+                <span className="font-medium w-40">{k}</span>
+                <span className={v.ok ? "text-slate-600" : "text-red-700"}>
+                  {v.ok ? "OK" : "PROBLÉM"} {v.detail ? `— ${v.detail}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded shadow-sm p-4">
           <div className="text-xs text-slate-500">Aktivní účty</div>
@@ -65,6 +95,40 @@ export default function Admin() {
           >
             Test notifikace
           </button>
+        </div>
+
+        <div className="border-t pt-3">
+          <h3 className="font-medium mb-2">Hromadná reklasifikace</h3>
+          <div className="flex items-end gap-2">
+            <div>
+              <label className="block text-xs text-slate-500">Poslední … hodin</label>
+              <input
+                type="number"
+                className="border border-slate-300 rounded px-2 py-1 text-sm w-32"
+                value={reclassifyHours}
+                onChange={(e) => setReclassifyHours(Number(e.target.value))}
+              />
+            </div>
+            <button
+              className="btn-primary"
+              onClick={async () => {
+                if (!confirm(`Překlasifikovat všechny komentáře za posledních ${reclassifyHours} h?`)) return;
+                push(`Spouštím reklasifikaci (posledních ${reclassifyHours} h)…`);
+                try {
+                  const r = await api.adminBulkReclassify(reclassifyHours);
+                  push(`Reklasifikace: ${r.done}/${r.attempted} úspěšně (${r.failed} selhalo)`);
+                } catch (e) {
+                  push(`Reklasifikace selhala: ${e}`);
+                }
+              }}
+            >
+              Spustit reklasifikaci
+            </button>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">
+            Vytvoří novou klasifikaci ke každému komentáři (historie zůstává). Užitečné po úpravě
+            systémového promptu.
+          </p>
         </div>
 
         <div className="border-t pt-3">

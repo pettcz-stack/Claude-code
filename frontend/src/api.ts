@@ -230,6 +230,15 @@ export const api = {
       classified: number;
     }>("/api/admin/poll/run", { method: "POST" }),
   adminTokenCheck: () => request<{ ok: true }>("/api/admin/tokens/check", { method: "POST" }),
+  adminBulkReclassify: (hours?: number, limit = 500) =>
+    request<{ attempted: number; done: number; failed: number }>("/api/admin/reclassify/bulk", {
+      method: "POST",
+      body: JSON.stringify({ hours, limit }),
+    }),
+  adminReady: () =>
+    request<{ ok: boolean; checks: Record<string, { ok: boolean; detail?: string }> }>(
+      "/health/ready"
+    ),
   adminRetention: (days: number) =>
     request<{ anonymized: number; retentionDays: number }>("/api/admin/retention/run", {
       method: "POST",

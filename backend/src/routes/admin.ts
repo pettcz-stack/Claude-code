@@ -50,3 +50,51 @@ adminRouter.post("/poll/run", async (_req, res) => {
   const classified = await classifyNewComments(100);
   res.json({ fetched, classified });
 });
+
+adminRouter.post("/reclassify/bulk", async (req, res) => {
+  const { hours, limit = 500 } = req.body as { hours?: number; limit?: number };
+  const since = hours ? new Date(Date.now() - hours * 3600 * 1000) : null;
+
+  const comments = await prisma.comment.findMany({
+    where: {
+      status: { in: ["classified", "actioned"] },
+      ...(since ? { fetchedAt: { gte: since } } : {}),
+    },
+    include: { post: { include: { account: true } } },
+    take: Math.min(2000, Math.max(1, Number(limit) || 500)),
+    orderBy: { fetchedAt: "desc" },
+  });
+
+  const { classify } = await import("../classifier/claude");
+
+  let done = 0;
+  let failed = 0;
+  for (const c of comments) {
+    try {
+      const r = await classify(
+        {
+          commentText: c.text,
+          postPreview: c.post.contentPreview,
+          authorName: c.authorName,
+          platform: c.post.account.platform,
+        },
+        { smart: false }
+      );
+      await prisma.classification.create({
+        data: {
+          commentId: c.id,
+          category: r.category,
+          confidence: r.confidence,
+          reasoning: r.reasoning,
+          recommendedAction: r.recommended_action,
+          detectedLanguage: r.detected_language,
+          modelUsed: r.model,
+        },
+      });
+      done++;
+    } catch {
+      failed++;
+    }
+  }
+  res.json({ attempted: comments.length, done, failed });
+});
