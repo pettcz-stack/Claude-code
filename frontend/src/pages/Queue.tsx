@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type CommentItem } from "../api";
 import CategoryPill from "../components/CategoryPill";
 import CommentDrawer from "../components/CommentDrawer";
+import { useAuth } from "../auth";
 
 const CATEGORIES = [
   "",
@@ -14,6 +15,9 @@ const CATEGORIES = [
 ];
 
 export default function Queue() {
+  const { can } = useAuth();
+  const canDelete = can("admin");
+  const canWrite = can(["admin", "moderator"]);
   const [items, setItems] = useState<CommentItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,13 +102,13 @@ export default function Queue() {
         setCursor(0);
       } else if (e.key === "G") {
         setCursor(items.length - 1);
-      } else if (e.key === "h" && cur) {
+      } else if (e.key === "h" && cur && canWrite) {
         await doAction(cur.id, "hide");
-      } else if (e.key === "x" && cur) {
+      } else if (e.key === "x" && cur && canDelete) {
         if (confirm(`Smazat komentář od ${cur.authorName ?? "(anonym)"}?`)) await doAction(cur.id, "delete");
-      } else if (e.key === "p" && cur) {
+      } else if (e.key === "p" && cur && canWrite) {
         await doAction(cur.id, "keep");
-      } else if (e.key === "r" && cur && replyEnabled) {
+      } else if (e.key === "r" && cur && replyEnabled && canWrite) {
         setReplyTarget(cur);
         setReplyText("");
       } else if (e.key === "o" && cur?.post.permalink) {
@@ -119,7 +123,7 @@ export default function Queue() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, cursor, replyTarget, replyEnabled]);
+  }, [items, cursor, replyTarget, replyEnabled, canDelete, canWrite]);
 
   useEffect(() => {
     const row = itemRefs.current[cursor];
@@ -260,15 +264,17 @@ export default function Queue() {
 
       {error && <div className="bg-red-50 text-red-700 p-3 rounded">{error}</div>}
 
-      {selected.size > 0 && (
+      {selected.size > 0 && canWrite && (
         <div className="flex gap-2 items-center p-2 bg-brand-50 rounded">
           <span className="text-sm">Označeno: {selected.size}</span>
           <button className="btn-warn" onClick={() => doBulk("hide")}>
             Skrýt vše
           </button>
-          <button className="btn-danger" onClick={() => doBulk("delete")}>
-            Smazat vše
-          </button>
+          {canDelete && (
+            <button className="btn-danger" onClick={() => doBulk("delete")}>
+              Smazat vše
+            </button>
+          )}
           <button className="btn-muted" onClick={() => doBulk("keep")}>
             Ponechat vše
           </button>
@@ -353,15 +359,21 @@ export default function Queue() {
                   </td>
                   <td className="p-2 whitespace-nowrap text-right">
                     <div className="inline-flex gap-1">
-                      <button className="btn-warn" onClick={() => doAction(c.id, "hide")}>
-                        Skrýt
-                      </button>
-                      <button className="btn-danger" onClick={() => doAction(c.id, "delete")}>
-                        Smazat
-                      </button>
-                      <button className="btn-muted" onClick={() => doAction(c.id, "keep")}>
-                        Ponechat
-                      </button>
+                      {canWrite && (
+                        <button className="btn-warn" onClick={() => doAction(c.id, "hide")}>
+                          Skrýt
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button className="btn-danger" onClick={() => doAction(c.id, "delete")}>
+                          Smazat
+                        </button>
+                      )}
+                      {canWrite && (
+                        <button className="btn-muted" onClick={() => doAction(c.id, "keep")}>
+                          Ponechat
+                        </button>
+                      )}
                       {replyEnabled && (
                         <button
                           className="btn-primary"

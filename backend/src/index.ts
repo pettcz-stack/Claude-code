@@ -17,12 +17,14 @@ import { metricsRouter } from "./routes/metrics";
 import { templatesRouter } from "./routes/templates";
 import { usageRouter } from "./routes/usage";
 import { settingsRouter } from "./routes/settings";
+import { meRouter } from "./routes/me";
 import {
   dashboardAuth,
   authRateLimit,
   generalRateLimit,
   actionRateLimit,
   warnOnWeakPassword,
+  requireRole,
 } from "./middleware/auth";
 import { ipAllowlist, ipAllowlistActive } from "./middleware/ip-allowlist";
 import { startScheduler } from "./jobs/scheduler";
@@ -150,15 +152,38 @@ function createApp(): express.Express {
   // Extra tight limit on action-taking endpoints to cap blast radius of
   // a compromised or misbehaving session.
   app.use(["/api/comments/*/action", "/api/comments/bulk-action"], actionRateLimit);
-  app.use("/api/accounts", accountsRouter);
+
+  // Role-based access control. Order matters — always register role gates
+  // BEFORE the actual router mount.
+  //
+  //   - admin     → unrestricted
+  //   - moderator → read everything + hide/keep/reply + reclassify; cannot
+  //                 delete comments, manage accounts/rules/templates/
+  //                 settings, run retention/bulk-reclassify, see raw usage.
+  //   - viewer    → read-only everywhere.
+  //
+  // We gate by METHOD on the routers where admin separation is clean
+  // (accounts, rules, templates, settings, admin). For comments we gate
+  // per-action in the route handler (moderator may Hide/Keep/Reply, but
+  // not Delete).
+  app.use("/api/me", meRouter);
+  // Viewer is read-only — block any write on any API.
+  app.use("/api", (req, _res, next) => {
+    if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") return next();
+    return requireRole("admin", "moderator")(req, _res, next);
+  });
+  // Admin-only surface area.
+  app.use("/api/accounts", requireRole("admin"), accountsRouter);
+  app.use("/api/rules", requireRole("admin"), rulesRouter);
+  app.use("/api/templates", requireRole("admin"), templatesRouter);
+  app.use("/api/settings", requireRole("admin"), settingsRouter);
+  app.use("/api/admin", requireRole("admin"), adminRouter);
+
+  // Shared surface (read for viewer; write for admin+moderator).
   app.use("/api/comments", commentsRouter);
-  app.use("/api/rules", rulesRouter);
   app.use("/api/audit", auditRouter);
   app.use("/api/stats", statsRouter);
-  app.use("/api/admin", adminRouter);
-  app.use("/api/templates", templatesRouter);
   app.use("/api/usage", usageRouter);
-  app.use("/api/settings", settingsRouter);
 
   // Serve built frontend if present.
   const frontendDist = path.resolve(__dirname, "../../frontend/dist");

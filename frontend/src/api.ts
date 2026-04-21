@@ -244,6 +244,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ days }),
     }),
+  me: () =>
+    request<{ username: string; role: "admin" | "moderator" | "viewer" }>("/api/me"),
+  logout: () => request<{ ok: true }>("/api/me/logout", { method: "POST" }).catch(() => ({ ok: true as const })),
   getSettings: () =>
     request<{
       replyEnabled: boolean;

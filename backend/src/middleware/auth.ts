@@ -1,13 +1,10 @@
 import basicAuth from "express-basic-auth";
 import rateLimit from "express-rate-limit";
 import type { Request, Response, NextFunction } from "express";
-import { config } from "../config";
+import { config, type Role } from "../config";
 import { logger } from "../utils/logger";
 import { audit } from "../services/audit";
 
-// Strong rate limit for auth/webhook callback routes. 30 attempts / 15 min / IP.
-// Brute-force of DASHBOARD_PASSWORD: a machine trying 30 passwords/15min hits
-// the limit; an operator entering it wrong 3× does not.
 export const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 30,
@@ -17,20 +14,16 @@ export const authRateLimit = rateLimit({
   skipSuccessfulRequests: false,
 });
 
-// General rate limit for the whole /api surface (protects against a logged-in
-// operator accidentally looping, or a lifted credential turning into a scraper).
 export const generalRateLimit = rateLimit({
   windowMs: 60_000,
-  limit: 600, // 10 req/s sustained — plenty for a human
+  limit: 600,
   standardHeaders: "draft-7",
   legacyHeaders: false,
 });
 
-// Very tight limit on action-taking endpoints. Prevents a compromised session
-// from mass-moderating (e.g. deleting every comment before operator notices).
 export const actionRateLimit = rateLimit({
   windowMs: 60_000,
-  limit: 60, // 1 action/s average, bursts OK
+  limit: 60,
   standardHeaders: "draft-7",
   legacyHeaders: false,
 });
@@ -46,9 +39,6 @@ function passwordProblems(user: string, p: string): string[] {
   return problems;
 }
 
-// Inspect all configured dashboard users at startup. In production mode we
-// refuse to boot with ANY weak password — if just one user has a bad password,
-// the whole moderation surface is compromised.
 export function warnOnWeakPassword(): void {
   const users = Object.entries(config.dashboard.users);
   if (users.length === 0) {
@@ -59,15 +49,24 @@ export function warnOnWeakPassword(): void {
   }
 
   const weak: Array<{ user: string; problems: string[] }> = [];
-  for (const [user, pass] of users) {
-    const problems = passwordProblems(user, pass);
+  for (const [user, u] of users) {
+    const problems = passwordProblems(user, u.password);
     if (problems.length > 0) weak.push({ user, problems });
   }
 
   logger.info("dashboard users configured", {
     count: users.length,
-    usernames: users.map(([u]) => u),
+    breakdown: users.map(([u, cfg]) => `${u}(${cfg.role})`),
   });
+
+  // Every team should have at least one admin; otherwise nobody can manage
+  // accounts / rules / reply kill switch. Refuse to boot — it's a misconfig.
+  const hasAdmin = users.some(([_, u]) => u.role === "admin");
+  if (!hasAdmin) {
+    const msg = "DASHBOARD_USERS has no admin — at least one user must have role=admin";
+    if (process.env.NODE_ENV === "production") throw new Error(msg);
+    logger.warn(msg);
+  }
 
   if (weak.length === 0) return;
 
@@ -80,16 +79,19 @@ export function warnOnWeakPassword(): void {
   logger.warn("weak dashboard password(s) — NOT safe for public deploy", { weak });
 }
 
+// express-basic-auth wants a `user → password` map. We keep the password map
+// in sync with the full user config at module load.
+const passwordMap: Record<string, string> = Object.fromEntries(
+  Object.entries(config.dashboard.users).map(([u, cfg]) => [u, cfg.password])
+);
+
 const basic = basicAuth({
-  users: config.dashboard.users,
+  users: passwordMap,
   challenge: true,
   realm: "albixon-moderator",
   unauthorizedResponse: { error: "unauthorized" },
 });
 
-// Wrap basic-auth to add per-attempt audit logging. On failure we write an
-// audit entry with the offending username (never the password) and the IP —
-// makes it trivial to spot brute-force in the audit export.
 export const dashboardAuth = (req: Request, res: Response, next: NextFunction): void => {
   basic(req, res, (err?: unknown) => {
     const user = (req as unknown as { auth?: { user?: string } }).auth?.user;
@@ -105,7 +107,6 @@ export const dashboardAuth = (req: Request, res: Response, next: NextFunction): 
       return next(err);
     }
     if (res.statusCode === 401) {
-      // basic-auth has already written 401. Record the attempted username (if sent).
       const attempted = extractAttemptedUser(req);
       logger.warn("auth failed", { ip, path: req.path, attempted });
       audit({
@@ -117,14 +118,11 @@ export const dashboardAuth = (req: Request, res: Response, next: NextFunction): 
       return;
     }
     if (user) {
-      // Successful login — only audit if this is the first request in the
-      // session. We key by IP+user to avoid spamming; not a perfect "login"
-      // event (basic auth has no login), but good enough for audit trail.
       audit({
         entityType: "Auth",
         entityId: user,
         event: "auth.ok",
-        metadata: { ip, path: req.path, user },
+        metadata: { ip, path: req.path, user, role: getRole(user) },
       }).catch(() => undefined);
     }
     next();
@@ -146,4 +144,50 @@ function extractAttemptedUser(req: Request): string | null {
 export function currentUser(req: Request): string {
   const auth = (req as unknown as { auth?: { user?: string } }).auth;
   return auth?.user ?? "unknown";
+}
+
+export function getRole(user: string): Role {
+  const cfg = config.dashboard.users[user];
+  // Unknown users can never reach this — auth rejects them — but return the
+  // most-restrictive role as a belt-and-braces default.
+  return cfg?.role ?? "viewer";
+}
+
+export function currentRole(req: Request): Role {
+  return getRole(currentUser(req));
+}
+
+/**
+ * Reject requests whose user doesn't hold one of the allowed roles.
+ *
+ *   requireRole("admin")                → only admins
+ *   requireRole("admin", "moderator")   → admin or moderator (not viewer)
+ */
+export function requireRole(...allowed: Role[]) {
+  const set = new Set(allowed);
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const role = currentRole(req);
+    if (!set.has(role)) {
+      const user = currentUser(req);
+      logger.warn("role-gated route denied", {
+        user,
+        role,
+        required: allowed,
+        path: req.path,
+        method: req.method,
+      });
+      audit({
+        entityType: "Auth",
+        entityId: user,
+        event: "auth.role_denied",
+        metadata: { role, required: allowed, path: req.path, method: req.method },
+      }).catch(() => undefined);
+      res.status(403).json({
+        error: "forbidden",
+        message: `Role '${role}' není oprávněná provést tuto akci. Vyžadováno: ${allowed.join(" nebo ")}.`,
+      });
+      return;
+    }
+    next();
+  };
 }

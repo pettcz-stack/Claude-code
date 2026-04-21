@@ -6,6 +6,7 @@ import { suggestReply } from "../classifier/reply-suggester";
 import { classify, isLowConfidence } from "../classifier/claude";
 import { audit } from "../services/audit";
 import { isReplyEnabled } from "../services/feature-flags";
+import { currentRole } from "../middleware/auth";
 
 export const commentsRouter: Router = Router();
 
@@ -208,11 +209,21 @@ commentsRouter.get("/stats/summary", async (_req, res) => {
   });
 });
 
+// Moderators can do everything except permanent deletes. Viewer can't POST
+// at all (gated at the /api layer above).
+const MOD_DISALLOWED = new Set<ActionType>(["delete"]);
+
 commentsRouter.post("/:id/action", async (req, res) => {
   const { id } = req.params;
   const { action, replyMessage } = req.body as { action: ActionType; replyMessage?: string };
   if (!["hide", "delete", "keep", "reply", "unhide"].includes(action)) {
     return res.status(400).json({ error: "invalid action" });
+  }
+  if (currentRole(req) === "moderator" && MOD_DISALLOWED.has(action)) {
+    return res.status(403).json({
+      error: "forbidden",
+      message: "Role 'moderator' neumí mazat komentáře. Kontaktuj admina, nebo komentář skryj místo smazat.",
+    });
   }
   const user = currentUser(req);
   const result = await performAction(id, action, { performedBy: user, replyMessage });
@@ -323,6 +334,12 @@ commentsRouter.post("/bulk-action", async (req, res) => {
   const { ids, action } = req.body as { ids: string[]; action: ActionType };
   if (!Array.isArray(ids) || ids.length === 0) {
     return res.status(400).json({ error: "ids required" });
+  }
+  if (currentRole(req) === "moderator" && MOD_DISALLOWED.has(action)) {
+    return res.status(403).json({
+      error: "forbidden",
+      message: "Role 'moderator' neumí hromadně mazat.",
+    });
   }
   const user = currentUser(req);
   const results = [];

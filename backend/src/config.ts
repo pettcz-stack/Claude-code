@@ -29,30 +29,61 @@ function bool(name: string, def: boolean): boolean {
   return /^(1|true|yes|on)$/i.test(v);
 }
 
+export const ROLES = ["admin", "moderator", "viewer"] as const;
+export type Role = (typeof ROLES)[number];
+
+export interface DashboardUser {
+  password: string;
+  role: Role;
+}
+
+function normalizeRole(raw: string | undefined): Role {
+  const r = (raw ?? "").trim().toLowerCase();
+  if ((ROLES as readonly string[]).includes(r)) return r as Role;
+  return "admin"; // backward-compat: missing role = admin (legacy 2-segment format)
+}
+
 export function parseUsers(
   raw: string | undefined,
   fallback: { user: string; pass: string }
-): Record<string, string> {
-  // DASHBOARD_USERS="alice:passA,bob:passB" → { alice: "passA", bob: "passB" }.
-  // Falls back to the single DASHBOARD_USERNAME / DASHBOARD_PASSWORD pair when
-  // DASHBOARD_USERS is empty / unset. Skip malformed entries without throwing
-  // so that one bad entry doesn't lock everyone out.
+): Record<string, DashboardUser> {
+  // Format:  user:pass:role  (role ∈ admin|moderator|viewer, optional = admin)
+  // Multiple entries separated by commas. Backward-compatible with the older
+  // two-segment form. Skip malformed entries without throwing so one bad
+  // entry doesn't lock everyone out.
   if (!raw || raw.trim() === "") {
     if (!fallback.user || !fallback.pass) return {};
-    return { [fallback.user]: fallback.pass };
+    return { [fallback.user]: { password: fallback.pass, role: "admin" } };
   }
-  const out: Record<string, string> = {};
+  const out: Record<string, DashboardUser> = {};
   for (const entry of raw.split(",")) {
     const trimmed = entry.trim();
     if (!trimmed) continue;
-    const idx = trimmed.indexOf(":");
-    if (idx < 1) continue;
-    const user = trimmed.slice(0, idx).trim();
-    // Trim whitespace around password; unlikely-to-be-intentional and common
-    // when users type the .env manually. If somebody genuinely wants a
-    // password with surrounding whitespace they can set DASHBOARD_PASSWORD.
-    const pass = trimmed.slice(idx + 1).trim();
-    if (user && pass) out[user] = pass;
+    const firstColon = trimmed.indexOf(":");
+    if (firstColon < 1) continue;
+    const user = trimmed.slice(0, firstColon).trim();
+    const rest = trimmed.slice(firstColon + 1);
+
+    // Role is the segment after the LAST colon IF it matches a known role.
+    // This preserves colons in passwords: "alice:p@ss:with:colons:admin" →
+    // user=alice, pass="p@ss:with:colons", role=admin.
+    const lastColon = rest.lastIndexOf(":");
+    let pass: string;
+    let role: Role;
+    if (lastColon >= 0) {
+      const maybeRole = rest.slice(lastColon + 1).trim().toLowerCase();
+      if ((ROLES as readonly string[]).includes(maybeRole)) {
+        pass = rest.slice(0, lastColon).trim();
+        role = maybeRole as Role;
+      } else {
+        pass = rest.trim();
+        role = "admin";
+      }
+    } else {
+      pass = rest.trim();
+      role = "admin";
+    }
+    if (user && pass) out[user] = { password: pass, role: normalizeRole(role) };
   }
   return out;
 }
@@ -105,6 +136,14 @@ export const config = {
   notifications: {
     slackWebhookUrl: optional("SLACK_WEBHOOK_URL"),
     notifyEmail: optional("NOTIFY_EMAIL"),
+    smtp: {
+      host: optional("SMTP_HOST"),
+      port: num("SMTP_PORT", 587),
+      user: optional("SMTP_USER"),
+      pass: optional("SMTP_PASS"),
+      from: optional("SMTP_FROM", ""),
+      secure: bool("SMTP_SECURE", false), // true for 465, false for STARTTLS on 587
+    },
   },
 };
 
