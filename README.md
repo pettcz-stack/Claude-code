@@ -8,6 +8,40 @@ auto-moderace je zapnutá jen pro jednoznačný spam a vulgarismy.
 
 ---
 
+## 📚 Dokumentace — kde co najdeš
+
+**Pro vývojáře / zkušení technici:**
+
+| Dokument | Komu | Co obsahuje |
+|---|---|---|
+| [**README.md**](README.md) ← tady | Technici | Instalace, architektura, API reference, bezpečnost |
+| [**QUICKSTART.md**](QUICKSTART.md) | Technici | 5minutový start na macOS pro demo / lokální testing |
+| [**CHANGELOG.md**](CHANGELOG.md) | Všichni | Historie změn v commitech |
+
+**Pro admina (IT odpovědný za provoz):**
+
+| Dokument | Co obsahuje |
+|---|---|
+| [**deploy/DEPLOYMENT.md**](deploy/DEPLOYMENT.md) | 45minutový recept — VPS, systemd, Caddy + TLS, backup, onboarding operátorů |
+| [**deploy/Caddyfile**](deploy/Caddyfile) | TLS reverse proxy konfigurace s Let's Encrypt |
+| [**SECURITY.md**](SECURITY.md) | Security audit (OWASP Top 10), známé limity, produkční checklist |
+| [**TROUBLESHOOTING.md**](TROUBLESHOOTING.md) | Co dělat, když něco nefunguje |
+
+**Pro MKT tým (operátory, kteří moderují):**
+
+| Dokument | Co obsahuje |
+|---|---|
+| [**PRIRUCKA.md**](PRIRUCKA.md) | **Kompletní návod česky, 15 min čtení** — role, kategorie, akce, zkratky, odpovědi, alerty |
+| [**docs/SCREENSHOTS.md**](docs/SCREENSHOTS.md) | Galerie UI — jak vypadá každá obrazovka |
+
+**Doporučený postup podle role:**
+
+- **Vývojář / nasazuje poprvé:** `README` → `QUICKSTART` (zkus lokálně) → `deploy/DEPLOYMENT.md` (nasadíš) → `SECURITY.md` (před spuštěním týmu)
+- **Admin:** `deploy/DEPLOYMENT.md` → `TROUBLESHOOTING.md` → (operátorům pošli) `PRIRUCKA.md`
+- **MKT operátor:** otevři jen `PRIRUCKA.md`, stačí to
+
+---
+
 ## Rychlý start
 
 ### 1. Klonování a instalace
