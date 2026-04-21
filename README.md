@@ -332,4 +332,14 @@ Doporučené:
 
 ## Licence
 
-Interní projekt ALBIXON a.s. — není určen k veřejné distribuci.
+**Viktor čistič** — proprietární software.
+
+Copyright © 2026 **Sinsu Platform s.r.o.** Všechna práva vyhrazena.
+
+Software je licencován společnosti **ALBIXON a.s.** pro interní užívání na
+základě samostatné smlouvy s Poskytovatelem. Není určen k veřejné distribuci,
+sublicencování ani přeprodeji. Plné znění podmínek viz [`LICENSE`](LICENSE).
+
+Open-source komponenty třetích stran (Node.js, React, Prisma, Express a další)
+jsou užívány pod vlastními licencemi; úplný seznam závislostí včetně jejich
+SPDX identifikátorů je v `package-lock.json`.

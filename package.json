@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "description": "Viktor čistič — Meta (FB/IG) comment moderation tool for ALBIXON a.s. with Claude API classification",
+  "author": "Sinsu Platform s.r.o.",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://sinsu.cz",
+  "copyright": "Copyright © 2026 Sinsu Platform s.r.o. All rights reserved.",
   "workspaces": [
     "backend",
     "frontend"

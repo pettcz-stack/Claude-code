@@ -1,0 +1,128 @@
+Proprietární licence — Viktor čistič
+=====================================
+
+Copyright © 2026 Sinsu Platform s.r.o. All rights reserved.
+
+Software "Viktor čistič" (dále jen "Software") je autorským dílem a výlučným
+vlastnictvím společnosti Sinsu Platform s.r.o., IČO a sídlo dle zápisu
+v obchodním rejstříku České republiky (dále jen "Poskytovatel").
+
+Software je poskytován výhradně na základě samostatné písemné smlouvy mezi
+Poskytovatelem a oprávněným uživatelem (dále jen "Nabyvatel"). Pokud taková
+smlouva neexistuje, nemá Nabyvatel k Softwaru žádná práva.
+
+────────────────────────────────────────────────────────────────────────────
+
+1. Vlastnictví a autorská práva
+
+   Veškerá práva k Softwaru, jeho zdrojovému i strojovému kódu, návrhům,
+   dokumentaci, screenshotům, datovým modelům, názvu "Viktor čistič"
+   a souvisejícím materiálům náleží výhradně Poskytovateli. Toto oznámení
+   o autorských právech musí být zachováno ve všech kopiích Softwaru
+   nebo jejich podstatných částech.
+
+2. Rozsah užití
+
+   Nabyvateli je udělena nevýhradní, nepřevoditelná licence k užití
+   Softwaru výhradně pro interní obchodní potřeby Nabyvatele, v rozsahu
+   ujednaném ve smlouvě s Poskytovatelem. Pokud smlouva nestanoví jinak,
+   licence zahrnuje právo:
+
+     a) instalovat a provozovat Software na serverech Nabyvatele;
+     b) používat Software zaměstnanci a určenými spolupracovníky
+        Nabyvatele pro moderaci komentářů na vlastních firemních
+        profilech na sociálních sítích;
+     c) pořizovat bezpečnostní zálohy Softwaru a databáze.
+
+3. Omezení
+
+   Bez předchozího písemného souhlasu Poskytovatele Nabyvatel nesmí:
+
+     a) Software (ani jeho části) kopírovat, distribuovat, pronajímat,
+        podlicencovat, prodávat, zpřístupňovat třetím stranám ani
+        veřejně publikovat;
+     b) Software nebo jeho části zpětně analyzovat, dekompilovat nebo
+        jinak převádět do lidsky čitelné podoby nad rámec toho, co
+        umožňuje § 66 zákona č. 121/2000 Sb. (autorský zákon);
+     c) odstraňovat, zakrývat nebo měnit oznámení o autorských
+        právech, ochranných známkách nebo jiné identifikační údaje
+        Poskytovatele;
+     d) užívat Software k poskytování služeb třetím stranám (tzv.
+        service bureau, SaaS pro jiné subjekty apod.);
+     e) vytvářet odvozená díla založená na Softwaru pro účely
+        distribuce mimo oprávněného Nabyvatele.
+
+4. Obsah třetích stran a open-source komponenty
+
+   Software využívá komponenty třetích stran (Node.js, React, Prisma,
+   Express a další — viz package-lock.json) licencované pod vlastními,
+   převážně open-source licencemi. Tyto komponenty zůstávají majetkem
+   svých autorů a řídí se svými vlastními licenčními podmínkami. Součástí
+   Softwaru dodávanou na základě této licence je zdrojový kód vyvinutý
+   Poskytovatelem; open-source komponenty nejsou předmětem této licence.
+
+5. Důvěrnost
+
+   Software včetně jeho zdrojového kódu je obchodním tajemstvím
+   Poskytovatele. Nabyvatel se zavazuje chránit jej stejnou péčí jako
+   vlastní obchodní tajemství a neposkytovat k němu přístup osobám,
+   které jej pro plnění oprávněného užití nepotřebují.
+
+6. Záruky a odpovědnost
+
+   Software je poskytován "tak jak je", bez jakýchkoli výslovných či
+   konkludentních záruk, včetně (nikoli však výhradně) záruk vhodnosti
+   pro určitý účel, neporušení práv třetích stran nebo nepřerušeného
+   provozu.
+
+   V maximálním rozsahu, který umožňuje rozhodné právo, Poskytovatel
+   neodpovídá za nepřímé, následné ani zvláštní škody včetně ušlého zisku,
+   ztráty dat nebo přerušení obchodní činnosti vzniklé v souvislosti
+   s užitím Softwaru.
+
+7. Ochranné známky
+
+   "Viktor čistič" je neregistrované obchodní označení užívané
+   Poskytovatelem. "ALBIXON" a "BRILIX" jsou ochranné známky jejich
+   vlastníků a jsou v Softwaru používány výhradně pro účely identifikace
+   značek, jejichž komentáře jsou v rámci oprávněného užití moderovány.
+
+8. Ukončení licence
+
+   Licence zaniká okamžitě při jakémkoli porušení těchto podmínek ze strany
+   Nabyvatele. Po zániku licence je Nabyvatel povinen neprodleně odstranit
+   veškeré kopie Softwaru ze všech systémů, které má pod kontrolou.
+
+9. Rozhodné právo a příslušnost soudu
+
+   Tato licence se řídí právním řádem České republiky. Veškeré spory
+   vzniklé v souvislosti s touto licencí budou řešeny příslušnými soudy
+   České republiky podle sídla Poskytovatele.
+
+10. Kontakt
+
+    Sinsu Platform s.r.o.
+    E-mail pro licenční záležitosti: licencovani@sinsu.cz
+    (nebo dle údajů ve smlouvě s Poskytovatelem)
+
+────────────────────────────────────────────────────────────────────────────
+
+Poznámka: Tento text je vzorem proprietární licence. Před produkčním nasazením
+doporučujeme nechat finální znění schválit právním zástupcem Poskytovatele
+a upravit dle konkrétní obchodní situace.
+
+────────────────────────────────────────────────────────────────────────────
+
+English summary (informational; the Czech text above is binding):
+
+Copyright © 2026 Sinsu Platform s.r.o. All rights reserved.
+
+"Viktor čistič" is proprietary software owned by Sinsu Platform s.r.o.
+It is licensed to identified customers under a separate written agreement
+for internal business use only. No redistribution, sublicensing, or
+reverse-engineering is permitted without prior written consent.
+
+Third-party open-source components bundled with or depended upon by the
+Software retain their respective licenses (see package-lock.json).
+
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND.

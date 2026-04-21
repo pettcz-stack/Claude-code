@@ -136,7 +136,8 @@ function AppShell() {
         </ErrorBoundary>
       </main>
       <footer className="text-center text-xs text-slate-400 py-4">
-        Viktor čistič · © ALBIXON a.s. — interní nástroj{me ? ` · ${me.username} (${me.role})` : ""}
+        Viktor čistič · © 2026 Sinsu Platform s.r.o. · licencováno pro ALBIXON a.s.
+        {me ? ` · ${me.username} (${me.role})` : ""}
       </footer>
     </div>
   );

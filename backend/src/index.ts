@@ -1,3 +1,9 @@
+/**
+ * Viktor čistič — Meta (FB/IG) comment moderation tool.
+ * Copyright © 2026 Sinsu Platform s.r.o. All rights reserved.
+ * Proprietary software — licensed to ALBIXON a.s. per separate agreement.
+ * See LICENSE file at repository root for full terms.
+ */
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
