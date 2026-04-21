@@ -83,6 +83,9 @@ commentsRouter.get("/", async (req, res) => {
       text: c.text,
       authorName: c.authorName,
       authorId: c.authorId,
+      authorPhotoUrl: c.authorPhotoUrl,
+      starRating: c.starRating,
+      sourceUrl: c.sourceUrl,
       status: c.status,
       fetchedAt: c.fetchedAt,
       createdAtPlatform: c.createdAtPlatform,
@@ -93,6 +96,7 @@ commentsRouter.get("/", async (req, res) => {
         contentPreview: c.post.contentPreview,
         account: {
           id: c.post.account.id,
+          source: c.post.account.source,
           platform: c.post.account.platform,
           pageName: c.post.account.pageName,
         },
@@ -216,7 +220,7 @@ const MOD_DISALLOWED = new Set<ActionType>(["delete"]);
 commentsRouter.post("/:id/action", async (req, res) => {
   const { id } = req.params;
   const { action, replyMessage } = req.body as { action: ActionType; replyMessage?: string };
-  if (!["hide", "delete", "keep", "reply", "unhide"].includes(action)) {
+  if (!["hide", "delete", "keep", "reply", "unhide", "flag_for_report"].includes(action)) {
     return res.status(400).json({ error: "invalid action" });
   }
   if (currentRole(req) === "moderator" && MOD_DISALLOWED.has(action)) {

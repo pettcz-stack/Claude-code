@@ -35,6 +35,7 @@ export interface ClassifyInput {
   postPreview?: string | null;
   authorName?: string | null;
   platform?: string;
+  starRating?: number | null;
 }
 
 function extractJson(raw: string): unknown {

@@ -12,6 +12,7 @@ import fs from "node:fs";
 import { config, assertRuntimeConfig } from "./config";
 import { logger } from "./utils/logger";
 import { authRouter } from "./routes/auth";
+import { googleAuthRouter } from "./routes/google-auth";
 import { accountsRouter } from "./routes/accounts";
 import { commentsRouter } from "./routes/comments";
 import { rulesRouter } from "./routes/rules";
@@ -103,6 +104,7 @@ function createApp(): express.Express {
 
   app.use("/webhooks", webhooksRouter);
   app.use("/auth", allowlist, authRateLimit, authRouter);
+  app.use("/auth/google", allowlist, authRateLimit, googleAuthRouter);
 
   app.get("/health", (_req, res) => {
     res.json({ ok: true, version: "0.1.0" });

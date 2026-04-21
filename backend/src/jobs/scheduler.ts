@@ -1,5 +1,6 @@
 import cron from "node-cron";
 import { fetchAllAccounts } from "../meta/fetcher";
+import { fetchAllGoogleAccounts } from "../google/fetcher";
 import { classifyNewComments } from "../classifier/runner";
 import { checkTokenExpiry } from "./token-monitor";
 import { runRetention } from "./retention";
@@ -15,9 +16,15 @@ export function startScheduler(): void {
   cron.schedule(expr, async () => {
     try {
       const fetched = await fetchAllAccounts();
-      logger.info("poll: fetch done", { results: fetched });
+      logger.info("poll: meta fetch done", { results: fetched });
     } catch (err) {
-      logger.error("poll: fetch error", { err: String(err) });
+      logger.error("poll: meta fetch error", { err: String(err) });
+    }
+    try {
+      const fetchedG = await fetchAllGoogleAccounts();
+      logger.info("poll: google fetch done", { results: fetchedG });
+    } catch (err) {
+      logger.error("poll: google fetch error", { err: String(err) });
     }
     try {
       const classified = await classifyNewComments(100);
@@ -48,6 +55,7 @@ export function startScheduler(): void {
   // Run once at startup (best-effort; don't block startup).
   setTimeout(() => {
     fetchAllAccounts().catch(() => undefined);
+    fetchAllGoogleAccounts().catch(() => undefined);
     classifyNewComments(100).catch(() => undefined);
     checkTokenExpiry().catch(() => undefined);
   }, 5000);

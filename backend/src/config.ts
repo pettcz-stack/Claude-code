@@ -106,6 +106,12 @@ export const config = {
     modelSmart: optional("ANTHROPIC_MODEL_SMART", "claude-sonnet-4-6"),
   },
 
+  google: {
+    clientId: optional("GOOGLE_CLIENT_ID"),
+    clientSecret: optional("GOOGLE_CLIENT_SECRET"),
+    redirectUri: optional("GOOGLE_REDIRECT_URI", "http://localhost:3000/auth/google/callback"),
+  },
+
   security: {
     tokenEncryptionKey: optional("TOKEN_ENCRYPTION_KEY"),
     sessionSecret: optional("SESSION_SECRET", "change-me"),

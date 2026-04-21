@@ -26,7 +26,36 @@ Pokud si myslíš, že máš špatnou roli, ozvi se adminovi.
 
 ---
 
-## 2. Co znamenají AI kategorie
+## 2. Odkud komentáře chodí
+
+Viktor čistič sleduje tři druhy zdrojů (jsou rozlišené ve frontě barevným badge):
+
+- 🔵 **FB** — Facebook komentáře pod příspěvky a reklamami
+- 🟣 **IG** — Instagram komentáře pod příspěvky
+- 🔴 **Google** — recenze z Google Maps / Business Profile **(s hvězdičkovým hodnocením 1-5)**
+
+### Důležité rozdíly
+
+| Akce | FB / IG | Google recenze |
+|---|---|---|
+| Skrýt | ✓ | ✗ (Google neumí) |
+| Smazat | ✓ (admin) | ✗ (Google neumí) |
+| Ponechat | ✓ | ✓ |
+| Odpovědět | ✓ (když zapnuto) | ✓ (když zapnuto) |
+| **Nahlásit Googlu** | — | ✓ (otevře Google Maps, tam klikneš Nahlásit) |
+
+**Proč Google neumí Skrýt/Smazat?** Vlastník firmy nemá právo mazat cizí recenze — to je cíleně, aby se firmy nemohly zbavit negativních hodnocení. Jediné, co můžeš udělat, je **odpovědět** (což trvale zlepšuje reputaci) nebo **nahlásit** jako nevhodnou (což Google posoudí do 24-72h).
+
+### Hvězdičky jako silný signál
+
+Google recenze mají hvězdičky **1-5**:
+- ⭐⭐⭐⭐⭐ — vždy positive, stačí poděkovat
+- ⭐⭐⭐ — „ok, ale…", dobrá příležitost pro omluvu + otázku na detail
+- ⭐⭐ nebo ⭐ — **automaticky přijde kritická notifikace** do Slacku/emailu, i bez ohledu na AI kategorii. **Odpověz do 24 hodin** — čerstvé negativní recenze se zobrazují na vrcholu Google výsledků.
+
+---
+
+## 3. Co znamenají AI kategorie
 
 Aplikace **každý nový komentář pošle přes Claude AI**, která ho zařadí do jedné
 z 6 kategorií. Tvoje práce je rozhodnout, co s tím. AI je **návrh, ne rozhodnutí** —

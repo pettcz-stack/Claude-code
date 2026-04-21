@@ -18,16 +18,22 @@ export default function Accounts() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded shadow-sm p-4 flex items-center justify-between">
+      <div className="bg-white rounded shadow-sm p-4 flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="font-semibold">Připojené účty</h2>
           <p className="text-sm text-slate-500">
-            Pro přidání nové FB stránky nebo Instagram Business účtu se přihlaste přes Meta OAuth.
+            Pro Facebook / Instagram použij Meta OAuth; pro Google Maps / Business
+            Profile recenze použij Google OAuth.
           </p>
         </div>
-        <a className="btn-primary" href="/auth/start">
-          Připojit přes Meta
-        </a>
+        <div className="flex gap-2">
+          <a className="btn-primary" href="/auth/start">
+            Připojit přes Meta
+          </a>
+          <a className="btn-primary" href="/auth/google/start" style={{ background: "#ea4335" }}>
+            Připojit přes Google
+          </a>
+        </div>
       </div>
 
       <div className="bg-white rounded shadow-sm overflow-hidden">
@@ -48,7 +54,17 @@ export default function Accounts() {
               return (
                 <tr key={a.id} className="border-t border-slate-100">
                   <td className="p-2">
-                    <span className="pill bg-slate-100 text-slate-700 ring-slate-300">{a.platform}</span>
+                    <span
+                      className={`pill ${
+                        a.source === "GOOGLE"
+                          ? "bg-red-100 text-red-800 ring-red-300"
+                          : a.platform === "FB"
+                            ? "bg-blue-100 text-blue-800 ring-blue-300"
+                            : "bg-pink-100 text-pink-800 ring-pink-300"
+                      }`}
+                    >
+                      {a.source === "GOOGLE" ? "Google" : a.platform}
+                    </span>
                   </td>
                   <td className="p-2">{a.pageName}</td>
                   <td className="p-2 text-xs text-slate-500">{a.pageId}</td>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type CommentItem } from "../api";
 import CategoryPill from "../components/CategoryPill";
 import CommentDrawer from "../components/CommentDrawer";
+import Stars from "../components/Stars";
 import { useAuth } from "../auth";
 
 const CATEGORIES = [
@@ -155,10 +156,11 @@ export default function Queue() {
     else setSelected(new Set(items.map((i) => i.id)));
   };
 
-  const doAction = async (id: string, action: string) => {
+  const doAction = async (id: string, action: string): Promise<boolean> => {
     const res = await api.action(id, action);
     if (!res.success) alert(`Akce selhala: ${res.error ?? "neznámá chyba"}`);
     await load();
+    return res.success;
   };
 
   const doBulk = async (action: string) => {
@@ -336,10 +338,30 @@ export default function Queue() {
                       <div className="text-xs text-slate-500 mt-1 italic">AI: {cls.reasoning}</div>
                     )}
                   </td>
-                  <td className="p-2 whitespace-nowrap">{c.authorName ?? "—"}</td>
                   <td className="p-2 whitespace-nowrap">
-                    <span className="pill bg-slate-100 text-slate-700 ring-slate-300">
-                      {c.post.account.platform}
+                    <div className="flex items-center gap-2">
+                      {c.authorPhotoUrl ? (
+                        <img src={c.authorPhotoUrl} alt="" className="w-6 h-6 rounded-full" />
+                      ) : null}
+                      <span>{c.authorName ?? "—"}</span>
+                    </div>
+                    {typeof c.starRating === "number" && c.starRating > 0 && (
+                      <div className="mt-1 text-sm">
+                        <Stars value={c.starRating} />
+                      </div>
+                    )}
+                  </td>
+                  <td className="p-2 whitespace-nowrap">
+                    <span
+                      className={`pill ${
+                        c.post.account.source === "GOOGLE"
+                          ? "bg-red-100 text-red-800 ring-red-300"
+                          : c.post.account.platform === "FB"
+                            ? "bg-blue-100 text-blue-800 ring-blue-300"
+                            : "bg-pink-100 text-pink-800 ring-pink-300"
+                      }`}
+                    >
+                      {c.post.account.source === "GOOGLE" ? "Google" : c.post.account.platform}
                     </span>
                     <div className="text-xs text-slate-500 mt-1">{c.post.account.pageName}</div>
                   </td>
@@ -359,12 +381,14 @@ export default function Queue() {
                   </td>
                   <td className="p-2 whitespace-nowrap text-right">
                     <div className="inline-flex gap-1">
-                      {canWrite && (
+                      {/* Google reviews can't be hidden or deleted by the
+                          business owner. We only offer Keep / Reply / Flag. */}
+                      {canWrite && c.post.account.source !== "GOOGLE" && (
                         <button className="btn-warn" onClick={() => doAction(c.id, "hide")}>
                           Skrýt
                         </button>
                       )}
-                      {canDelete && (
+                      {canDelete && c.post.account.source !== "GOOGLE" && (
                         <button className="btn-danger" onClick={() => doAction(c.id, "delete")}>
                           Smazat
                         </button>
@@ -372,6 +396,24 @@ export default function Queue() {
                       {canWrite && (
                         <button className="btn-muted" onClick={() => doAction(c.id, "keep")}>
                           Ponechat
+                        </button>
+                      )}
+                      {canWrite && c.post.account.source === "GOOGLE" && (
+                        <button
+                          className="btn-danger"
+                          title="Otevře Google Maps recenzi — ručně klikni 'Nahlásit jako nevhodnou'"
+                          onClick={async () => {
+                            const ok = await doAction(c.id, "flag_for_report");
+                            if (ok && c.sourceUrl) {
+                              window.open(c.sourceUrl, "_blank", "noopener,noreferrer");
+                            } else if (ok) {
+                              alert(
+                                "Google neposkytuje API pro nahlášení. Otevři Google Maps, najdi recenzi a klikni na tři tečky → Nahlásit recenzi."
+                              );
+                            }
+                          }}
+                        >
+                          Nahlásit Googlu
                         </button>
                       )}
                       {replyEnabled && (

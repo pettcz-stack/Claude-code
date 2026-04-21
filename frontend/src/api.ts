@@ -23,6 +23,9 @@ export interface CommentItem {
   text: string;
   authorName: string | null;
   authorId: string | null;
+  authorPhotoUrl: string | null;
+  starRating: number | null;
+  sourceUrl: string | null;
   status: "new" | "classified" | "actioned" | "ignored";
   fetchedAt: string;
   createdAtPlatform: string | null;
@@ -33,7 +36,8 @@ export interface CommentItem {
     contentPreview: string | null;
     account: {
       id: string;
-      platform: "FB" | "IG";
+      source: "META" | "GOOGLE";
+      platform: "FB" | "IG" | "GOOGLE";
       pageName: string;
     };
   };
@@ -43,7 +47,8 @@ export interface CommentItem {
 
 export interface Account {
   id: string;
-  platform: "FB" | "IG";
+  source: "META" | "GOOGLE";
+  platform: "FB" | "IG" | "GOOGLE";
   pageId: string;
   pageName: string;
   active: boolean;

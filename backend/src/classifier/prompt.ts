@@ -28,11 +28,13 @@ export function buildUserMessage(input: {
   postPreview?: string | null;
   authorName?: string | null;
   platform?: string;
+  starRating?: number | null;
 }): string {
   // Keep user message minimal — every token costs full price (not cached).
   const parts: string[] = [];
   if (input.platform) parts.push(`P:${input.platform}`);
   if (input.authorName) parts.push(`A:${input.authorName}`);
+  if (typeof input.starRating === "number") parts.push(`Stars:${input.starRating}/5`);
   if (input.postPreview) parts.push(`Post:"${input.postPreview.slice(0, 200)}"`);
   parts.push(`C:"${input.commentText}"`);
   return parts.join("\n");

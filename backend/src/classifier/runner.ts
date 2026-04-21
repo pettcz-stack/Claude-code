@@ -52,25 +52,20 @@ export async function classifyNewComments(limit = 50, concurrency = 4): Promise<
 }
 
 async function classifyOne(c: PendingComment, keywords: string[]): Promise<void> {
-  let result = await classify({
+  const classifyInput = {
     commentText: c.text,
     postPreview: c.post.contentPreview,
     authorName: c.authorName,
     platform: c.post.account.platform,
-  });
+    starRating: c.starRating,
+  };
+
+  let result = await classify(classifyInput);
 
   // Escalate to smart model only when haiku is genuinely uncertain.
   if (isLowConfidence(result)) {
     try {
-      result = await classify(
-        {
-          commentText: c.text,
-          postPreview: c.post.contentPreview,
-          authorName: c.authorName,
-          platform: c.post.account.platform,
-        },
-        { smart: true }
-      );
+      result = await classify(classifyInput, { smart: true });
     } catch (err) {
       logger.warn("smart escalation failed", { commentId: c.id, err: String(err) });
     }
@@ -111,31 +106,44 @@ async function classifyOne(c: PendingComment, keywords: string[]): Promise<void>
   // Critical keyword match (operator-configured, independent of AI category).
   const matchedKeyword = keywords.find((kw) => c.text.toLowerCase().includes(kw.toLowerCase()));
 
+  // Low-star Google reviews are always critical — reputation damage is
+  // immediate and high-visibility on Google Maps, so we notify regardless
+  // of what the AI categorizer said.
+  const isLowStarReview =
+    c.post.account.source === "GOOGLE" && typeof c.starRating === "number" && c.starRating <= 2;
+
   if (
     result.category === "brand_attack" ||
     result.recommended_action === "review" ||
-    matchedKeyword
+    matchedKeyword ||
+    isLowStarReview
   ) {
-    const isCritical = result.category === "brand_attack" || Boolean(matchedKeyword);
+    const isCritical =
+      result.category === "brand_attack" || Boolean(matchedKeyword) || isLowStarReview;
     const severity = isCritical ? "critical" : "warn";
+    const sourceLabel =
+      c.post.account.source === "GOOGLE" ? `Google · ${c.post.account.pageName}` : `${c.post.account.platform} · ${c.post.account.pageName}`;
     notify({
       severity,
-      title: matchedKeyword
-        ? `Kritický komentář — obsahuje "${matchedKeyword}"`
-        : result.category === "brand_attack"
-          ? "Detekován možný útok na značku"
-          : `Komentář vyžaduje review (${result.category})`,
+      title: isLowStarReview
+        ? `🌟 ${c.starRating}★ Google recenze — odpovědět rychle`
+        : matchedKeyword
+          ? `Kritický komentář — obsahuje "${matchedKeyword}"`
+          : result.category === "brand_attack"
+            ? "Detekován možný útok na značku"
+            : `Komentář vyžaduje review (${result.category})`,
       text: [
-        `Platforma: ${c.post.account.platform} — ${c.post.account.pageName}`,
+        `Zdroj: ${sourceLabel}`,
         c.authorName ? `Autor: ${c.authorName}` : null,
-        `Komentář: "${c.text.slice(0, 500)}"`,
+        typeof c.starRating === "number" ? `Hodnocení: ${"★".repeat(c.starRating)}${"☆".repeat(5 - c.starRating)} (${c.starRating}/5)` : null,
+        `Text: "${c.text.slice(0, 500)}"`,
         `AI kategorie: ${result.category} (${Math.round(result.confidence * 100)}%)`,
         `AI zdůvodnění: ${result.reasoning}`,
         matchedKeyword ? `Match: kritické klíčové slovo "${matchedKeyword}"` : null,
       ]
         .filter(Boolean)
         .join("\n"),
-      url: c.post.permalink ?? undefined,
+      url: c.sourceUrl ?? c.post.permalink ?? undefined,
     }).catch((err) => logger.warn("notify failed", { commentId: c.id, err: String(err) }));
   }
 

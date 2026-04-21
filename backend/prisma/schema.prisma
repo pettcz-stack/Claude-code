@@ -11,11 +11,15 @@ datasource db {
 
 model Account {
   id                     String    @id @default(cuid())
-  platform               String    // "FB" | "IG"
+  source                 String    @default("META") // "META" | "GOOGLE"
+  platform               String    // FB|IG for META; GOOGLE for google
   pageId                 String    @unique
   pageName               String
   accessTokenEncrypted   String
+  refreshTokenEncrypted  String?  // Google OAuth provides refresh tokens; Meta long-lived Page tokens do not
   tokenExpiresAt         DateTime?
+  externalAccountId      String?  // Google account resource name (e.g. accounts/1234567890)
+  externalLocationId     String?  // Google location resource name (accounts/.../locations/...)
   active                 Boolean   @default(true)
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
@@ -23,6 +27,7 @@ model Account {
   posts                  Post[]
 
   @@index([platform])
+  @@index([source])
   @@index([active])
 }
 
@@ -47,7 +52,12 @@ model Comment {
   platformCommentId  String    @unique
   authorName         String?
   authorId           String?
+  authorPhotoUrl     String?
   text               String
+  // Star rating for review-type feedback (Google/Heuréka/Trustpilot).
+  // null for FB/IG comments which don't carry a rating.
+  starRating         Int?
+  sourceUrl          String?   // direct permalink to the review on external site
   createdAtPlatform  DateTime?
   parentCommentId    String?
   status             String    @default("new") // new|classified|actioned|ignored
@@ -60,6 +70,7 @@ model Comment {
   @@index([status])
   @@index([postId])
   @@index([authorId])
+  @@index([starRating])
 }
 
 model Classification {

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../db";
 import { fetchAccount } from "../meta/fetcher";
+import { fetchGoogleAccount } from "../google/fetcher";
 import { audit } from "../services/audit";
 import { currentUser } from "../middleware/auth";
 
@@ -11,6 +12,7 @@ accountsRouter.get("/", async (_req, res) => {
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
+      source: true,
       platform: true,
       pageId: true,
       pageName: true,
@@ -39,10 +41,12 @@ accountsRouter.patch("/:id", async (req, res) => {
   res.json(updated);
 });
 
+// Route to the right fetcher based on the account's source (Meta vs Google).
 accountsRouter.post("/:id/fetch", async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await fetchAccount(id);
+    const acc = await prisma.account.findUniqueOrThrow({ where: { id } });
+    const result = acc.source === "GOOGLE" ? await fetchGoogleAccount(id) : await fetchAccount(id);
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: String(err) });
