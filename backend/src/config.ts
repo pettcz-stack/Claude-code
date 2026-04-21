@@ -29,6 +29,34 @@ function bool(name: string, def: boolean): boolean {
   return /^(1|true|yes|on)$/i.test(v);
 }
 
+export function parseUsers(
+  raw: string | undefined,
+  fallback: { user: string; pass: string }
+): Record<string, string> {
+  // DASHBOARD_USERS="alice:passA,bob:passB" → { alice: "passA", bob: "passB" }.
+  // Falls back to the single DASHBOARD_USERNAME / DASHBOARD_PASSWORD pair when
+  // DASHBOARD_USERS is empty / unset. Skip malformed entries without throwing
+  // so that one bad entry doesn't lock everyone out.
+  if (!raw || raw.trim() === "") {
+    if (!fallback.user || !fallback.pass) return {};
+    return { [fallback.user]: fallback.pass };
+  }
+  const out: Record<string, string> = {};
+  for (const entry of raw.split(",")) {
+    const trimmed = entry.trim();
+    if (!trimmed) continue;
+    const idx = trimmed.indexOf(":");
+    if (idx < 1) continue;
+    const user = trimmed.slice(0, idx).trim();
+    // Trim whitespace around password; unlikely-to-be-intentional and common
+    // when users type the .env manually. If somebody genuinely wants a
+    // password with surrounding whitespace they can set DASHBOARD_PASSWORD.
+    const pass = trimmed.slice(idx + 1).trim();
+    if (user && pass) out[user] = pass;
+  }
+  return out;
+}
+
 export const config = {
   port: num("PORT", 3000),
   databaseUrl: optional("DATABASE_URL", "file:./dev.db"),
@@ -53,8 +81,15 @@ export const config = {
   },
 
   dashboard: {
+    // Legacy single-user fallback (back-compat with existing installs).
     username: optional("DASHBOARD_USERNAME", "admin"),
     password: optional("DASHBOARD_PASSWORD", "change-me"),
+    // Preferred: multi-user. Format "alice:passA,bob:passB" (no quotes).
+    // When set, overrides the single-user pair above.
+    users: parseUsers(process.env.DASHBOARD_USERS, {
+      user: optional("DASHBOARD_USERNAME", "admin"),
+      pass: optional("DASHBOARD_PASSWORD", "change-me"),
+    }),
   },
 
   polling: {

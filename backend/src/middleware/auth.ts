@@ -35,32 +35,53 @@ export const actionRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
-// Inspect DASHBOARD_PASSWORD at startup. In production mode (NODE_ENV=production)
-// we refuse to boot with an obviously weak password — the whole moderation
-// privilege stands and falls on this single secret.
-export function warnOnWeakPassword(): void {
-  const p = config.dashboard.password;
+const COMMON_WEAK = new Set(["demo", "change-me", "admin", "password", "test", "123456", "1234", "passw0rd"]);
+
+function passwordProblems(user: string, p: string): string[] {
   const problems: string[] = [];
   if (!p) problems.push("empty");
-  if (["demo", "change-me", "admin", "password", "test"].includes(p.toLowerCase())) {
-    problems.push("common/default");
+  if (COMMON_WEAK.has(p.toLowerCase())) problems.push("common/default");
+  if (p.length < 12) problems.push(`only ${p.length} chars (≥12 required)`);
+  if (p.toLowerCase() === user.toLowerCase()) problems.push("equals username");
+  return problems;
+}
+
+// Inspect all configured dashboard users at startup. In production mode we
+// refuse to boot with ANY weak password — if just one user has a bad password,
+// the whole moderation surface is compromised.
+export function warnOnWeakPassword(): void {
+  const users = Object.entries(config.dashboard.users);
+  if (users.length === 0) {
+    const msg = "No dashboard users configured — set DASHBOARD_USERS or DASHBOARD_USERNAME+DASHBOARD_PASSWORD";
+    if (process.env.NODE_ENV === "production") throw new Error(msg);
+    logger.warn(msg);
+    return;
   }
-  if (p.length < 12) problems.push(`only ${p.length} chars (recommend ≥16)`);
-  if (problems.length === 0) return;
+
+  const weak: Array<{ user: string; problems: string[] }> = [];
+  for (const [user, pass] of users) {
+    const problems = passwordProblems(user, pass);
+    if (problems.length > 0) weak.push({ user, problems });
+  }
+
+  logger.info("dashboard users configured", {
+    count: users.length,
+    usernames: users.map(([u]) => u),
+  });
+
+  if (weak.length === 0) return;
 
   if (process.env.NODE_ENV === "production") {
-    logger.error("DASHBOARD_PASSWORD is weak — refusing to start in production", {
-      problems,
-    });
+    logger.error("weak dashboard password(s) — refusing to start in production", { weak });
     throw new Error(
-      `Set a strong DASHBOARD_PASSWORD (≥12 chars, not default). Problems: ${problems.join(", ")}`
+      `Weak dashboard passwords: ${weak.map((w) => `${w.user} (${w.problems.join(", ")})`).join("; ")}. Set strong passwords (≥12 chars, not default) before running with NODE_ENV=production.`
     );
   }
-  logger.warn("DASHBOARD_PASSWORD is weak — NOT safe for public deploy", { problems });
+  logger.warn("weak dashboard password(s) — NOT safe for public deploy", { weak });
 }
 
 const basic = basicAuth({
-  users: { [config.dashboard.username]: config.dashboard.password },
+  users: config.dashboard.users,
   challenge: true,
   realm: "albixon-moderator",
   unauthorizedResponse: { error: "unauthorized" },
