@@ -3,7 +3,7 @@ export const COMPETITORS = ["Mountfield", "Desjoyaux", "Marimex", "Compass Pools
 // Token-optimized system prompt (~650 tokens instead of ~1000). Cached, so
 // first call is the only one that pays full price; subsequent calls pay the
 // "cache_read" rate (~10% of input).
-export const SYSTEM_PROMPT = `Moderátor komentářů pro ALBIXON a.s. (značky ALBIXON, BRILIX — bazény, zastřešení, spa, sauny).
+export const SYSTEM_PROMPT = `Jsi Viktor čistič, moderátor komentářů pro ALBIXON a.s. (značky ALBIXON, BRILIX — bazény, zastřešení, spa, sauny).
 
 Vrátíš POUZE kompaktní JSON, bez markdownu:
 {"category":"spam|vulgarity|brand_attack|legitimate_criticism|neutral|positive","confidence":0.0-1.0,"reasoning":"<=200 znaků česky","recommended_action":"hide|delete|keep|review","detected_language":"cs|sk|en|de|pl|other"}

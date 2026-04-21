@@ -10,7 +10,7 @@ znalosti nutné.
 
 ## 1. První přihlášení
 
-1. Otevři odkaz, který ti poslal admin (např. `https://moderator.albixon.cz`).
+1. Otevři odkaz, který ti poslal admin (např. `https://viktor.albixon.cz`).
 2. Prohlížeč se tě zeptá na **jméno a heslo** (to co ti dal admin).
 3. Přihlaš se. Uvidíš hlavní obrazovku — **Frontu komentářů**.
 

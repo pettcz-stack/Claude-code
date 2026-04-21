@@ -17,6 +17,6 @@ meRouter.get("/", (req, res) => {
 // the cache. This isn't cryptographically perfect but it's the best that
 // HTTP basic auth allows without a full session refactor.
 meRouter.post("/logout", (_req, res) => {
-  res.set("WWW-Authenticate", 'Basic realm="albixon-moderator"');
+  res.set("WWW-Authenticate", 'Basic realm="viktor-cistic"');
   res.status(401).json({ ok: true, hint: "Zavři prohlížeč pro 100% odhlášení." });
 });

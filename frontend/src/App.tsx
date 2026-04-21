@@ -45,9 +45,9 @@ function Header({ pending }: { pending: number | null }) {
     <header className="bg-white border-b border-slate-200">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-4 py-3 gap-3 flex-wrap">
         <div className="flex items-center gap-3">
-          <span className="font-bold text-brand-700">ALBIXON</span>
-          <span className="text-slate-400">/</span>
-          <span className="text-slate-700">Moderátor komentářů</span>
+          <span className="font-bold text-brand-700">Viktor čistič</span>
+          <span className="text-slate-400">·</span>
+          <span className="text-slate-700">ALBIXON moderace FB/IG</span>
         </div>
         <nav className="flex gap-1 flex-wrap">
           {visibleLinks.map((l) => (
@@ -136,7 +136,7 @@ function AppShell() {
         </ErrorBoundary>
       </main>
       <footer className="text-center text-xs text-slate-400 py-4">
-        © ALBIXON a.s. — interní nástroj{me ? ` · ${me.username} (${me.role})` : ""}
+        Viktor čistič · © ALBIXON a.s. — interní nástroj{me ? ` · ${me.username} (${me.role})` : ""}
       </footer>
     </div>
   );

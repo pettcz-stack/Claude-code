@@ -1,8 +1,8 @@
 {
-  "name": "albixon-meta-moderator",
+  "name": "viktor-cistic",
   "version": "0.1.0",
   "private": true,
-  "description": "Meta (FB/IG) comment moderation tool for ALBIXON a.s. with Claude API classification",
+  "description": "Viktor čistič — Meta (FB/IG) comment moderation tool for ALBIXON a.s. with Claude API classification",
   "workspaces": [
     "backend",
     "frontend"

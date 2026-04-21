@@ -1,17 +1,17 @@
-# Caddyfile pro moderátor komentářů ALBIXON
+# Caddyfile pro Viktor čistič — ALBIXON moderace FB/IG
 # ------------------------------------------
 # Caddy získá TLS certifikát automaticky přes Let's Encrypt — jediné, co
 # musíš udělat, je:
-#   1. Nasměrovat DNS A/AAAA záznam `moderator.albixon.cz` na tento server.
+#   1. Nasměrovat DNS A/AAAA záznam `viktor.albixon.cz` na tento server.
 #   2. Otevřít porty 80 + 443.
-#   3. Nahradit `moderator.albixon.cz` svojí skutečnou doménou níže.
+#   3. Nahradit `viktor.albixon.cz` svojí skutečnou doménou níže.
 #   4. `caddy run --config /etc/caddy/Caddyfile` nebo systemd službou.
 #
 # Aplikace běží na localhost:3001 (hodnota z PORT v .env).
 # V .env zároveň nastav:
 #   TRUST_PROXY=loopback        — aby app viděla skutečné klientské IP přes X-Forwarded-For
 #   ALLOWED_IPS=10.0.0.0/8      — rozsah firemní sítě/VPN (volitelné ale doporučené)
-#   CORS_EXTRA_ORIGIN=https://moderator.albixon.cz
+#   CORS_EXTRA_ORIGIN=https://viktor.albixon.cz
 
 {
 	# Globální options. E-mail je pro Let's Encrypt expirační notifikace.
@@ -27,7 +27,7 @@
 	}
 }
 
-moderator.albixon.cz {
+viktor.albixon.cz {
 	# --- Hlavní proxy na Node aplikaci ---
 	reverse_proxy 127.0.0.1:3001 {
 		# Předej skutečnou klientskou IP (pro rate-limit + IP allowlist uvnitř app).
@@ -88,7 +88,7 @@ moderator.albixon.cz {
 # --- Varianta 2: pouze za VPN, bez veřejné domény ---
 # Pokud běží jen uvnitř firemního intranetu, použij interní jméno s vlastní CA:
 #
-# moderator.albixon.local:443 {
+# viktor.albixon.local:443 {
 #     tls /etc/caddy/tls/internal.crt /etc/caddy/tls/internal.key
 #     reverse_proxy 127.0.0.1:3001 {
 #         header_up X-Forwarded-For {remote_host}

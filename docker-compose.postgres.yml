@@ -3,22 +3,22 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: moderator
+      POSTGRES_USER: viktor
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
-      POSTGRES_DB: moderator
+      POSTGRES_DB: viktor
     volumes:
-      - moderator-pg:/var/lib/postgresql/data
+      - viktor-pg:/var/lib/postgresql/data
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U moderator"]
+      test: ["CMD-SHELL", "pg_isready -U viktor"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   app:
     build: .
-    image: albixon-moderator:latest
+    image: viktor-cistic:latest
     restart: unless-stopped
     depends_on:
       db:
@@ -27,9 +27,9 @@ services:
       - "3000:3000"
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://moderator:${POSTGRES_PASSWORD:-change-me}@db:5432/moderator?schema=public
+      DATABASE_URL: postgresql://viktor:${POSTGRES_PASSWORD:-change-me}@db:5432/viktor?schema=public
     env_file:
       - .env
 
 volumes:
-  moderator-pg:
+  viktor-pg:

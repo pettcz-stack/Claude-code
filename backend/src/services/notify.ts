@@ -96,7 +96,7 @@ async function sendEmail(payload: NotificationPayload): Promise<void> {
     await t.sendMail({
       from: smtp.from,
       to,
-      subject: `${severityPrefix}[ALBIXON Moderator] ${payload.title}`,
+      subject: `${severityPrefix}[Viktor čistič] ${payload.title}`,
       text: `${payload.text}${payload.url ? `\n\n${payload.url}` : ""}`,
       html: [
         `<p style="font-family:system-ui;"><strong>${escapeHtml(severityPrefix)}${escapeHtml(payload.title)}</strong></p>`,

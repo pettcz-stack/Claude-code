@@ -101,7 +101,7 @@ uložené Meta tokeny se stanou nečitelnými → musíš projít OAuth znovu.
 **„redirect_uri_mismatch":**
 - V Meta App dashboardu musí být `META_REDIRECT_URI` uvedený přesně
   stejně, včetně protokolu (`https://…`) a koncového `/auth/callback`
-- Zkontroluj, že **doména** se shoduje (`moderator.albixon.cz` vs.
+- Zkontroluj, že **doména** se shoduje (`viktor.albixon.cz` vs.
   `moderator.albixon.com`)
 
 **„app not approved" / „scope not permitted":**
@@ -167,8 +167,8 @@ To se týká **jen** běhu v omezeném sandboxu (např. Claude Code CI). Na
 reálném Linuxu serveru (systemd service dle `deploy/DEPLOYMENT.md`) se to
 neděje. Pokud se to přesto stane:
 
-- `sudo systemctl status albixon-moderator` — co říká systemd
-- `sudo journalctl -u albixon-moderator --since "10 minutes ago"`
+- `sudo systemctl status viktor-cistic` — co říká systemd
+- `sudo journalctl -u viktor-cistic --since "10 minutes ago"`
 - Typické příčiny: OOM (2GB+ RAM je minimum), DB lock (přepnout na
   Postgres), disk full
 
@@ -179,9 +179,9 @@ neděje. Pokud se to přesto stane:
 - Anonymizuje staré komentáře, ponechá audit trail
 - Pro dlouhodobé nasazení zvaž **VACUUM**:
   ```bash
-  systemctl stop albixon-moderator
+  systemctl stop viktor-cistic
   sqlite3 prod.db "VACUUM;"
-  systemctl start albixon-moderator
+  systemctl start viktor-cistic
   ```
 
 ### CI workflow padá na GitHubu
@@ -203,12 +203,12 @@ Na serveru:
 ```bash
 curl -s http://localhost:3001/health && echo "✓ liveness"
 curl -s http://localhost:3001/health/ready | jq .ok
-sudo journalctl -u albixon-moderator -n 20 --no-pager
+sudo journalctl -u viktor-cistic -n 20 --no-pager
 ```
 
 Přes Caddy:
 ```bash
-curl -I https://moderator.albixon.cz
+curl -I https://viktor.albixon.cz
 # Musíš vidět HTTP/2 200 a Strict-Transport-Security hlavičku
 ```
 

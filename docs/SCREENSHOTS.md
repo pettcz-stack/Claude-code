@@ -1,7 +1,8 @@
-# Galerie UI
+# Viktor čistič — galerie UI
 
-Náhled všech obrazovek moderačního nástroje nad demo daty (3 připojené stránky,
-9 předklasifikovaných komentářů pokrývajících všech 6 kategorií).
+Náhled všech obrazovek aplikace **Viktor čistič** (moderace komentářů ALBIXON /
+BRILIX) nad demo daty — 3 připojené stránky, 9 předklasifikovaných komentářů
+pokrývajících všech 6 kategorií.
 
 ## Fronta moderace
 

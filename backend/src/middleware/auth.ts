@@ -88,7 +88,7 @@ const passwordMap: Record<string, string> = Object.fromEntries(
 const basic = basicAuth({
   users: passwordMap,
   challenge: true,
-  realm: "albixon-moderator",
+  realm: "viktor-cistic",
   unauthorizedResponse: { error: "unauthorized" },
 });
 

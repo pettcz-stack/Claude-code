@@ -1,9 +1,11 @@
-# ALBIXON — Moderátor komentářů (Facebook & Instagram)
+# Viktor čistič
+
+**Moderace komentářů pro ALBIXON a.s. (značky ALBIXON, BRILIX) na Facebooku a Instagramu.**
 
 Interní nástroj pro automatickou detekci a moderaci negativních, urážlivých,
-spamových a konkurenčně poškozujících komentářů na firemních profilech ALBIXON
-a BRILIX. Klasifikace probíhá přes **Claude API**, akce (skrýt/smazat/odpovědět)
-se vykonávají přes oficiální **Meta Graph API**. Operátor má poslední slovo —
+spamových a konkurenčně poškozujících komentářů na firemních profilech.
+Klasifikace probíhá přes **Claude API**, akce (skrýt/smazat/odpovědět) se
+vykonávají přes oficiální **Meta Graph API**. Operátor má poslední slovo —
 auto-moderace je zapnutá jen pro jednoznačný spam a vulgarismy.
 
 ---
@@ -48,7 +50,7 @@ auto-moderace je zapnutá jen pro jednoznačný spam a vulgarismy.
 
 ```bash
 git clone <repo-url>
-cd albixon-meta-moderator
+cd viktor-cistic
 npm install
 ```
 

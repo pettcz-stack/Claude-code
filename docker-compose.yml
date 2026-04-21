@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    image: albixon-moderator:latest
+    image: viktor-cistic:latest
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -11,7 +11,7 @@ services:
     env_file:
       - .env
     volumes:
-      - moderator-data:/data
+      - viktor-data:/data
 
 volumes:
-  moderator-data:
+  viktor-data:

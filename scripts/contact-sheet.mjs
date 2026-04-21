@@ -46,7 +46,7 @@ const html = `<!doctype html>
 </head>
 <body>
   <header>
-    <h1>ALBIXON · Moderátor komentářů</h1>
+    <h1>Viktor čistič · ALBIXON moderace FB/IG</h1>
     <div class="subtitle">UI preview · ${new Date().toLocaleDateString("cs-CZ")}</div>
   </header>
   <div class="grid">${cards}</div>

@@ -35,9 +35,9 @@ sudo ufw enable
 
 ```bash
 # Umísti kam máš standard (/opt, /srv, /home/deploy…)
-sudo mkdir -p /opt/albixon-moderator
-sudo chown $USER /opt/albixon-moderator
-cd /opt/albixon-moderator
+sudo mkdir -p /opt/viktor-cistic
+sudo chown $USER /opt/viktor-cistic
+cd /opt/viktor-cistic
 git clone <tvuj-repo-url> .
 git checkout claude/meta-comment-moderator-IXbw7   # nebo main po mergi
 
@@ -72,7 +72,7 @@ TOKEN_ENCRYPTION_KEY=$(node -e "console.log(require('crypto').randomBytes(32).to
 DASHBOARD_USERS=honza:<silné-heslo-1>,petra:<silné-heslo-2>,karel:<silné-heslo-3>
 
 # DB + session
-DATABASE_URL=file:/opt/albixon-moderator/prod.db
+DATABASE_URL=file:/opt/viktor-cistic/prod.db
 SESSION_SECRET=$(node -e "console.log(require('crypto').randomBytes(48).toString('base64'))")
 
 # Anthropic
@@ -82,11 +82,11 @@ ANTHROPIC_API_KEY=sk-ant-...
 META_APP_ID=...
 META_APP_SECRET=...
 META_WEBHOOK_VERIFY_TOKEN=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
-META_REDIRECT_URI=https://moderator.albixon.cz/auth/callback
+META_REDIRECT_URI=https://viktor.albixon.cz/auth/callback
 
 # Síťové restrikce (firemní VPN rozsah)
 ALLOWED_IPS=10.0.0.0/8,192.168.1.0/24
-CORS_EXTRA_ORIGIN=https://moderator.albixon.cz
+CORS_EXTRA_ORIGIN=https://viktor.albixon.cz
 TRUST_PROXY=loopback
 
 # Notifikace (volitelné ale doporučené)
@@ -99,17 +99,17 @@ SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
 ## 4. systemd služba
 
 ```bash
-sudo tee /etc/systemd/system/albixon-moderator.service > /dev/null <<'EOF'
+sudo tee /etc/systemd/system/viktor-cistic.service > /dev/null <<'EOF'
 [Unit]
-Description=ALBIXON Moderator komentářů
+Description=Viktor čistič — ALBIXON moderace FB/IG
 After=network.target
 
 [Service]
 Type=simple
 User=deploy
 Group=deploy
-WorkingDirectory=/opt/albixon-moderator
-EnvironmentFile=/opt/albixon-moderator/.env
+WorkingDirectory=/opt/viktor-cistic
+EnvironmentFile=/opt/viktor-cistic/.env
 ExecStart=/usr/bin/node backend/dist/index.js
 Restart=on-failure
 RestartSec=5s
@@ -117,7 +117,7 @@ RestartSec=5s
 # Security hardening (systemd)
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=/opt/albixon-moderator
+ReadWritePaths=/opt/viktor-cistic
 PrivateTmp=true
 ProtectHome=true
 ProtectKernelTunables=true
@@ -129,20 +129,20 @@ WantedBy=multi-user.target
 EOF
 
 sudo systemctl daemon-reload
-sudo systemctl enable --now albixon-moderator
-sudo systemctl status albixon-moderator
+sudo systemctl enable --now viktor-cistic
+sudo systemctl status viktor-cistic
 ```
 
 Sleduj log:
 ```bash
-sudo journalctl -u albixon-moderator -f
+sudo journalctl -u viktor-cistic -f
 ```
 
 ## 5. Caddy (TLS + reverse proxy)
 
 ```bash
-sudo cp /opt/albixon-moderator/deploy/Caddyfile /etc/caddy/Caddyfile
-sudo nano /etc/caddy/Caddyfile     # nahraď moderator.albixon.cz skutečnou doménou + email
+sudo cp /opt/viktor-cistic/deploy/Caddyfile /etc/caddy/Caddyfile
+sudo nano /etc/caddy/Caddyfile     # nahraď viktor.albixon.cz skutečnou doménou + email
 sudo systemctl reload caddy
 ```
 
@@ -153,20 +153,20 @@ Caddy si sám vyžádá cert z Let's Encrypt během prvních sekund po reloadu.
 SQLite + evidence snapshoty jsou **právní důkazy**. Zálohuj denně:
 
 ```bash
-sudo tee /etc/cron.daily/moderator-backup > /dev/null <<'EOF'
+sudo tee /etc/cron.daily/viktor-backup > /dev/null <<'EOF'
 #!/bin/bash
 set -e
 TS=$(date +%F)
-DEST=/var/backups/moderator
+DEST=/var/backups/viktor
 mkdir -p "$DEST"
 
 # SQLite online backup (safe while running thanks to WAL mode)
-sqlite3 /opt/albixon-moderator/prod.db ".backup '$DEST/prod-$TS.db'"
+sqlite3 /opt/viktor-cistic/prod.db ".backup '$DEST/prod-$TS.db'"
 
 # Retain 30 days
 find "$DEST" -name "prod-*.db" -mtime +30 -delete
 EOF
-sudo chmod +x /etc/cron.daily/moderator-backup
+sudo chmod +x /etc/cron.daily/viktor-backup
 ```
 
 **Druhý off-site backup** (doporučeno) přes rsync / rclone do S3/Glacier.
@@ -175,10 +175,10 @@ sudo chmod +x /etc/cron.daily/moderator-backup
 
 ```bash
 # Z PC uvnitř VPN:
-curl -u honza:<heslo> https://moderator.albixon.cz/health/ready
+curl -u honza:<heslo> https://viktor.albixon.cz/health/ready
 ```
 
-Otevři `https://moderator.albixon.cz/` v prohlížeči → přihlášovací dialog →
+Otevři `https://viktor.albixon.cz/` v prohlížeči → přihlášovací dialog →
 dashboard.
 
 ## 8. První propojení s Meta
@@ -194,15 +194,15 @@ dashboard.
 Přidání:
 ```bash
 # Na serveru
-sudo nano /opt/albixon-moderator/.env
+sudo nano /opt/viktor-cistic/.env
 # Do DASHBOARD_USERS přidej ",jmeno:<silné-heslo>"
-sudo systemctl restart albixon-moderator
+sudo systemctl restart viktor-cistic
 ```
 
 Odebrání (zaměstnanec odchází):
 ```bash
 # Vymaž z DASHBOARD_USERS a restartuj
-sudo systemctl restart albixon-moderator
+sudo systemctl restart viktor-cistic
 # (Audit log jeho historických akcí zůstává pod jeho username.)
 ```
 
@@ -211,9 +211,9 @@ sudo systemctl restart albixon-moderator
 Kontroluj:
 
 ```bash
-curl -s -u honza:<heslo> https://moderator.albixon.cz/health/ready | jq
-curl -s https://moderator.albixon.cz/metrics | grep albixon_   # Prometheus
-sudo journalctl -u albixon-moderator --since today | jq        # JSON logs
+curl -s -u honza:<heslo> https://viktor.albixon.cz/health/ready | jq
+curl -s https://viktor.albixon.cz/metrics | grep albixon_   # Prometheus
+sudo journalctl -u viktor-cistic --since today | jq        # JSON logs
 ```
 
 Nastav alert v tvém monitoringu na:
@@ -228,7 +228,7 @@ Nastav alert v tvém monitoringu na:
 - [ ] `NODE_ENV=production` je v `.env`
 - [ ] Každý člen MKT má unikátní silné heslo (≥16 znaků)
 - [ ] `ALLOWED_IPS` pokrývá jen firemní VPN/office rozsahy
-- [ ] TLS certifikát funguje (`curl -I https://moderator.albixon.cz`)
+- [ ] TLS certifikát funguje (`curl -I https://viktor.albixon.cz`)
 - [ ] `TOKEN_ENCRYPTION_KEY` máš zálohovaný mimo server
 - [ ] Denní backup testován (obnovení z `prod-YYYY-MM-DD.db` funguje)
 - [ ] `reply_enabled` je defaultně **VYPNUTÉ** (Admin → Odpovědi)

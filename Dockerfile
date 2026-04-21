@@ -1,4 +1,5 @@
-# Multi-stage build for the ALBIXON comment moderator (backend + static frontend)
+# Multi-stage build for Viktor čistič — ALBIXON moderace FB/IG komentářů.
+# Backend (Node) + static frontend served from the same port.
 
 FROM node:20-alpine AS deps
 WORKDIR /app
