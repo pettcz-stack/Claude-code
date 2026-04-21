@@ -2,8 +2,8 @@ import puppeteer from "puppeteer";
 import { mkdirSync } from "node:fs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3001";
-const USER = process.env.DASHBOARD_USERNAME ?? "admin";
-const PASS = process.env.DASHBOARD_PASSWORD ?? "test";
+const USER = process.env.DASHBOARD_USERNAME ?? "honza";
+const PASS = process.env.DASHBOARD_PASSWORD ?? "AdminSecret123!";
 
 const pages = [
   { path: "/queue", file: "01-queue.png" },
