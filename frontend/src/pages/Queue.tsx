@@ -179,6 +179,7 @@ export default function Queue() {
           <label className="block text-xs text-slate-500">Stav</label>
           <select
             className="border border-slate-300 rounded px-2 py-1 text-sm"
+            title="Ke zpracování = AI klasifikovala, čeká na tvé rozhodnutí. Nové = AI ještě nestihla klasifikovat. Zpracované = už jsi na nich udělal akci."
             value={filter.status}
             onChange={(e) => setFilter({ ...filter, status: e.target.value })}
           >
@@ -192,6 +193,7 @@ export default function Queue() {
           <label className="block text-xs text-slate-500">Platforma</label>
           <select
             className="border border-slate-300 rounded px-2 py-1 text-sm"
+            title="Filtruj komentáře podle zdroje: jen Facebook nebo jen Instagram. (Google recenze se zatím filtrují přes vyhledávání textu.)"
             value={filter.platform}
             onChange={(e) => setFilter({ ...filter, platform: e.target.value })}
           >
@@ -204,6 +206,7 @@ export default function Queue() {
           <label className="block text-xs text-slate-500">Kategorie</label>
           <select
             className="border border-slate-300 rounded px-2 py-1 text-sm"
+            title="Filtruj podle AI kategorie. Např. 'brand_attack' zobrazí jen útoky na značku, 'positive' jen pozitivní reakce."
             value={filter.category}
             onChange={(e) => setFilter({ ...filter, category: e.target.value })}
           >
@@ -243,13 +246,13 @@ export default function Queue() {
             )}
           </form>
         </div>
-        <button className="btn-muted" onClick={load} disabled={loading}>
+        <button className="btn-muted" onClick={load} disabled={loading} title="Znovu načíst frontu komentářů ze serveru">
           {loading ? "Načítám…" : "Obnovit"}
         </button>
-        <a className="btn-muted" href="/api/comments/export.csv">
+        <a className="btn-muted" href="/api/comments/export.csv" title="Stáhnout CSV se všemi komentáři (otevřeš v Excelu)">
           Export CSV
         </a>
-        <button className="btn-muted" onClick={() => setShowHelp(true)} title="Klávesové zkratky (?)">
+        <button className="btn-muted" onClick={() => setShowHelp(true)} title="Zobrazí seznam všech klávesových zkratek (nebo stiskni ?)">
           ?
         </button>
         {summary && (
@@ -266,18 +269,35 @@ export default function Queue() {
 
       {error && <div className="bg-red-50 text-red-700 p-3 rounded">{error}</div>}
 
+      <div className="bg-blue-50 text-blue-900 text-sm p-2 rounded border border-blue-200">
+        💡 <b>Rychlý tip:</b> najeď myší na jakékoli tlačítko a zobrazí se podrobnější popis. Klávesa <kbd className="bg-white border border-blue-300 rounded px-1 text-xs">?</kbd> ukáže všechny klávesové zkratky.
+      </div>
+
+
       {selected.size > 0 && canWrite && (
         <div className="flex gap-2 items-center p-2 bg-brand-50 rounded">
           <span className="text-sm">Označeno: {selected.size}</span>
-          <button className="btn-warn" onClick={() => doBulk("hide")}>
+          <button
+            className="btn-warn"
+            onClick={() => doBulk("hide")}
+            title="Skryje všechny označené komentáře najednou (viditelné zůstanou jen autorům a jejich přátelům)"
+          >
             Skrýt vše
           </button>
           {canDelete && (
-            <button className="btn-danger" onClick={() => doBulk("delete")}>
+            <button
+              className="btn-danger"
+              onClick={() => doBulk("delete")}
+              title="Trvale smaže všechny označené komentáře. Akce nelze vrátit."
+            >
               Smazat vše
             </button>
           )}
-          <button className="btn-muted" onClick={() => doBulk("keep")}>
+          <button
+            className="btn-muted"
+            onClick={() => doBulk("keep")}
+            title="Označí všechny označené komentáře jako zkontrolované (zmizí z fronty, zůstanou veřejné)"
+          >
             Ponechat vše
           </button>
         </div>
@@ -384,24 +404,36 @@ export default function Queue() {
                       {/* Google reviews can't be hidden or deleted by the
                           business owner. We only offer Keep / Reply / Flag. */}
                       {canWrite && c.post.account.source !== "GOOGLE" && (
-                        <button className="btn-warn" onClick={() => doAction(c.id, "hide")}>
+                        <button
+                          className="btn-warn"
+                          onClick={() => doAction(c.id, "hide")}
+                          title="Skryje komentář na FB/IG — bude viditelný jen pro autora a jeho přátele. Lze vrátit."
+                        >
                           Skrýt
                         </button>
                       )}
                       {canDelete && c.post.account.source !== "GOOGLE" && (
-                        <button className="btn-danger" onClick={() => doAction(c.id, "delete")}>
+                        <button
+                          className="btn-danger"
+                          onClick={() => doAction(c.id, "delete")}
+                          title="Trvale smaže komentář z FB/IG. Akce NENÍ vratná — komentář je pryč i pro autora."
+                        >
                           Smazat
                         </button>
                       )}
                       {canWrite && (
-                        <button className="btn-muted" onClick={() => doAction(c.id, "keep")}>
+                        <button
+                          className="btn-muted"
+                          onClick={() => doAction(c.id, "keep")}
+                          title="Označí komentář jako zkontrolovaný. Komentář zůstává veřejný, zmizí z fronty."
+                        >
                           Ponechat
                         </button>
                       )}
                       {canWrite && c.post.account.source === "GOOGLE" && (
                         <button
                           className="btn-danger"
-                          title="Otevře Google Maps recenzi — ručně klikni 'Nahlásit jako nevhodnou'"
+                          title="Google nedovolí mazat cizí recenze. Tlačítko zapíše do audit logu, že jsi chtěl recenzi nahlásit, a otevře Google Maps — tam u recenze klikni na tři tečky → Nahlásit. Google posoudí do 24–72 h."
                           onClick={async () => {
                             const ok = await doAction(c.id, "flag_for_report");
                             if (ok && c.sourceUrl) {
@@ -423,13 +455,14 @@ export default function Queue() {
                             setReplyTarget(c);
                             setReplyText("");
                           }}
+                          title="Otevře okno pro napsání veřejné odpovědi. Můžeš použít šablonu nebo nechat AI vygenerovat návrh. Odpověď se publikuje pod tvou značkou (ne pod tvým osobním účtem)."
                         >
                           Odpovědět
                         </button>
                       )}
                       <button
                         className="btn-muted"
-                        title="Detail komentáře (Enter)"
+                        title="Zobrazí detail komentáře: plnou historii AI klasifikací, historii akcí, odkaz na originál. Zkratka: Enter."
                         onClick={() => setDrawerId(c.id)}
                       >
                         i
@@ -437,7 +470,7 @@ export default function Queue() {
                       <button
                         className="btn-muted"
                         disabled={reclassifying === c.id}
-                        title="Překlasifikovat (smart model)"
+                        title="Znovu klasifikuje komentář silnějším AI modelem (Sonnet). Užitečné, když si myslíš, že AI trefila kategorii špatně."
                         onClick={async () => {
                           setReclassifying(c.id);
                           try {
@@ -561,6 +594,7 @@ export default function Queue() {
               <button
                 className="btn-muted"
                 disabled={suggesting}
+                title="Nechá Claude AI vytvořit návrh odpovědi v tónu ALBIXON. Vygenerovaný text se vloží do pole výše — můžeš ho ještě upravit před odesláním."
                 onClick={async () => {
                   if (!replyTarget) return;
                   setSuggesting(true);
@@ -576,12 +610,17 @@ export default function Queue() {
               >
                 {suggesting ? "Generuji…" : "Navrhnout odpověď (AI)"}
               </button>
-              <button className="btn-muted" onClick={() => setReplyTarget(null)}>
+              <button
+                className="btn-muted"
+                onClick={() => setReplyTarget(null)}
+                title="Zavře okno bez odeslání. Žádná odpověď se nepublikuje."
+              >
                 Zrušit
               </button>
               <button
                 className="btn-primary"
                 disabled={replySending || !replyText.trim()}
+                title="Publikuje odpověď veřejně pod komentářem/recenzí. Po odeslání už nejde vrátit (jen smazat jako novou akci)."
                 onClick={async () => {
                   setReplySending(true);
                   try {

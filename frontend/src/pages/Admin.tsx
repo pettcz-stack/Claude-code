@@ -54,6 +54,11 @@ export default function Admin() {
             </div>
             <button
               className={settings.replyEnabled ? "btn-danger" : "btn-primary"}
+              title={
+                settings.replyEnabled
+                  ? "VYPNE možnost odpovídat. Aplikace okamžitě přestane zobrazovat tlačítko Odpovědět, blokuje AI návrhy. Hide/Delete/Keep stále funguje. Doporučuje se při krizové komunikaci."
+                  : "ZAPNE odpovědi na komentáře a recenze. Aplikace pak může publikovat texty pod ALBIXON/BRILIX profily. Vyžaduje tvé potvrzení."
+              }
               onClick={async () => {
                 const next = !settings.replyEnabled;
                 if (next && !confirm("Opravdu povolit odpovědi? Aplikace pak může psát na vaše Facebook/Instagram profily.")) {
@@ -93,10 +98,16 @@ export default function Admin() {
             <input
               className="flex-1 border border-slate-300 rounded px-2 py-1 text-sm"
               placeholder="např. podvod, kradou, žaloba, policie"
+              title="Seznam slov oddělených čárkami. Jakmile takové slovo najdeme v komentáři, dostaneš okamžitou Slack/email notifikaci — nezávisle na tom, co AI řekla. Nerozlišují velká/malá písmena."
               value={keywordsText}
               onChange={(e) => setKeywordsText(e.target.value)}
             />
-            <button className="btn-primary">Uložit</button>
+            <button
+              className="btn-primary"
+              title="Uloží seznam kritických slov. Nabývá účinnosti u nových komentářů (starší nejsou zpětně překlasifikovány, dokud nespustíš hromadnou reklasifikaci)."
+            >
+              Uložit
+            </button>
           </form>
           {settings.criticalKeywords.length > 0 && (
             <div className="text-xs text-slate-500">
@@ -151,6 +162,7 @@ export default function Admin() {
         <div className="flex flex-wrap gap-2">
           <button
             className="btn-primary"
+            title="Okamžitě stáhne nové komentáře ze všech připojených FB/IG stránek a Google Business Profile. Normálně se to děje automaticky každých 5 minut — tohle tlačítko to vynutí hned."
             onClick={async () => {
               push("Spouštím polling…");
               const r = await api.adminPollRun();
@@ -162,6 +174,7 @@ export default function Admin() {
           </button>
           <button
             className="btn-muted"
+            title="Ověří, kolik dní zbývá platnosti tvých Meta Page Access Tokenů. Pokud se blíží expirace (< 14 dní), pošle notifikaci. Meta tokeny platí ~60 dní, pak musíš projít OAuth znovu."
             onClick={async () => {
               await api.adminTokenCheck();
               push("Token check spuštěn");
@@ -171,6 +184,7 @@ export default function Admin() {
           </button>
           <button
             className="btn-muted"
+            title="Pošle testovací zprávu do Slacku/emailu s severity=info. Ověříš tím, že máš správně nastavený SLACK_WEBHOOK_URL / SMTP."
             onClick={async () => {
               await api.adminTestNotify();
               push("Testovací notifikace odeslána");
@@ -194,6 +208,7 @@ export default function Admin() {
             </div>
             <button
               className="btn-primary"
+              title="Projde všechny už-klasifikované komentáře za zadaný počet hodin a nechá je znovu projít přes AI. Historie předchozích klasifikací zůstává (audit trail). Užitečné po úpravě promptu nebo kritických klíčových slov. UPOZORNĚNÍ: spotřebuje Claude API kredit za každý komentář znovu."
               onClick={async () => {
                 if (!confirm(`Překlasifikovat všechny komentáře za posledních ${reclassifyHours} h?`)) return;
                 push(`Spouštím reklasifikaci (posledních ${reclassifyHours} h)…`);
@@ -228,6 +243,7 @@ export default function Admin() {
             </div>
             <button
               className="btn-warn"
+              title="Trvale odstraní jméno a ID autora z komentářů starších než zadaný počet dní (defaultně 2 roky = 730 dní). Text komentáře se nahradí '[redacted — retention policy]'. Audit log (co a kdo s komentářem udělal) zůstává zachován. Akce NENÍ vratná!"
               onClick={async () => {
                 if (!confirm(`Opravdu anonymizovat komentáře starší než ${retention} dní?`)) return;
                 const r = await api.adminRetention(retention);

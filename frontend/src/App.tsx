@@ -19,15 +19,52 @@ type NavLinkDef = {
   roles?: Role[];
 };
 
-const LINKS: NavLinkDef[] = [
-  { to: "/queue", label: "Fronta", badge: "pending" },
-  { to: "/audit", label: "Audit" },
-  { to: "/rules", label: "Pravidla", roles: ["admin"] },
-  { to: "/templates", label: "Šablony", roles: ["admin"] },
-  { to: "/accounts", label: "Účty", roles: ["admin"] },
-  { to: "/stats", label: "Statistiky" },
-  { to: "/usage", label: "Tokeny" },
-  { to: "/admin", label: "Admin", roles: ["admin"] },
+const LINKS: Array<NavLinkDef & { tooltip: string }> = [
+  {
+    to: "/queue",
+    label: "Fronta",
+    badge: "pending",
+    tooltip: "Hlavní obrazovka — všechny nové komentáře a recenze, seřazené podle priority. Tady budeš trávit většinu času.",
+  },
+  {
+    to: "/audit",
+    label: "Audit",
+    tooltip: "Kompletní záznam všech akcí (kdo, kdy, co udělal) + Evidence snapshots pro právní použití. Exportuje do CSV.",
+  },
+  {
+    to: "/rules",
+    label: "Pravidla",
+    roles: ["admin"],
+    tooltip: "Pravidla automatické moderace (spam/vulgarita) + whitelist/blacklist autorů. Jen admin.",
+  },
+  {
+    to: "/templates",
+    label: "Šablony",
+    roles: ["admin"],
+    tooltip: "Předpřipravené texty odpovědí s placeholderem {author}. Nabízejí se v reply modalu podle AI kategorie.",
+  },
+  {
+    to: "/accounts",
+    label: "Účty",
+    roles: ["admin"],
+    tooltip: "Připojené FB/IG stránky a Google Business Profile. Zde propojíš nové účty přes OAuth. Jen admin.",
+  },
+  {
+    to: "/stats",
+    label: "Statistiky",
+    tooltip: "Agregace za 7/30/90 dní: rozložení kategorií, denní graf, průměrný čas reakce, top autoři negativních komentářů.",
+  },
+  {
+    to: "/usage",
+    label: "Tokeny",
+    tooltip: "Spotřeba Claude API v USD. Nastavení měsíční hranice pro alert, rozpis podle funkce a modelu.",
+  },
+  {
+    to: "/admin",
+    label: "Admin",
+    roles: ["admin"],
+    tooltip: "Ovládací panel: kill switch pro odpovědi, kritická klíčová slova, ruční polling, hromadná reklasifikace, GDPR retence. Jen admin.",
+  },
 ];
 
 function roleBadgeClass(role: Role): string {
@@ -54,6 +91,7 @@ function Header({ pending }: { pending: number | null }) {
             <NavLink
               key={l.to}
               to={l.to}
+              title={l.tooltip}
               className={({ isActive }) =>
                 `px-3 py-1.5 rounded text-sm flex items-center gap-1.5 ${
                   isActive ? "bg-brand-500 text-white" : "text-slate-700 hover:bg-slate-100"
@@ -75,6 +113,7 @@ function Header({ pending }: { pending: number | null }) {
             <span className={`pill ${roleBadgeClass(me.role)}`}>{me.role}</span>
             <button
               className="text-xs text-slate-500 hover:text-slate-800 underline"
+              title="Odhlásí tě z aplikace. Prohlížeč zapomene heslo, po další návštěvě budeš muset zadat znovu. Doporučeno zavřít prohlížeč úplně na konci směny (zvlášť na sdíleném PC)."
               onClick={() => {
                 if (confirm("Odhlásit se?")) logout();
               }}

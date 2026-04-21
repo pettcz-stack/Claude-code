@@ -51,12 +51,14 @@ export default function Audit() {
       <div className="flex gap-1">
         <button
           className={`btn ${tab === "actions" ? "btn-primary" : "btn-muted"}`}
+          title="Seznam všech akcí provedených v aplikaci (skrýt/smazat/odpovědět) — kdo, kdy, s jakým výsledkem."
           onClick={() => setTab("actions")}
         >
           Akce
         </button>
         <button
           className={`btn ${tab === "evidence" ? "btn-primary" : "btn-muted"}`}
+          title="Právní snímky brand_attack a vulgarity komentářů s SHA-256 hashem. Slouží jako důkaz, co komentář obsahoval v okamžiku detekce, i kdyby ho autor smazal."
           onClick={() => setTab("evidence")}
         >
           Evidence snapshots
@@ -90,10 +92,19 @@ export default function Audit() {
             onChange={(e) => setFilter({ ...filter, performedBy: e.target.value })}
           />
         </div>
-        <button className="btn-primary" onClick={load} disabled={loading}>
+        <button
+          className="btn-primary"
+          onClick={load}
+          disabled={loading}
+          title="Znovu načte záznamy s aktuálně zadanými filtry (datum od/do, operátor)."
+        >
           Použít filtr
         </button>
-        <a className="btn-muted" href={exportUrl()}>
+        <a
+          className="btn-muted"
+          href={exportUrl()}
+          title="Stáhne filtrovaná data jako CSV s BOM, otevřeš v Excelu s korektní českou diakritikou."
+        >
           Export CSV
         </a>
       </div>
@@ -130,7 +141,11 @@ export default function Audit() {
                     )}
                   </td>
                   <td className="p-2 text-right">
-                    <a className="btn-muted" href={`/api/audit/evidence/${e.id}`}>
+                    <a
+                      className="btn-muted"
+                      href={`/api/audit/evidence/${e.id}`}
+                      title="Stáhne právní snímek jako JSON s kompletním stavem komentáře v okamžiku detekce + SHA-256 hashem. Předává se právnímu oddělení při sporech."
+                    >
                       Stáhnout JSON
                     </a>
                   </td>

@@ -58,6 +58,11 @@ export default function Rules() {
         </div>
         <button
           className={paused ? "btn-primary" : "btn-warn"}
+          title={
+            paused
+              ? "Znovu zapne automatickou moderaci. Spam s confidence ≥90 % se začne mazat, vulgarita ≥85 % skrývat automaticky."
+              : "Dočasně zastaví VŠECHNY automatické akce (auto-delete, auto-hide). Ruční moderace funguje dál. Vhodné při krizi nebo testování nového promptu."
+          }
           onClick={async () => {
             await api.setPause(!paused);
             await load();
@@ -88,10 +93,19 @@ export default function Rules() {
                 <td className="p-2">{Math.round(r.minConfidence * 100)}%</td>
                 <td className="p-2">{r.action}</td>
                 <td className="p-2">
-                  <input type="checkbox" checked={r.enabled} onChange={() => toggle(r)} />
+                  <input
+                    type="checkbox"
+                    checked={r.enabled}
+                    title="Zapíná/vypíná toto konkrétní pravidlo. Vypnuté pravidlo zůstává v seznamu, ale neaplikuje se na nové komentáře."
+                    onChange={() => toggle(r)}
+                  />
                 </td>
                 <td className="p-2 text-right">
-                  <button className="btn-danger" onClick={() => remove(r)}>
+                  <button
+                    className="btn-danger"
+                    title="Trvale smaže pravidlo. Historické akce, které podle něj proběhly, zůstanou v audit logu."
+                    onClick={() => remove(r)}
+                  >
                     Smazat
                   </button>
                 </td>
@@ -113,11 +127,13 @@ export default function Rules() {
             <input
               className="border border-slate-300 rounded px-2 py-1 text-sm"
               placeholder="Název"
+              title="Interní název pravidla, jen pro tvoji orientaci. Např. 'Tvrdý spam' nebo 'Jemná vulgarita'."
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
             <select
               className="border border-slate-300 rounded px-2 py-1 text-sm"
+              title="Na kterou AI kategorii se pravidlo aplikuje. Bezpečnostní zámek: brand_attack a legitimate_criticism nelze."
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
             >
@@ -133,18 +149,24 @@ export default function Rules() {
               min={0}
               max={1}
               className="border border-slate-300 rounded px-2 py-1 text-sm w-24"
+              title="Minimální jistota AI, od které se pravidlo aplikuje. 0.9 znamená 'AI si je jistá na 90 % nebo víc'. Doporučení: spam 0.9, vulgarita 0.85."
               value={form.minConfidence}
               onChange={(e) => setForm({ ...form, minConfidence: Number(e.target.value) })}
             />
             <select
               className="border border-slate-300 rounded px-2 py-1 text-sm"
+              title="Co aplikace udělá automaticky, když pravidlo sedne. hide = skrýt, delete = smazat (nevratné)."
               value={form.action}
               onChange={(e) => setForm({ ...form, action: e.target.value as "hide" | "delete" })}
             >
               <option value="hide">hide</option>
               <option value="delete">delete</option>
             </select>
-            <button className="btn-primary" onClick={submit}>
+            <button
+              className="btn-primary"
+              title="Vytvoří nové pravidlo. Okamžitě se aktivuje pro nové komentáře (staré komentáře se neaplikují zpětně)."
+              onClick={submit}
+            >
               Přidat
             </button>
           </div>
@@ -157,9 +179,15 @@ export default function Rules() {
 
       <section className="bg-white rounded shadow-sm p-4">
         <h2 className="font-semibold mb-3">Whitelist / Blacklist</h2>
+        <p className="text-sm text-slate-500 mb-2">
+          💡 <b>Whitelist autora</b> — tohoto uživatele auto-moderace nikdy neskryje/nesmaže (např. VIP klient).<br />
+          💡 <b>Blacklist autora</b> — tohoto uživatele se vždy auto-skryje (kromě legitimní kritiky).<br />
+          💡 Whitelist/Blacklist slov zatím není aktivní ve výchozím pipelinu — rezervováno pro budoucí feature.
+        </p>
         <div className="flex flex-wrap items-end gap-2 mb-4">
           <select
             className="border border-slate-300 rounded px-2 py-1 text-sm"
+            title="Zvol typ seznamu. Author = jméno nebo ID uživatele ze sociální sítě. Word = konkrétní slovo v textu."
             value={newListEntry.kind}
             onChange={(e) => setNewListEntry({ ...newListEntry, kind: e.target.value })}
           >
@@ -171,11 +199,13 @@ export default function Rules() {
           <input
             className="border border-slate-300 rounded px-2 py-1 text-sm"
             placeholder="hodnota (jméno/ID/slovo)"
+            title="Pro autora zadej přesně jméno, jak ho zobrazuje FB/IG, nebo jeho platform ID. Rozlišují se velká/malá písmena."
             value={newListEntry.value}
             onChange={(e) => setNewListEntry({ ...newListEntry, value: e.target.value })}
           />
           <button
             className="btn-primary"
+            title="Přidá záznam do zvoleného seznamu. Účinnost je okamžitá pro nové komentáře."
             onClick={async () => {
               if (!newListEntry.value.trim()) return;
               await api.addListEntry(newListEntry.kind, newListEntry.value.trim());
@@ -195,6 +225,7 @@ export default function Rules() {
               </span>
               <button
                 className="text-red-600 hover:underline text-xs"
+                title="Odstraní záznam ze seznamu. Nová chování platí okamžitě."
                 onClick={async () => {
                   await api.deleteListEntry(e.id);
                   await load();

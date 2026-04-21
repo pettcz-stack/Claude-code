@@ -114,13 +114,18 @@ export default function Usage() {
               placeholder="např. 5"
             />
           </div>
-          <button className="btn-primary" disabled={saving}>
+          <button
+            className="btn-primary"
+            disabled={saving}
+            title="Uloží hranici v USD. Když spotřeba za aktuální kalendářní měsíc překročí tuto částku, odešle se jednorázová Slack/email notifikace (ne opakovaně)."
+          >
             {saving ? "Ukládám…" : "Uložit"}
           </button>
           <button
             type="button"
             className="btn-muted"
             disabled={saving}
+            title="Vypne alert úplně. Aplikace přestane sledovat limit, ale stále bude zobrazovat skutečnou spotřebu."
             onClick={async () => {
               setThreshold("");
               setSaving(true);

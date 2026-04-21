@@ -27,10 +27,19 @@ export default function Accounts() {
           </p>
         </div>
         <div className="flex gap-2">
-          <a className="btn-primary" href="/auth/start">
+          <a
+            className="btn-primary"
+            href="/auth/start"
+            title="Spustí Facebook OAuth — projdeš přihlášení svým FB účtem a povolíš aplikaci přístup ke stránkám ALBIXON a BRILIX. Přidá zároveň propojené Instagram Business účty. Vyžaduje nastavený META_APP_ID v .env."
+          >
             Připojit přes Meta
           </a>
-          <a className="btn-primary" href="/auth/google/start" style={{ background: "#ea4335" }}>
+          <a
+            className="btn-primary"
+            href="/auth/google/start"
+            style={{ background: "#ea4335" }}
+            title="Spustí Google OAuth — projdeš přihlášení Google účtem, který spravuje Google Business Profile ALBIXON. Aplikace pak bude stahovat recenze z Google Maps. Vyžaduje nastavený GOOGLE_CLIENT_ID v .env."
+          >
             Připojit přes Google
           </a>
         </div>
@@ -81,6 +90,7 @@ export default function Accounts() {
                     <input
                       type="checkbox"
                       checked={a.active}
+                      title="Zapíná/vypíná stahování komentářů z tohoto účtu. Vypnutí NEodpojí účet — jen se dočasně nestahují nové komentáře. Historii komentářů neztratíš."
                       onChange={async () => {
                         await api.patchAccount(a.id, { active: !a.active });
                         await load();
@@ -91,6 +101,7 @@ export default function Accounts() {
                     <button
                       className="btn-muted"
                       disabled={busy === a.id}
+                      title="Okamžitě stáhne nové komentáře/recenze z tohoto konkrétního účtu. Normálně se to děje automaticky každých 5 minut; tohle je pro ruční vynucení."
                       onClick={async () => {
                         setBusy(a.id);
                         try {
@@ -107,6 +118,7 @@ export default function Accounts() {
                     </button>
                     <button
                       className="btn-danger"
+                      title="Trvale odpojí účet od Viktora čističe. Nestáhneme už nové komentáře. Historické komentáře a audit zůstávají v DB. Pro dočasné zastavení použij místo toho přepínač 'Aktivní'."
                       onClick={async () => {
                         if (!confirm(`Odpojit ${a.pageName}?`)) return;
                         await api.deleteAccount(a.id);

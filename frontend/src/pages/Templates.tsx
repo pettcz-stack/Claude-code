@@ -96,10 +96,19 @@ export default function Templates() {
                   <div className="line-clamp-2 whitespace-pre-wrap">{t.body}</div>
                 </td>
                 <td className="p-2">
-                  <input type="checkbox" checked={t.enabled} onChange={() => toggle(t)} />
+                  <input
+                    type="checkbox"
+                    checked={t.enabled}
+                    title="Vypnutá šablona se nenabídne v reply modalu (ale zůstává v seznamu pro znovu-zapnutí)."
+                    onChange={() => toggle(t)}
+                  />
                 </td>
                 <td className="p-2 text-right">
-                  <button className="btn-danger" onClick={() => remove(t)}>
+                  <button
+                    className="btn-danger"
+                    title="Trvale smaže šablonu. Historické odpovědi, které vycházely z této šablony, zůstanou zachované."
+                    onClick={() => remove(t)}
+                  >
                     Smazat
                   </button>
                 </td>
@@ -149,7 +158,11 @@ export default function Templates() {
             onChange={(e) => setForm({ ...form, body: e.target.value })}
           />
           <div className="text-right">
-            <button className="btn-primary" onClick={create}>
+            <button
+              className="btn-primary"
+              title="Uloží novou šablonu. Bude okamžitě k dispozici v reply modalu, filtrovaná podle kategorie (pokud nastavená)."
+              onClick={create}
+            >
               Přidat šablonu
             </button>
           </div>
