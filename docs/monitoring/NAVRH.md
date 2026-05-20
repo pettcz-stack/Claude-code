@@ -17,6 +17,10 @@ Vytvořit interní nástroj, který zaměstnavateli umožní v souladu s § 316 
 - Distribuce přes `.msi` instalátor a **GPO (Active Directory)** — tichá vzdálená instalace.
 - Architektura připravená na budoucí napojení **OKbase** (absence/HO/dovolená) a **Outlook/Exchange** (meetingy).
 
+**Platformy:**
+- **Agent: Windows — musí fungovat na všech podporovaných verzích** (Win 10/11 i starší dle potřeby, a **Windows Server**). Viz §5 — volba cílového frameworku kvůli maximální kompatibilitě.
+- **macOS: agent NE.** Na Macu stačí přístup k **dashboardu přes zabezpečené webové rozhraní** (dashboard je web → funguje v prohlížeči na jakémkoli OS včetně macOS).
+
 **Co řešení vědomě NEdělá** (právní + etické hranice, viz §2):
 - ❌ Žádné screenshoty / záznam obrazovky
 - ❌ Žádný keylogging obsahu (NEukládá, *které* klávesy se zmáčkly ani co se píše)
@@ -105,6 +109,7 @@ Agent pracuje v **intervalech** (výchozí 60 s). Za každý interval pošle jed
 ## 5. Endpoint agent (Windows) — detailní návrh
 
 - **Jazyk:** C#/.NET (nativní pro Windows + WiX MSI).
+- **Kompatibilita Windows (požadavek „všechny verze"):** cílit na široce dostupný runtime. Doporučení: agent psát proti **.NET Framework 4.8** (předinstalováno/dostupné na Win 10/11 i Server 2012R2+) **nebo** distribuovat jako **self‑contained .NET 8** (runtime zabalen v MSI, nezávislé na tom, co je na stroji). Rozhodnout v Bloku 1.4 dle nejstarší verze Windows, kterou reálně provozujete. API pro idle/foreground/input (`GetLastInputInfo`, `GetForegroundWindow`, Raw Input) jsou dostupná napříč všemi verzemi.
 - **Model běhu:** agent **musí běžet v interaktivní session uživatele** (sběr vstupu nejde ze session 0). Spuštění přes **Scheduled Task při logon** (běží pod přihlášeným uživatelem). Volitelně doprovodná **Windows služba** (LocalSystem) pro správu konfigurace a self‑update.
 - **Detekce aktivity:** `GetLastInputInfo` → idle čas (bez čtení obsahu vstupu).
 - **Aktivní aplikace:** `GetForegroundWindow` → PID → název procesu. Bez titulku okna.
@@ -192,7 +197,23 @@ Agent pracuje v **intervalech** (výchozí 60 s). Za každý interval pošle jed
 
 ---
 
-## 12. Roadmap — stavba po částech
+## 12. Inspirace z konkurence (DoZo / Dozorce 4)
+
+Analyzováno z veřejných materiálů dozorce.com (spustitelné demo jsme záměrně **nestahovali ani nespouštěli** — obsahuje keylogger/screenshoty/mikrofon/kameru, tedy schopnosti, které odmítáme; navíc cizí spyware binárku nepouštíme).
+
+**Co převzít (legální podmnožina) — kandidáti na roadmapu:**
+- **Centrální hromadná správa agentů** — vzdálená správa instalací, jejich konfigurace, stavu a **verzí** z jednoho místa. Klíčové pro velké AD prostředí. → Blok 1.7 / nový modul.
+- **Plánované e‑mailové reporty** — souhrn např. každé pracovní ráno. → Blok 1.8.
+- **Volitelné uživatelské rozhraní pro sledovaného** — DoZo ho nabízí; pro nás je to ideální nástroj **transparentnosti** (§316: žádné skryté sledování). → součást agenta (Blok 1.4).
+- **Edice/varianty** (HOME/BUSINESS/SERVER) — inspirace pro budoucí balení; teď neřešíme.
+- **Podpora všech verzí Windows + Windows Server** — potvrzuje náš požadavek (§5).
+
+**Co výslovně NEpřebíráme (za hranou §316 / GDPR):**
+- ❌ Keylogger obsahu, ❌ screenshoty/záznam obrazovky, ❌ mikrofon, ❌ webkamera, ❌ vzdálené živé sledování obrazovky.
+
+---
+
+## 13. Roadmap — stavba po částech
 
 Každý blok je samostatná, odsouhlasitelná dodávka. Stavíme až po tvém pokynu „pusť blok X".
 
@@ -203,7 +224,8 @@ Každý blok je samostatná, odsouhlasitelná dodávka. Stavíme až po tvém po
 - **Blok 1.4** — Agent (C#/.NET): idle, aktivní app, čítače kláves/myši, buffer, odeslání.
 - **Blok 1.5** — WiX `.msi` + dokumentace nasazení přes GPO (+ `.bat` fallback).
 - **Blok 1.6** — Právní šablony: informace pro zaměstnance, podklad DPIA, balanční test.
-- **Blok 1.7** — Role/přístup + audit log přístupů, export.
+- **Blok 1.7** — Role/přístup + audit log přístupů, export + **centrální správa agentů** (přehled instalací, konfigurace, verze).
+- **Blok 1.8** — Plánované **e‑mailové reporty** (denní/týdenní souhrn).
 
 **FÁZE 2 — OKbase**
 - **Blok 2.1** — Adaptér OKbase (absence/HO/dovolená) + zobrazení v dashboardu.
@@ -213,7 +235,7 @@ Každý blok je samostatná, odsouhlasitelná dodávka. Stavíme až po tvém po
 
 ---
 
-## 13. Otevřené otázky před stavbou
+## 14. Otevřené otázky před stavbou
 
 1. Backend stack: **.NET** vs **Node.js**?
 2. DB: **PostgreSQL** vs **SQL Server**?
