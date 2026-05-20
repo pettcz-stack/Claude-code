@@ -35,6 +35,6 @@ Produkce běží na PostgreSQL — viz `prisma/schema.postgres.prisma`.
 - [x] **Blok 1.3** — dashboard (kalendář, firemní přehled, export do Excelu)
 - [x] **Blok 1.4** — Windows agent (C#/.NET 4.8) — build/běh na Windows
 - [x] **Blok 1.5** — MSI instalátor (WiX) + GPO nasazení + .bat fallback
-- [ ] Blok 1.6 — právní šablony (informace, DPIA, balanční test)
+- [x] **Blok 1.6** — právní šablony (informace, DPIA, balanční test) → `../docs/monitoring/pravni/`
 - [ ] Blok 1.7 — role/přístup, audit log, centrální správa agentů
 - [ ] Blok 1.8 — e-mailové reporty
