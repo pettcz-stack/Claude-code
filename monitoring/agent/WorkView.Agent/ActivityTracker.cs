@@ -33,6 +33,10 @@ namespace WorkView.Agent
         private int _activeSeconds;
         private int _idleSeconds;
         private int _lockedSeconds;
+        // Cache aktivní aplikace dle okna – proces zjišťujeme jen při ZMĚNĚ okna
+        // (drahá operace), ne každou sekundu. Šetří CPU.
+        private IntPtr _lastHwnd = IntPtr.Zero;
+        private string _cachedApp;
         private readonly Dictionary<string, int> _appSeconds = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, int> _titleSeconds = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
@@ -64,16 +68,22 @@ namespace WorkView.Agent
                 else if (GetIdleMs() < _idleThresholdMs)
                 {
                     _activeSeconds++;
-                    string app = GetForegroundApp();
-                    if (app != null)
+                    IntPtr hwnd = NativeMethods.GetForegroundWindow();
+                    if (hwnd != _lastHwnd)
+                    {
+                        _lastHwnd = hwnd;
+                        _cachedApp = ResolveApp(hwnd); // drahé jen při změně okna
+                    }
+                    if (_cachedApp != null)
                     {
                         int c;
-                        _appSeconds.TryGetValue(app, out c);
-                        _appSeconds[app] = c + 1;
+                        _appSeconds.TryGetValue(_cachedApp, out c);
+                        _appSeconds[_cachedApp] = c + 1;
                     }
                     if (_captureTitle)
                     {
-                        string title = GetForegroundTitle();
+                        // titulek čteme i v rámci stejného okna (přepínání záložek), je to levné
+                        string title = GetWindowTitle(hwnd);
                         if (!string.IsNullOrEmpty(title))
                         {
                             int tc;
@@ -156,26 +166,18 @@ namespace WorkView.Agent
             return unchecked(Environment.TickCount - (int)lii.dwTime);
         }
 
-        private static string GetForegroundApp()
+        private static string ResolveApp(IntPtr hwnd)
         {
             try
             {
-                IntPtr hwnd = NativeMethods.GetForegroundWindow();
                 if (hwnd == IntPtr.Zero) return null;
                 uint pid;
                 NativeMethods.GetWindowThreadProcessId(hwnd, out pid);
                 if (pid == 0) return null;
+                // ProcessName je levné (neotevírá MainModule). Stačí "winword" → "winword.exe".
                 using (Process p = Process.GetProcessById((int)pid))
                 {
-                    try
-                    {
-                        // Název modulu (např. "winword.exe"). Bez titulku okna kvůli soukromí.
-                        return p.MainModule != null ? p.MainModule.ModuleName : (p.ProcessName + ".exe");
-                    }
-                    catch
-                    {
-                        return p.ProcessName + ".exe";
-                    }
+                    return p.ProcessName + ".exe";
                 }
             }
             catch
@@ -184,11 +186,10 @@ namespace WorkView.Agent
             }
         }
 
-        private static string GetForegroundTitle()
+        private static string GetWindowTitle(IntPtr hwnd)
         {
             try
             {
-                IntPtr hwnd = NativeMethods.GetForegroundWindow();
                 if (hwnd == IntPtr.Zero) return null;
                 int len = NativeMethods.GetWindowTextLength(hwnd);
                 if (len <= 0) return null;

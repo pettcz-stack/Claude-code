@@ -65,6 +65,23 @@ Data se objeví v dashboardu po několika intervalech.
 Agent se spouští přes Scheduled Task při přihlášení uživatele; instalaci a
 konfiguraci řeší MSI instalátor a GPO – viz Blok 1.5 (`../installer`).
 
+## Výkon a nenáročnost
+
+- Cíl **.NET Framework 4.8** (už součástí Windows) → `.exe` ~80–200 KB, MSI ~0,3–1 MB.
+- Paměť ~10–30 MB RAM, CPU prakticky neměřitelné.
+- Vzorkuje 1× za sekundu jen levné systémové dotazy (idle čas, titulek okna).
+  **Název aktivní aplikace (proces) se zjišťuje jen při změně okna** – ne každou
+  sekundu (drahá operace) → minimální CPU.
+- Běží se **sníženou prioritou** (`BelowNormal`) – nesoupeří o CPU s prací uživatele.
+- Žádné screenshoty/video/zvuk → nulová zátěž disku, odesílá dávku **1× za 5 min**.
+
+## Pojmenování / viditelnost
+
+Agent je **viditelný proces** (kvůli transparentnosti dle §316 ZP – ne skrytý).
+Název produktu/EXE lze změnit v `WorkView.Agent.csproj` (`AssemblyTitle`,
+`Product`, výstupní název) a v MSI. Doporučujeme **srozumitelný název**
+(ne maskování za systémový proces), ať je nasazení právně čisté.
+
 ## Buffer
 
 Při výpadku sítě se intervaly ukládají do `%ProgramData%\WorkView\spool.ndjson`

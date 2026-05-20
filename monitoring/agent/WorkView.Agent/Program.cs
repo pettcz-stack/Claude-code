@@ -46,6 +46,10 @@ namespace WorkView.Agent
 
                 Application.EnableVisualStyles();
 
+                // Nízká priorita – agent nikdy nesoupeří o CPU s prací uživatele.
+                try { System.Diagnostics.Process.GetCurrentProcess().PriorityClass = System.Diagnostics.ProcessPriorityClass.BelowNormal; }
+                catch { /* nepodstatné, pokračuj */ }
+
                 _buffer = new LocalBuffer();
                 _sender = new Sender(cfg);
 
