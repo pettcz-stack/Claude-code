@@ -60,10 +60,16 @@ $env:WORKVIEW_INTERVAL_SECONDS = "10"
 
 Data se objeví v dashboardu po několika intervalech.
 
-## Nasazení
+## Nasazení a odolnost proti vypnutí
 
-Agent se spouští přes Scheduled Task při přihlášení uživatele; instalaci a
-konfiguraci řeší MSI instalátor a GPO – viz Blok 1.5 (`../installer`).
+Agent spouští **hlídací služba `MAWin32`** (projekt `../WorkView.Watchdog`,
+běží jako LocalSystem) do session přihlášeného uživatele a po případném ukončení
+(i ručním ve Správci úloh) ho **do ~20 s znovu nahodí**. Službu nelze bez
+administrátorských práv zastavit ani zakázat. Instalaci, registraci služby
+(vč. automatického restartu při selhání) a konfiguraci řeší MSI – viz `../installer`.
+
+Agent běží **tiše na pozadí** (bez okna a ikony). Transparentnost dle §316 ZP
+zajišťuje písemné poučení zaměstnanců (`../../docs/monitoring/pravni`).
 
 ## Výkon a nenáročnost
 

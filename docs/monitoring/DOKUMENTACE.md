@@ -98,12 +98,13 @@ sdílený/„veřejný" server provozovatele nástroje.
 ## 7. Odolnost proti vypnutí zaměstnancem
 
 - Agent běží **tiše na pozadí** (bez okna a ikony), pod správou firemního PC.
-- Autostart je zapsán v **HKLM** (registr pro celý počítač) — běžný uživatel bez
-  administrátorských práv jej **nemůže** přes Správce úloh trvale zakázat.
-- **Doporučené zpevnění (roadmap):** doprovodná **Windows služba (watchdog)** pod
-  systémovým účtem, která agenta hlídá a po případném ukončení znovu spustí;
-  službu nelze zastavit bez administrátorských práv. Tím je obcházení prakticky
-  vyloučeno. (K implementaci na vyžádání.)
+- O jeho běh se stará **hlídací Windows služba `MAWin32`** (LocalSystem, auto-start):
+  spouští agenta do session přihlášeného uživatele a po případném ukončení (i ručním
+  ve Správci úloh) ho **do ~20 s znovu nahodí**. Má nastaven i **automatický restart
+  při selhání**. Službu **nelze bez administrátorských práv zastavit ani zakázat**,
+  takže běžný zaměstnanec monitoring fakticky neobejde. Služba sama nic nesbírá.
+- **Právní podmínka:** tato tamper-resistance je na firemním zařízení přípustná
+  pouze při **předchozím prokazatelném informování zaměstnanců** (poučení v `pravni/`).
 
 ## 8. Právní rámec
 

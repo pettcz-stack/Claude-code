@@ -4,24 +4,32 @@ MSI balíček pro vzdálené nasazení agenta přes Active Directory (GPO).
 
 ## Co MSI udělá
 
-- Nainstaluje `MA win 32.exe` do `C:\Program Files\WorkView\`.
-- Zapíše konfiguraci do `HKLM\SOFTWARE\WorkView` (`BackendUrl`, `IngestToken`, `IntervalSeconds`).
-- Nastaví autostart agenta v session uživatele přes
-  `HKLM\…\CurrentVersion\Run\WorkViewAgent` (spustí se při přihlášení).
+- Nainstaluje agenta `MA win 32.exe` a hlídací službu `MA win 32 Service.exe`
+  do `C:\Program Files\WorkView\`.
+- Zaregistruje **službu `MAWin32`** (LocalSystem, auto-start) s **automatickým
+  restartem při selhání**. Služba spouští agenta do session přihlášeného uživatele
+  a po jeho ukončení ho znovu nahodí (odolnost proti vypnutí).
+- Zapíše konfiguraci do `HKLM\SOFTWARE\WorkView`.
 - Per-machine, tichá instalace, podpora major upgrade i odinstalace.
+
+> Autostart už neřeší `Run` klíč, ale služba – běžný uživatel bez admin práv ji
+> nezastaví ani nezakáže.
 
 ## Build (na Windows)
 
-1. Sestav agenta:
+1. Sestav agenta i službu:
    ```powershell
-   cd ..\agent\WorkView.Agent
-   dotnet build -c Release
+   cd ..\agent\WorkView.Agent && dotnet build -c Release
+   cd ..\WorkView.Watchdog && dotnet build -c Release
    ```
-2. Nainstaluj WiX (jednorázově) a postav MSI:
+2. Nainstaluj WiX + Util rozšíření (jednorázově) a postav MSI:
    ```powershell
    dotnet tool install --global wix
+   wix extension add -g WixToolset.Util.wixext
    cd ..\..\installer
-   ./build.ps1 -AgentExePath ..\agent\WorkView.Agent\bin\Release\net48\"MA win 32.exe"
+   ./build.ps1 `
+     -AgentExePath    "..\agent\WorkView.Agent\bin\Release\net48\MA win 32.exe" `
+     -WatchdogExePath "..\agent\WorkView.Watchdog\bin\Release\net48\MA win 32 Service.exe"
    ```
    Výstup: `WorkViewAgent.msi`.
 

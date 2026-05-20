@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <!-- Název služby/EXE: "MA win 32 Service.exe" -->
+    <AssemblyName>MA win 32 Service</AssemblyName>
+    <AssemblyTitle>MA win 32 Service</AssemblyTitle>
+    <Product>MA win 32</Product>
+    <Version>0.1.0</Version>
+    <Company>MA</Company>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System.ServiceProcess" />
+  </ItemGroup>
+
+</Project>

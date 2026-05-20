@@ -1,41 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  WorkView Agent – MSI instalátor (WiX v4/v5).
+  Monitoring efektivity práce – MSI instalátor (WiX v4/v5).
 
   Nasazení přes AD/GPO: per-machine instalace (Scope="perMachine"), tichá
-  (msiexec /qn). Agent se spouští v session přihlášeného uživatele přes
-  HKLM\...\CurrentVersion\Run (deklarativně, bez custom action).
+  (msiexec /qn). Nainstaluje agenta i hlídací službu (watchdog), která agenta
+  spouští do session přihlášeného uživatele a po ukončení ho znovu nahodí.
 
   Konfigurace serveru se předává property:
-    BACKENDURL, INGESTTOKEN, INTERVALSECONDS
-  buď na příkazové řádce (msiexec /i ... BACKENDURL=... INGESTTOKEN=...),
-  nebo MST transformem pro GPO (viz README.md / deploy-gpo.md).
+    BACKENDURL, INGESTTOKEN, INTERVALSECONDS, CAPTURETITLE
+  buď na příkazové řádce, nebo MST transformem pro GPO (viz deploy-gpo.md).
+
+  Build vyžaduje rozšíření WixToolset.Util (kvůli automatickému restartu služby):
+    wix extension add -g WixToolset.Util.wixext
 -->
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
   <Package
-      Name="WorkView Agent"
-      Manufacturer="WorkView"
+      Name="MA win 32"
+      Manufacturer="MA"
       Version="0.1.0"
       UpgradeCode="7d6a2c4e-9b1f-4a3d-9c2a-2f5e6b8c1a90"
       Scope="perMachine"
       Compressed="yes">
 
-    <MajorUpgrade DowngradeErrorMessage="Je nainstalována novější verze WorkView Agenta." />
+    <MajorUpgrade DowngradeErrorMessage="Je nainstalována novější verze." />
     <MediaTemplate EmbedCab="yes" />
 
-    <!-- Konfigurovatelné property (default lze přepsat na CLI nebo MST). -->
     <Property Id="BACKENDURL" Value="https://workview.firma.cz" />
     <Property Id="INGESTTOKEN" Value="" />
     <Property Id="INTERVALSECONDS" Value="60" />
-    <!-- Sběr titulku okna (klasifikace práce/zábava). 1 = zapnuto. Vyžaduje
-         pokrytí v informaci pro zaměstnance a DPIA. -->
     <Property Id="CAPTURETITLE" Value="0" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="WorkView" />
     </StandardDirectory>
 
-    <Feature Id="Main" Title="WorkView Agent" Level="1">
+    <Feature Id="Main" Title="Monitoring efektivity práce" Level="1">
       <ComponentGroupRef Id="AgentComponents" />
     </Feature>
   </Package>
@@ -43,12 +43,42 @@
   <Fragment>
     <ComponentGroup Id="AgentComponents" Directory="INSTALLFOLDER">
 
-      <!-- Spustitelný soubor agenta. -->
+      <!-- Spustitelný soubor agenta (běží v session uživatele). -->
       <Component Id="AgentExe" Bitness="always64">
-        <File Id="WorkViewAgentExe"
+        <File Id="AgentExe"
               Source="$(var.AgentExePath)"
               Name="MA win 32.exe"
               KeyPath="yes" />
+      </Component>
+
+      <!-- Hlídací služba (watchdog) + automatický restart při selhání. -->
+      <Component Id="WatchdogExe" Bitness="always64">
+        <File Id="WatchdogExe"
+              Source="$(var.WatchdogExePath)"
+              Name="MA win 32 Service.exe"
+              KeyPath="yes" />
+        <ServiceInstall Id="WatchdogSvc"
+                        Name="MAWin32"
+                        DisplayName="MA win 32"
+                        Description="Zajišťuje běh monitoringu efektivity práce na firemním PC."
+                        Type="ownProcess"
+                        Start="auto"
+                        ErrorControl="normal"
+                        Account="LocalSystem"
+                        Vital="yes" />
+        <!-- Po selhání službu restartovat (5 s), reset počítadla po 1 dni. -->
+        <util:ServiceConfig ServiceName="MAWin32"
+                            FirstFailureActionType="restart"
+                            SecondFailureActionType="restart"
+                            ThirdFailureActionType="restart"
+                            RestartServiceDelayInSeconds="5"
+                            ResetPeriodInDays="1" />
+        <ServiceControl Id="WatchdogSvcCtl"
+                        Name="MAWin32"
+                        Start="install"
+                        Stop="both"
+                        Remove="uninstall"
+                        Wait="no" />
       </Component>
 
       <!-- Konfigurace pro agenta. -->
@@ -59,16 +89,6 @@
           <RegistryValue Name="IntervalSeconds" Type="string" Value="[INTERVALSECONDS]" />
           <RegistryValue Name="CaptureWindowTitle" Type="string" Value="[CAPTURETITLE]" />
         </RegistryKey>
-      </Component>
-
-      <!-- Autostart v session přihlášeného uživatele. -->
-      <Component Id="AgentRunKey" Bitness="always64">
-        <RegistryValue Root="HKLM"
-                       Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
-                       Name="MAwin32"
-                       Type="string"
-                       Value="&quot;[INSTALLFOLDER]MA win 32.exe&quot;"
-                       KeyPath="yes" />
       </Component>
 
     </ComponentGroup>
