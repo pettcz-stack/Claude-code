@@ -58,10 +58,16 @@ Vylepšení MVP:
 Rozšíření:
 - [x] e-mailová upozornění (pirátské praktiky + výpadek agenta) + Nastavení v UI
 - [x] bezpečnostní hardening (tokeny, rate limit, CSP) – viz `../docs/monitoring/BEZPECNOST.md`
+- [x] Přehled firmy (KPI, srovnání oddělení, heatmapa „kdy se pracuje")
+- [x] Home Office vyhodnocení (efektivita HO vs. kancelář)
+- [x] počet monitorů + efektivita dle monitorů, fragmentace pozornosti
+- [x] Report zaměstnance: anonymizované srovnání + zábavný a zdravotní režim
 
 Nápady do budoucna:
-- self-service náhled pro zaměstnance + soutěž „Zaměstnanec měsíce"
+- self-service přístup pro zaměstnance (vlastní login) + soutěž „Zaměstnanec měsíce"
 - AD/SSO přihlášení + manažerské role (jen své oddělení)
+- 2FA pro admina, per-device tokeny, Teams notifikace, PDF reporty
+- flat ESLint config (eslint v9+), code-splitting dalších stránek
 
 Další fáze (čeká na přístupy):
 - [ ] Blok 2.1 — adaptér OKbase (absence/HO/dovolená)

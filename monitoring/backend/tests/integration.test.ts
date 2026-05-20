@@ -115,3 +115,39 @@ describe('export', () => {
     expect(res.headers['content-type']).toContain('spreadsheetml');
   });
 });
+
+describe('analytika (smoke)', () => {
+  const range = 'from=2026-05-01T00:00:00.000Z&to=2026-06-01T00:00:00.000Z';
+
+  it('overview vrací KPI strukturu', async () => {
+    const res = await request(app).get(`/api/v1/dashboard/overview?${range}`).set('authorization', bearer);
+    expect(res.status).toBe(200);
+    expect(res.body.kpi).toBeTruthy();
+    expect(typeof res.body.kpi.avgScore).toBe('number');
+    expect(Array.isArray(res.body.departments)).toBe(true);
+  });
+
+  it('homeoffice, monitors, heatmap, trend, top-activities vrací 200', async () => {
+    for (const url of ['homeoffice', 'monitors', 'heatmap', 'trend', 'top-activities']) {
+      const res = await request(app).get(`/api/v1/dashboard/${url}?${range}`).set('authorization', bearer);
+      expect(res.status, url).toBe(200);
+    }
+  });
+
+  it('selfreport vrací percentily a fun metriky', async () => {
+    const u = await prisma.monitoredUser.findUnique({ where: { sid: 'S-1-5-21-IT-1' } });
+    const res = await request(app).get(`/api/v1/dashboard/selfreport?userId=${u!.id}&${range}`).set('authorization', bearer);
+    expect(res.status).toBe(200);
+    const r = res.body.report;
+    expect(typeof r.companyPercentile).toBe('number');
+    expect(typeof r.caloriesTyping).toBe('number');
+    expect(typeof r.monitorTypical).toBe('number');
+  });
+
+  it('settings: lze zapnout fun/health režim', async () => {
+    const res = await request(app).put('/api/v1/admin/settings').set('authorization', bearer).send({ funMode: true, healthMode: true });
+    expect(res.status).toBe(200);
+    expect(res.body.settings.funMode).toBe(true);
+    expect(res.body.settings.healthMode).toBe(true);
+  });
+});

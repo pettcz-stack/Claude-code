@@ -9,4 +9,11 @@ export default defineConfig({
       '/api': { target: 'http://localhost:4000', changeOrigin: true },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: { react: ['react', 'react-dom'], charts: ['recharts'] },
+      },
+    },
+  },
 });
