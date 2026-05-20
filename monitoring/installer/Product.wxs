@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WorkView Agent – MSI instalátor (WiX v4/v5).
+
+  Nasazení přes AD/GPO: per-machine instalace (Scope="perMachine"), tichá
+  (msiexec /qn). Agent se spouští v session přihlášeného uživatele přes
+  HKLM\...\CurrentVersion\Run (deklarativně, bez custom action).
+
+  Konfigurace serveru se předává property:
+    BACKENDURL, INGESTTOKEN, INTERVALSECONDS
+  buď na příkazové řádce (msiexec /i ... BACKENDURL=... INGESTTOKEN=...),
+  nebo MST transformem pro GPO (viz README.md / deploy-gpo.md).
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+      Name="WorkView Agent"
+      Manufacturer="WorkView"
+      Version="0.1.0"
+      UpgradeCode="7d6a2c4e-9b1f-4a3d-9c2a-2f5e6b8c1a90"
+      Scope="perMachine"
+      Compressed="yes">
+
+    <MajorUpgrade DowngradeErrorMessage="Je nainstalována novější verze WorkView Agenta." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Konfigurovatelné property (default lze přepsat na CLI nebo MST). -->
+    <Property Id="BACKENDURL" Value="https://workview.firma.cz" />
+    <Property Id="INGESTTOKEN" Value="" />
+    <Property Id="INTERVALSECONDS" Value="60" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="WorkView" />
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="WorkView Agent" Level="1">
+      <ComponentGroupRef Id="AgentComponents" />
+    </Feature>
+  </Package>
+
+  <Fragment>
+    <ComponentGroup Id="AgentComponents" Directory="INSTALLFOLDER">
+
+      <!-- Spustitelný soubor agenta. -->
+      <Component Id="AgentExe" Bitness="always64">
+        <File Id="WorkViewAgentExe"
+              Source="$(var.AgentExePath)"
+              Name="WorkView.Agent.exe"
+              KeyPath="yes" />
+      </Component>
+
+      <!-- Konfigurace pro agenta. -->
+      <Component Id="AgentConfigReg" Bitness="always64">
+        <RegistryKey Root="HKLM" Key="SOFTWARE\WorkView">
+          <RegistryValue Name="BackendUrl" Type="string" Value="[BACKENDURL]" KeyPath="yes" />
+          <RegistryValue Name="IngestToken" Type="string" Value="[INGESTTOKEN]" />
+          <RegistryValue Name="IntervalSeconds" Type="string" Value="[INTERVALSECONDS]" />
+        </RegistryKey>
+      </Component>
+
+      <!-- Autostart v session přihlášeného uživatele. -->
+      <Component Id="AgentRunKey" Bitness="always64">
+        <RegistryValue Root="HKLM"
+                       Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+                       Name="WorkViewAgent"
+                       Type="string"
+                       Value="&quot;[INSTALLFOLDER]WorkView.Agent.exe&quot;"
+                       KeyPath="yes" />
+      </Component>
+
+    </ComponentGroup>
+  </Fragment>
+</Wix>
