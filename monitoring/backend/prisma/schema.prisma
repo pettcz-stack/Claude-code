@@ -1,0 +1,157 @@
+// WorkView – datový model pro monitoring pracovní aktivity.
+// Dev varianta: SQLite. Produkční varianta: prisma/schema.postgres.prisma.
+//
+// Zásady (viz docs/monitoring/NAVRH.md §2, §3):
+//  - Ukládají se POUZE agregované metriky aktivity, žádný obsah.
+//  - keystrokeCount / mouseEvents jsou POČTY za interval, nikdy obsah kláves
+//    ani souřadnice myši (zákaz keyloggingu dle §316 ZP).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Firemní zařízení, na kterém běží agent.
+model Device {
+  id                  String   @id @default(cuid())
+  machineId           String   @unique // strojové ID (HW/OS), stabilní identifikátor
+  hostname            String
+  os                  String? // verze Windows / Windows Server
+  agentVersion        String?
+  enrollmentTokenHash String? // hash tokenu pro autentizaci agenta
+  active              Boolean  @default(true)
+  lastSeen            DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  intervals ActivityInterval[]
+
+  @@index([active])
+  @@index([lastSeen])
+}
+
+/// Sledovaný uživatel (zaměstnanec). Identifikován Windows SID.
+model MonitoredUser {
+  id          String  @id @default(cuid())
+  sid         String  @unique // Windows SID
+  displayName String?
+  department  String?
+  email       String? // pro budoucí napojení Outlook (Fáze 3)
+  okbaseId    String? // pro budoucí napojení OKbase (Fáze 2)
+  active      Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  intervals      ActivityInterval[]
+  hourly         ActivityHourly[]
+  absences       Absence[]
+  calendarEvents CalendarEvent[]
+
+  @@index([department])
+  @@index([active])
+}
+
+/// Syrový záznam za interval (výchozí 60 s). Krátká retence – slouží
+/// k detailnímu rozpadu a jako vstup pro hodinovou agregaci.
+model ActivityInterval {
+  id              String   @id @default(cuid())
+  deviceId        String
+  userId          String
+  intervalStart   DateTime // začátek intervalu (UTC)
+  intervalSeconds Int      @default(60)
+  activeSeconds   Int      @default(0) // ne-idle sekundy
+  idleSeconds     Int      @default(0)
+  foregroundApp   String? // název procesu/exe aktivní aplikace (BEZ titulku okna)
+  appCategory     String? // volitelná kategorie (doplní agregace dle AppCategory)
+  keystrokeCount  Int      @default(0) // POČET úhozů (nikdy obsah)
+  mouseEvents     Int      @default(0) // POČET pohybů+kliků (nikdy souřadnice)
+  sessionLocked   Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  device Device        @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  user   MonitoredUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, userId, intervalStart]) // idempotentní ingest
+  @@index([userId, intervalStart])
+  @@index([intervalStart])
+}
+
+/// Hodinový agregát na uživatele. Dlouhá retence – historická data pro analýzu.
+model ActivityHourly {
+  id             String   @id @default(cuid())
+  userId         String
+  hourStart      DateTime // zarovnáno na celou hodinu (UTC)
+  activeMinutes  Float    @default(0)
+  idleMinutes    Float    @default(0)
+  lockedMinutes  Float    @default(0)
+  topApp         String?
+  keystrokeTotal Int      @default(0)
+  mouseTotal     Int      @default(0)
+  avgKpm         Float    @default(0) // průměr úhozů za minutu (z aktivního času)
+  meetingMinutes Float    @default(0) // Fáze 3 (Outlook)
+  absenceType    String? // Fáze 2 (OKbase): HOME_OFFICE | DOVOLENA | NEMOC | ...
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user MonitoredUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, hourStart])
+  @@index([hourStart])
+}
+
+/// Kategorizace aplikací (práce / komunikace / web / hry ...). Doplňuje agregaci.
+model AppCategory {
+  id        String   @id @default(cuid())
+  appName   String   @unique // např. "winword.exe"
+  category  String // např. "PRACE" | "KOMUNIKACE" | "WEB" | "OSTATNI"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Absence importovaná z OKbase (Fáze 2). Legitimizuje nečinnost v daný den.
+model Absence {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime // den absence (00:00 UTC)
+  type      String // HOME_OFFICE | DOVOLENA | NEMOC | LEKAR | ...
+  source    String   @default("OKBASE")
+  createdAt DateTime @default(now())
+
+  user MonitoredUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date, type])
+  @@index([date])
+}
+
+/// Událost z Outlook/Exchange kalendáře (Fáze 3). Drží se POUZE časy meetingu.
+model CalendarEvent {
+  id         String   @id @default(cuid())
+  userId     String
+  externalId String? // ID události v Exchange/Graph (dedupe)
+  startsAt   DateTime
+  endsAt     DateTime
+  kind       String   @default("MEETING")
+  createdAt  DateTime @default(now())
+
+  user MonitoredUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, externalId])
+  @@index([userId, startsAt])
+}
+
+/// Audit přístupů administrátorů k datům zaměstnanců (požadavek GDPR).
+model AccessAudit {
+  id            String   @id @default(cuid())
+  adminIdentity String // kdo přistupoval
+  viewedUserId  String? // čí data si prohlížel
+  action        String // VIEW | EXPORT | ...
+  detail        String?
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([adminIdentity])
+}

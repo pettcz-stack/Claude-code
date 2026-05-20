@@ -1,0 +1,144 @@
+// WorkView – PRODUKČNÍ varianta datového modelu (PostgreSQL).
+// Obsahově identické se schema.prisma (dev/SQLite), liší se jen datasource.
+// Při nasazení: zkopírovat přes schema.prisma nebo použít --schema.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Device {
+  id                  String   @id @default(cuid())
+  machineId           String   @unique
+  hostname            String
+  os                  String?
+  agentVersion        String?
+  enrollmentTokenHash String?
+  active              Boolean  @default(true)
+  lastSeen            DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  intervals ActivityInterval[]
+
+  @@index([active])
+  @@index([lastSeen])
+}
+
+model MonitoredUser {
+  id          String   @id @default(cuid())
+  sid         String   @unique
+  displayName String?
+  department  String?
+  email       String?
+  okbaseId    String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  intervals      ActivityInterval[]
+  hourly         ActivityHourly[]
+  absences       Absence[]
+  calendarEvents CalendarEvent[]
+
+  @@index([department])
+  @@index([active])
+}
+
+model ActivityInterval {
+  id              String   @id @default(cuid())
+  deviceId        String
+  userId          String
+  intervalStart   DateTime
+  intervalSeconds Int      @default(60)
+  activeSeconds   Int      @default(0)
+  idleSeconds     Int      @default(0)
+  foregroundApp   String?
+  appCategory     String?
+  keystrokeCount  Int      @default(0)
+  mouseEvents     Int      @default(0)
+  sessionLocked   Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  device Device        @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  user   MonitoredUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, userId, intervalStart])
+  @@index([userId, intervalStart])
+  @@index([intervalStart])
+}
+
+model ActivityHourly {
+  id             String   @id @default(cuid())
+  userId         String
+  hourStart      DateTime
+  activeMinutes  Float    @default(0)
+  idleMinutes    Float    @default(0)
+  lockedMinutes  Float    @default(0)
+  topApp         String?
+  keystrokeTotal Int      @default(0)
+  mouseTotal     Int      @default(0)
+  avgKpm         Float    @default(0)
+  meetingMinutes Float    @default(0)
+  absenceType    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user MonitoredUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, hourStart])
+  @@index([hourStart])
+}
+
+model AppCategory {
+  id        String   @id @default(cuid())
+  appName   String   @unique
+  category  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Absence {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime
+  type      String
+  source    String   @default("OKBASE")
+  createdAt DateTime @default(now())
+
+  user MonitoredUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date, type])
+  @@index([date])
+}
+
+model CalendarEvent {
+  id         String   @id @default(cuid())
+  userId     String
+  externalId String?
+  startsAt   DateTime
+  endsAt     DateTime
+  kind       String   @default("MEETING")
+  createdAt  DateTime @default(now())
+
+  user MonitoredUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, externalId])
+  @@index([userId, startsAt])
+}
+
+model AccessAudit {
+  id            String   @id @default(cuid())
+  adminIdentity String
+  viewedUserId  String?
+  action        String
+  detail        String?
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([adminIdentity])
+}
