@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import { config, smtpEnabled } from './config.js';
+import { config, smtpEnabled, assertProductionSecrets } from './config.js';
 import { prisma } from './db.js';
 import { createApp } from './app.js';
 import { aggregateRecent } from './services/aggregate.js';
@@ -8,6 +8,9 @@ import { ensureAdmin } from './auth.js';
 import { ensureDefaultCategories } from './services/categories.js';
 import { ensureDefaultWebRules } from './services/classify.js';
 import { sendReport } from './services/report.js';
+
+// V produkci odmítni start se slabými výchozími tajemstvími.
+assertProductionSecrets();
 
 const app = createApp();
 

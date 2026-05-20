@@ -33,29 +33,58 @@ export function verifyPassword(password: string, stored: string): boolean {
 export async function ensureAdmin(): Promise<void> {
   const count = await prisma.adminUser.count();
   if (count > 0) return;
-  const username = config.adminUser;
-  const password = config.adminPassword;
   await prisma.adminUser.create({
-    data: { username, passwordHash: hashPassword(password), role: 'ADMIN' },
+    data: { username: config.adminUser, passwordHash: hashPassword(config.adminPassword), role: 'ADMIN' },
   });
   // eslint-disable-next-line no-console
-  console.log(`Vytvořen výchozí admin účet "${username}" (změňte heslo přes ADMIN_PASSWORD).`);
+  console.log(`Vytvořen výchozí admin účet "${config.adminUser}" (změňte heslo přes ADMIN_PASSWORD).`);
 }
 
-/** HTTP Basic auth proti tabulce AdminUser. */
-export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
-  const header = req.header('authorization') ?? '';
-  if (!header.startsWith('Basic ')) {
-    res.set('WWW-Authenticate', 'Basic realm="WorkView"').status(401).json({ error: 'unauthorized' });
-    return;
-  }
-  const [username, password] = Buffer.from(header.slice(6), 'base64').toString('utf8').split(':');
+// --- Session tokeny (po přihlášení) -------------------------------------------------
+// Krátkodobé bezpečné tokeny v paměti. Scrypt se počítá jen 1× při přihlášení,
+// ne na každý požadavek (ochrana proti DoS a standardní vzor).
+
+type Session = { username: string; role: string; expires: number };
+const sessions = new Map<string, Session>();
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 h
+
+function newToken(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+/** Ověří jméno/heslo a vydá session token. Vrací null při neúspěchu. */
+export async function login(username: string, password: string): Promise<{ token: string; role: string; username: string } | null> {
   const user = await prisma.adminUser.findUnique({ where: { username } });
-  if (!user || !user.active || !verifyPassword(password ?? '', user.passwordHash)) {
-    res.set('WWW-Authenticate', 'Basic realm="WorkView"').status(401).json({ error: 'unauthorized' });
+  if (!user || !user.active || !verifyPassword(password, user.passwordHash)) return null;
+  const token = newToken();
+  sessions.set(token, { username: user.username, role: user.role, expires: Date.now() + SESSION_TTL_MS });
+  return { token, role: user.role, username: user.username };
+}
+
+export function destroySession(token: string): void {
+  sessions.delete(token);
+}
+
+function getSession(token: string): Session | null {
+  const s = sessions.get(token);
+  if (!s) return null;
+  if (s.expires < Date.now()) {
+    sessions.delete(token);
+    return null;
+  }
+  return s;
+}
+
+/** Autentizace přes Bearer session token. */
+export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+  const header = req.header('authorization') ?? '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+  const s = token ? getSession(token) : null;
+  if (!s) {
+    res.status(401).json({ error: 'unauthorized' });
     return;
   }
-  req.admin = { username: user.username, role: user.role };
+  req.admin = { username: s.username, role: s.role };
   next();
 }
 

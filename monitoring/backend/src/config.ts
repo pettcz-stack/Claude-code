@@ -11,6 +11,9 @@ export const config = {
   hourlyRetentionDays: Number(process.env.HOURLY_RETENTION_DAYS ?? 540), // ~18 měsíců
   // Zapnutí plánovaných úloh (agregace doběhů + retence).
   enableJobs: (process.env.ENABLE_JOBS ?? 'true') !== 'false',
+  // CORS: prázdné = žádný CORS (SPA je same-origin). Jinak konkrétní origin.
+  corsOrigin: process.env.CORS_ORIGIN ?? '',
+  nodeEnv: process.env.NODE_ENV ?? 'development',
   // Výchozí admin účet (vytvoří se jen pokud žádný neexistuje).
   adminUser: process.env.ADMIN_USER ?? 'admin',
   adminPassword: process.env.ADMIN_PASSWORD ?? 'admin',
@@ -33,3 +36,18 @@ export const config = {
 };
 
 export const smtpEnabled = () => config.smtp.host.length > 0 && config.report.recipients.length > 0;
+
+/**
+ * V produkci odmítne start se slabými výchozími tajemstvími (admin/admin,
+ * dev-token). Brání nasazení s defaultními přihlašovacími údaji.
+ */
+export function assertProductionSecrets(): void {
+  if (config.nodeEnv !== 'production') return;
+  const weak: string[] = [];
+  if (['admin', 'heslo', 'password', ''].includes(config.adminPassword.toLowerCase())) weak.push('ADMIN_PASSWORD');
+  if (config.adminPassword.length < 10) weak.push('ADMIN_PASSWORD (min. 10 znaků)');
+  if (['dev-token', '', 'token'].includes(config.ingestToken.toLowerCase())) weak.push('INGEST_TOKEN');
+  if (weak.length > 0) {
+    throw new Error('Odmítnut start v produkci se slabými tajemstvími: ' + weak.join(', '));
+  }
+}

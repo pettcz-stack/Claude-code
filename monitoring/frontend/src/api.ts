@@ -101,25 +101,25 @@ export type AlertItem = { userId: string; displayName: string | null; department
 
 export type Me = { username: string; role: string };
 
-const STORAGE_KEY = 'workview_auth';
+const STORAGE_KEY = 'workview_token';
 
-export function getCreds(): string | null {
+export function getToken(): string | null {
   return sessionStorage.getItem(STORAGE_KEY);
 }
-function setCreds(b64: string | null) {
-  if (b64) sessionStorage.setItem(STORAGE_KEY, b64);
+function setToken(t: string | null) {
+  if (t) sessionStorage.setItem(STORAGE_KEY, t);
   else sessionStorage.removeItem(STORAGE_KEY);
 }
 
 function authHeader(): Record<string, string> {
-  const c = getCreds();
-  return c ? { authorization: `Basic ${c}` } : {};
+  const t = getToken();
+  return t ? { authorization: `Bearer ${t}` } : {};
 }
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url, { headers: authHeader() });
   if (res.status === 401) {
-    setCreds(null);
+    setToken(null);
     throw new Error('unauthorized');
   }
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
@@ -139,17 +139,23 @@ async function downloadFile(url: string, filename: string): Promise<void> {
 
 export const auth = {
   async login(username: string, password: string): Promise<Me> {
-    const b64 = btoa(`${username}:${password}`);
-    const res = await fetch('/api/v1/me', { headers: { authorization: `Basic ${b64}` } });
+    const res = await fetch('/api/v1/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
     if (!res.ok) throw new Error('Neplatné přihlašovací údaje');
-    setCreds(b64);
-    return res.json();
+    const data = (await res.json()) as { token: string; username: string; role: string };
+    setToken(data.token);
+    return { username: data.username, role: data.role };
   },
   logout() {
-    setCreds(null);
+    const t = getToken();
+    if (t) void fetch('/api/v1/logout', { method: 'POST', headers: { authorization: `Bearer ${t}` } });
+    setToken(null);
   },
   me: () => getJson<Me>('/api/v1/me'),
-  isLoggedIn: () => getCreds() !== null,
+  isLoggedIn: () => getToken() !== null,
 };
 
 export const api = {
