@@ -5,6 +5,8 @@ import cron from 'node-cron';
 import { config } from './config.js';
 import { prisma } from './db.js';
 import { ingestRouter } from './routes/ingest.js';
+import { dashboardRouter } from './routes/dashboard.js';
+import { exportRouter } from './routes/export.js';
 import { aggregateRecent } from './services/aggregate.js';
 import { runRetention } from './jobs/retention.js';
 
@@ -24,8 +26,8 @@ app.get('/api/v1/health', async (_req, res) => {
 });
 
 app.use('/api/v1/ingest', ingestRouter);
-
-// Dashboard API se doplní v Bloku 1.3.
+app.use('/api/v1/dashboard', dashboardRouter);
+app.use('/api/v1/export', exportRouter);
 
 const server = app.listen(config.port, () => {
   // eslint-disable-next-line no-console
