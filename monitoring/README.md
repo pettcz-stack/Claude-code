@@ -33,5 +33,5 @@ Produkce běží na PostgreSQL — viz `prisma/schema.postgres.prisma`.
 - [x] **Blok 1.1** — kostra + datový model + migrace
 - [x] **Blok 1.2** — ingest API + hodinová agregace + retence
 - [x] **Blok 1.3** — dashboard (kalendář, firemní přehled, export do Excelu)
-- [ ] Blok 1.4 — Windows agent
+- [x] **Blok 1.4** — Windows agent (C#/.NET 4.8) — build/běh na Windows
 - [ ] Blok 1.5 — MSI instalátor + GPO
