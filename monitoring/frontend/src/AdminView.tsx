@@ -5,6 +5,13 @@ export function AdminView({ role }: { role: string }) {
   const [devices, setDevices] = useState<Device[]>([]);
   const [audit, setAudit] = useState<AuditRow[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [reportMsg, setReportMsg] = useState<string | null>(null);
+
+  async function triggerReport() {
+    setReportMsg('Odesílám…');
+    const r = await api.sendReport();
+    setReportMsg(r.ok ? `Report odeslán (${r.rows} řádků, ${r.recipients} příjemců).` : `Chyba: ${r.error}`);
+  }
 
   useEffect(() => {
     api.devices().then(setDevices).catch((e) => setError(String(e)));
@@ -48,6 +55,22 @@ export function AdminView({ role }: { role: string }) {
           </table>
         </div>
       </section>
+
+      {role === 'ADMIN' && (
+        <section>
+          <h2 className="mb-2 text-sm font-semibold text-gray-700">E-mailový report</h2>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={triggerReport}
+              className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
+            >
+              Odeslat report nyní
+            </button>
+            {reportMsg && <span className="text-sm text-gray-600">{reportMsg}</span>}
+          </div>
+          <p className="mt-1 text-xs text-gray-400">Vyžaduje nastavený SMTP a příjemce (REPORT_RECIPIENTS). Plánovaně dle REPORT_CRON.</p>
+        </section>
+      )}
 
       {role === 'ADMIN' && (
         <section>

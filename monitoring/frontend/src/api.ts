@@ -112,6 +112,10 @@ export const api = {
     ).then((d) => d.summary),
   devices: () => getJson<{ devices: Device[] }>('/api/v1/admin/devices').then((d) => d.devices),
   audit: () => getJson<{ rows: AuditRow[] }>('/api/v1/admin/audit').then((d) => d.rows),
+  sendReport: async (): Promise<{ ok?: boolean; error?: string; rows?: number; recipients?: number }> => {
+    const res = await fetch('/api/v1/admin/report/send', { method: 'POST', headers: authHeader() });
+    return res.json();
+  },
   exportHourly: (from: string, to: string, opts: { userId?: string; department?: string } = {}) => {
     const q = new URLSearchParams({ from, to });
     if (opts.userId) q.set('userId', opts.userId);

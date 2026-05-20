@@ -2,8 +2,24 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { requireRole } from '../auth.js';
+import { sendReport } from '../services/report.js';
+import { smtpEnabled } from '../config.js';
 
 export const adminRouter = Router();
+
+/** Ruční odeslání e-mailového reportu (test) – jen ADMIN. */
+adminRouter.post('/report/send', requireRole('ADMIN'), async (_req, res) => {
+  if (!smtpEnabled()) {
+    res.status(400).json({ error: 'smtp_not_configured' });
+    return;
+  }
+  try {
+    const result = await sendReport();
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    res.status(500).json({ error: 'send_failed', detail: String(e) });
+  }
+});
 
 /** Centrální přehled zařízení (stav agentů). */
 adminRouter.get('/devices', async (_req, res) => {

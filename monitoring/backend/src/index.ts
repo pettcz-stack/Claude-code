@@ -2,8 +2,9 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import cron from 'node-cron';
-import { config } from './config.js';
+import { config, smtpEnabled } from './config.js';
 import { prisma } from './db.js';
+import { sendReport } from './services/report.js';
 import { ingestRouter } from './routes/ingest.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { exportRouter } from './routes/export.js';
@@ -72,6 +73,21 @@ if (config.enableJobs) {
       }
     }),
   );
+  // E-mailový report – dle REPORT_CRON, jen pokud je nastaven SMTP.
+  if (smtpEnabled()) {
+    jobs.push(
+      cron.schedule(config.report.cron, async () => {
+        try {
+          const r = await sendReport();
+          // eslint-disable-next-line no-console
+          console.log(`Report odeslán ${r.recipients} příjemcům (${r.rows} řádků)`);
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error('sendReport selhalo', e);
+        }
+      }),
+    );
+  }
 }
 
 async function shutdown() {

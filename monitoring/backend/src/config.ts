@@ -14,4 +14,20 @@ export const config = {
   // Výchozí admin účet (vytvoří se jen pokud žádný neexistuje).
   adminUser: process.env.ADMIN_USER ?? 'admin',
   adminPassword: process.env.ADMIN_PASSWORD ?? 'admin',
+  // E-mailové reporty (Blok 1.8). Aktivní jen pokud je nastaven SMTP_HOST.
+  smtp: {
+    host: process.env.SMTP_HOST ?? '',
+    port: Number(process.env.SMTP_PORT ?? 587),
+    secure: (process.env.SMTP_SECURE ?? 'false') === 'true',
+    user: process.env.SMTP_USER ?? '',
+    pass: process.env.SMTP_PASS ?? '',
+    from: process.env.SMTP_FROM ?? 'workview@firma.cz',
+  },
+  report: {
+    recipients: (process.env.REPORT_RECIPIENTS ?? '').split(',').map((s) => s.trim()).filter(Boolean),
+    cron: process.env.REPORT_CRON ?? '0 7 * * 1-5', // pracovní dny 07:00
+    rangeDays: Number(process.env.REPORT_RANGE_DAYS ?? 1),
+  },
 };
+
+export const smtpEnabled = () => config.smtp.host.length > 0 && config.report.recipients.length > 0;

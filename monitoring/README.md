@@ -37,4 +37,8 @@ Produkce běží na PostgreSQL — viz `prisma/schema.postgres.prisma`.
 - [x] **Blok 1.5** — MSI instalátor (WiX) + GPO nasazení + .bat fallback
 - [x] **Blok 1.6** — právní šablony (informace, DPIA, balanční test) → `../docs/monitoring/pravni/`
 - [x] **Blok 1.7** — role/přístup (ADMIN/VIEWER), audit log, centrální správa agentů
-- [ ] Blok 1.8 — e-mailové reporty
+- [x] **Blok 1.8** — e-mailové reporty (nodemailer, cron, ruční spuštění)
+
+**Fáze 1 (MVP) hotová.** Další fáze (na vyžádání):
+- [ ] Blok 2.1 — adaptér OKbase (absence/HO/dovolená)
+- [ ] Blok 3.1 — adaptér Outlook/Exchange (meetingy)
