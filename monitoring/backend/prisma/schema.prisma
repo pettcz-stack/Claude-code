@@ -65,7 +65,8 @@ model ActivityInterval {
   intervalSeconds Int      @default(60)
   activeSeconds   Int      @default(0) // ne-idle sekundy
   idleSeconds     Int      @default(0)
-  foregroundApp   String? // název procesu/exe aktivní aplikace (BEZ titulku okna)
+  foregroundApp   String? // název procesu/exe aktivní aplikace
+  windowTitle     String? // titulek aktivního okna (pro klasifikaci práce/zábava); volitelné
   appCategory     String? // volitelná kategorie (doplní agregace dle AppCategory)
   keystrokeCount  Int      @default(0) // POČET úhozů (nikdy obsah)
   mouseEvents     Int      @default(0) // POČET pohybů+kliků (nikdy souřadnice)

@@ -8,8 +8,10 @@ import { aggregateAll } from './services/aggregate.js';
 
 const DEPARTMENTS = ['Obchod', 'Vývoj', 'Podpora'];
 const WORK_APPS = ['winword.exe', 'excel.exe', 'outlook.exe', 'teams.exe', 'code.exe', 'sap.exe'];
-const NEUTRAL_APPS = ['chrome.exe', 'msedge.exe'];
-const NONWORK_APPS = ['steam.exe', 'facebook.com', 'youtube.com', 'spotify.exe', 'instagram.com'];
+const NONWORK_APPS = ['steam.exe', 'spotify.exe'];
+// Prohlížeč (chrome.exe) + titulek okna → klasifikace práce vs. zábava
+const BROWSER_WORK_TITLES = ['Jira – úkoly', 'Confluence – dokumentace', 'GitLab – merge request', 'Firemní CRM', 'SharePoint'];
+const BROWSER_NONWORK_TITLES = ['YouTube', 'Facebook', 'Instagram', 'Novinky.cz', 'Seznam.cz - Email', 'Alza.cz'];
 
 // profil píle 0..1 (vyšší = pracovitější)
 const PROFILES = [0.92, 0.78, 0.65, 0.5, 0.35, 0.85];
@@ -68,13 +70,22 @@ async function main() {
           const nonWorkProb = (1 - diligence) * 0.35;
           const r = Math.random();
           let app: string;
+          let title: string | null = null;
           let active: number;
           if (r < nonWorkProb) {
-            app = pick(NONWORK_APPS);
+            // mimopráce: půl na půl reálná appka vs. prohlížeč s nepracovním titulkem
+            if (Math.random() < 0.5) {
+              app = 'chrome.exe';
+              title = pick(BROWSER_NONWORK_TITLES);
+            } else {
+              app = pick(NONWORK_APPS);
+            }
             active = 240 + Math.floor(Math.random() * 60);
-          } else if (r < nonWorkProb + 0.15) {
-            app = pick(NEUTRAL_APPS);
-            active = 180 + Math.floor(Math.random() * 100);
+          } else if (r < nonWorkProb + 0.18) {
+            // prohlížeč použitý k práci
+            app = 'chrome.exe';
+            title = pick(BROWSER_WORK_TITLES);
+            active = 200 + Math.floor(Math.random() * 90);
           } else if (Math.random() > 0.85) {
             app = pick(WORK_APPS);
             active = Math.floor(Math.random() * 60); // krátká nečinnost
@@ -92,6 +103,7 @@ async function main() {
             activeSeconds: active,
             idleSeconds: 300 - active,
             foregroundApp: app,
+            windowTitle: title,
             keystrokeCount: ks,
             mouseEvents: active > 60 ? Math.floor(Math.random() * 300) : Math.floor(Math.random() * 30),
             sessionLocked: active < 30 && Math.random() > 0.6,

@@ -5,11 +5,14 @@ na backend. Běží v interaktivní session přihlášeného uživatele.
 
 ## Co sbírá (a co NE)
 
-Sbírá jen: aktivní/nečinný čas, název aktivní aplikace (proces, **bez titulku okna**),
-**počet** úhozů a **počet** myších událostí za interval, příznak uzamčení session.
+Sbírá: aktivní/nečinný čas, název aktivní aplikace (proces), **počet** úhozů a
+**počet** myších událostí za interval, příznak uzamčení session, a volitelně
+**titulek aktivního okna** (pro klasifikaci práce/zábava – viz `CaptureWindowTitle`).
 
-**Nesbírá:** obsah kláves (žádný keylogging), souřadnice myši, titulky oken,
-screenshoty, mikrofon, kameru. Soulad s §316 ZP a GDPR (viz `../../docs/monitoring/NAVRH.md`).
+**Nesbírá:** obsah kláves (žádný keylogging), souřadnice myši, screenshoty,
+mikrofon, kameru. Soulad s §316 ZP a GDPR (viz `../../docs/monitoring/NAVRH.md`).
+Titulek okna je osobní údaj – při zapnutí musí být pokryt informací pro
+zaměstnance a DPIA (`docs/monitoring/pravni/`).
 
 Hooky klávesnice/myši v `InputCounters.cs` pouze **inkrementují čítač** – kód
 klávesy se záměrně nečte.
@@ -28,6 +31,7 @@ Z registru `HKLM\SOFTWARE\WorkView` (plní MSI / GPO – Blok 1.5):
 | `BackendUrl` | URL backendu | `https://workview.firma.cz` |
 | `IngestToken` | token pro ingest | `…` |
 | `IntervalSeconds` | délka intervalu | `60` |
+| `CaptureWindowTitle` | sbírat titulek okna (`1`/`0`) | `0` |
 
 Pro vývoj lze použít proměnné prostředí `WORKVIEW_BACKEND_URL`,
 `WORKVIEW_INGEST_TOKEN`, `WORKVIEW_INTERVAL_SECONDS`.

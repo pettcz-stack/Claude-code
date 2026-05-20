@@ -11,8 +11,8 @@
 |---|---|
 | Účel | Kontrola využití pracovní doby a prostředků (§ 316 odst. 1 ZP) |
 | Subjekty údajů | Zaměstnanci používající služební PC |
-| Kategorie údajů | Aktivní/nečinný čas, název aktivní aplikace, **počty** úhozů a myších událostí, stav uzamčení; identifikátory zařízení a uživatele (SID, jméno) |
-| Citlivé údaje (čl. 9) | **Nezpracovávají se** |
+| Kategorie údajů | Aktivní/nečinný čas, název aktivní aplikace, **titulek aktivního okna** (pro klasifikaci práce/mimopráce, je-li zapnuto), **počty** úhozů a myších událostí, stav uzamčení; identifikátory zařízení a uživatele (SID, jméno) |
+| Citlivé údaje (čl. 9) | **Cíleně se nezpracovávají.** Titulek okna může výjimečně osobní údaj obsahovat – řešeno minimalizací, poučením zaměstnanců a řízeným přístupem |
 | Příjemci | Pověřené osoby [DOPLŇTE] |
 | Doba uložení | Detail [DOPLŇTE], souhrny [DOPLŇTE] |
 | Předání mimo EU | [DOPLŇTE: ne / ano + záruky] |
@@ -20,8 +20,10 @@
 ## 2. Nezbytnost a proporcionalita
 
 - **Právní základ:** oprávněný zájem (čl. 6/1/f GDPR) + § 316/1 ZP.
-- **Minimalizace:** sbírají se jen agregované metriky; **žádný obsah**
-  (bez keyloggingu, screenshotů, e-mailů, mikrofonu/kamery).
+- **Minimalizace:** sbírají se agregované metriky a titulek okna pro klasifikaci;
+  **žádný obsah** (bez keyloggingu, screenshotů, e-mailů, mikrofonu/kamery).
+- **Titulek okna:** sbírán pouze pro rozlišení typu činnosti (práce/mimopráce),
+  ne obsah; lze vypnout (CaptureWindowTitle). Zaměstnanci jsou poučeni.
 - **Transparentnost:** zaměstnanci předem informováni (dokument 01),
   agent zobrazuje viditelnou ikonu.
 - **Méně invazivní alternativa:** vyhodnocena – sběr obsahu by byl

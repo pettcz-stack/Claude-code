@@ -9,7 +9,8 @@ namespace WorkView.Agent
         public int IntervalSeconds;
         public int ActiveSeconds;
         public int IdleSeconds;
-        public string ForegroundApp;      // název procesu, např. "winword.exe" (bez titulku okna)
+        public string ForegroundApp;      // název procesu, např. "winword.exe"
+        public string WindowTitle;         // titulek aktivního okna (jen při zapnutém režimu)
         public long KeystrokeCount;        // POČET úhozů (nikdy obsah)
         public long MouseEvents;           // POČET pohybů/kliků (nikdy souřadnice)
         public bool SessionLocked;
@@ -23,6 +24,7 @@ namespace WorkView.Agent
             sb.Append("\"activeSeconds\":").Append(Json.Num(ActiveSeconds)).Append(',');
             sb.Append("\"idleSeconds\":").Append(Json.Num(IdleSeconds)).Append(',');
             sb.Append("\"foregroundApp\":").Append(Json.Str(ForegroundApp)).Append(',');
+            if (WindowTitle != null) sb.Append("\"windowTitle\":").Append(Json.Str(WindowTitle)).Append(',');
             sb.Append("\"keystrokeCount\":").Append(Json.Num(KeystrokeCount)).Append(',');
             sb.Append("\"mouseEvents\":").Append(Json.Num(MouseEvents)).Append(',');
             sb.Append("\"sessionLocked\":").Append(Json.Bool(SessionLocked));

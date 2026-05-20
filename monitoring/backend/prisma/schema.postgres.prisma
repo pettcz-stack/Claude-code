@@ -58,6 +58,7 @@ model ActivityInterval {
   activeSeconds   Int      @default(0)
   idleSeconds     Int      @default(0)
   foregroundApp   String?
+  windowTitle     String?
   appCategory     String?
   keystrokeCount  Int      @default(0)
   mouseEvents     Int      @default(0)

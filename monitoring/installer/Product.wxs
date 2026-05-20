@@ -27,6 +27,9 @@
     <Property Id="BACKENDURL" Value="https://workview.firma.cz" />
     <Property Id="INGESTTOKEN" Value="" />
     <Property Id="INTERVALSECONDS" Value="60" />
+    <!-- Sběr titulku okna (klasifikace práce/zábava). 1 = zapnuto. Vyžaduje
+         pokrytí v informaci pro zaměstnance a DPIA. -->
+    <Property Id="CAPTURETITLE" Value="0" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="WorkView" />
@@ -54,6 +57,7 @@
           <RegistryValue Name="BackendUrl" Type="string" Value="[BACKENDURL]" KeyPath="yes" />
           <RegistryValue Name="IngestToken" Type="string" Value="[INGESTTOKEN]" />
           <RegistryValue Name="IntervalSeconds" Type="string" Value="[INTERVALSECONDS]" />
+          <RegistryValue Name="CaptureWindowTitle" Type="string" Value="[CAPTURETITLE]" />
         </RegistryKey>
       </Component>
 

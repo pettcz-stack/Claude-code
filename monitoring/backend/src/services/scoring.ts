@@ -1,6 +1,7 @@
 import { prisma } from '../db.js';
 import { config } from '../config.js';
 import { getCategoryMap, type CatType } from './categories.js';
+import { classifyActivity } from './classify.js';
 
 export type ScoreBreakdown = {
   expectedMinutes: number;
@@ -52,8 +53,11 @@ export async function computeUserScore(userId: string, from: Date, to: Date): Pr
   });
   const catMap = await getCategoryMap();
 
-  const hourly = await prisma.activityHourly.findMany({
-    where: { userId, hourStart: { gte: from, lt: to } },
+  // Počítáme z intervalů – klasifikace podle aplikace + titulku okna je přesnější
+  // a rozliší práci/zábavu i uvnitř prohlížeče.
+  const intervals = await prisma.activityInterval.findMany({
+    where: { userId, intervalStart: { gte: from, lt: to } },
+    select: { activeSeconds: true, idleSeconds: true, foregroundApp: true, windowTitle: true, keystrokeCount: true },
   });
 
   let workMinutes = 0;
@@ -63,19 +67,20 @@ export async function computeUserScore(userId: string, from: Date, to: Date): Pr
   const catMinutes = new Map<string, { type: CatType; minutes: number }>();
   const appActive = new Map<string, number>();
 
-  for (const h of hourly) {
-    idleOnMinutes += h.idleMinutes + h.lockedMinutes;
-    totalKeystrokes += h.keystrokeTotal;
-    const info = h.topApp ? catMap[h.topApp] : undefined;
-    const type: CatType = info?.type ?? 'NEUTRAL';
-    const category = info?.category ?? (h.topApp ? 'Ostatní' : 'Bez aktivity');
-    if (type === 'NON_WORK') nonWorkMinutes += h.activeMinutes;
-    else workMinutes += h.activeMinutes; // WORK + NEUTRAL
+  for (const it of intervals) {
+    const activeMin = it.activeSeconds / 60;
+    idleOnMinutes += it.idleSeconds / 60;
+    totalKeystrokes += it.keystrokeCount;
+    if (activeMin <= 0) continue;
 
-    const slice = catMinutes.get(category) ?? { type, minutes: 0 };
-    slice.minutes += h.activeMinutes;
-    catMinutes.set(category, slice);
-    if (h.topApp) appActive.set(h.topApp, (appActive.get(h.topApp) ?? 0) + h.activeMinutes);
+    const info = classifyActivity(catMap, it.foregroundApp, it.windowTitle);
+    if (info.type === 'NON_WORK') nonWorkMinutes += activeMin;
+    else workMinutes += activeMin; // WORK + NEUTRAL
+
+    const slice = catMinutes.get(info.category) ?? { type: info.type, minutes: 0 };
+    slice.minutes += activeMin;
+    catMinutes.set(info.category, slice);
+    if (it.foregroundApp) appActive.set(it.foregroundApp, (appActive.get(it.foregroundApp) ?? 0) + activeMin);
   }
 
   const expectedMinutes = countWorkdays(from, to) * config.expectedWorkHoursPerDay * 60;

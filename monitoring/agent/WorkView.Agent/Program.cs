@@ -50,8 +50,8 @@ namespace WorkView.Agent
                 _sender = new Sender(cfg);
 
                 using (InputCounters input = new InputCounters())
-                using (ActivityTracker tracker = new ActivityTracker(input, _buffer, cfg.IntervalSeconds, () => _sessionLocked))
-                using (NotifyIcon tray = CreateTrayIcon())
+                using (ActivityTracker tracker = new ActivityTracker(input, _buffer, cfg.IntervalSeconds, () => _sessionLocked, cfg.CaptureWindowTitle))
+                using (NotifyIcon tray = CreateTrayIcon(cfg.CaptureWindowTitle))
                 {
                     input.Install();
                     tracker.Start();
@@ -74,17 +74,21 @@ namespace WorkView.Agent
             }
         }
 
-        private static NotifyIcon CreateTrayIcon()
+        private static NotifyIcon CreateTrayIcon(bool captureTitle)
         {
+            string titleLine = captureTitle
+                ? " a název (titulek) aktivního okna pro rozlišení pracovní a mimopracovní činnosti"
+                : "";
             ContextMenuStrip menu = new ContextMenuStrip();
             menu.Items.Add("O monitoringu…", null, (s, e) =>
                 MessageBox.Show(
-                    "Tento firemní počítač je monitorován nástrojem WorkView.\n\n" +
-                    "Sledují se POUZE: aktivní/nečinný čas, aktivní aplikace a počet úhozů/" +
-                    "pohybů myši (jako metrika tempa). NEsledujeme obsah – žádné záznamy " +
-                    "kláves, žádné screenshoty, žádný mikrofon ani kamera.\n\n" +
+                    "Tento firemní počítač je monitorován nástrojem pro sledování efektivity práce.\n\n" +
+                    "Sledují se: aktivní/nečinný čas, aktivní aplikace, počet úhozů a pohybů myši" +
+                    titleLine + ".\n\n" +
+                    "NEsledujeme: obsah psaného textu (žádné záznamy kláves), screenshoty, " +
+                    "mikrofon ani kameru.\n\n" +
                     "Zpracování probíhá dle §316 zákoníku práce a interní směrnice.",
-                    "WorkView – informace o monitoringu", MessageBoxButtons.OK, MessageBoxIcon.Information));
+                    "Informace o monitoringu", MessageBoxButtons.OK, MessageBoxIcon.Information));
 
             return new NotifyIcon
             {

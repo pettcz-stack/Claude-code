@@ -23,9 +23,15 @@ pracovní době zaznamenává **pouze agregované údaje**:
 
 - aktivní a nečinný čas u počítače (souhrnně po hodinách),
 - název aktivní aplikace (např. „winword.exe"),
+- **název (titulek) aktivního okna** za účelem rozlišení pracovní a
+  mimopracovní činnosti (např. „Jira" = práce, „YouTube" = mimopracovní);
+  *je-li tato funkce aktivována*,
 - **počet** úhozů na klávesnici a **počet** pohybů/kliků myši (jako ukazatel
   tempa práce),
 - informaci o uzamčení obrazovky.
+
+Titulek okna slouží výhradně ke klasifikaci typu činnosti (práce/mimopráce).
+Zaměstnanec bere na vědomí, že do něj nemá vkládat citlivé osobní údaje.
 
 ## 3. Co se NEsleduje
 
@@ -34,7 +40,6 @@ Nástroj **nezaznamenává a neukládá**:
 - ❌ obsah psaného textu ani jednotlivé stisknuté klávesy (žádný „keylogger"),
 - ❌ snímky obrazovky,
 - ❌ obsah e-mailů, zpráv, dokumentů ani schránky,
-- ❌ navštívené konkrétní URL nad rámec názvu aplikace,
 - ❌ zvuk z mikrofonu ani obraz z kamery,
 - ❌ polohu mimo pracoviště.
 

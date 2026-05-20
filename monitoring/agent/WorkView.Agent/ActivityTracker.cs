@@ -21,6 +21,7 @@ namespace WorkView.Agent
         private readonly LocalBuffer _buffer;
         private readonly int _intervalSeconds;
         private readonly Func<bool> _isLocked;
+        private readonly bool _captureTitle;
 
         private Timer _ticker;
         private readonly object _lock = new object();
@@ -31,13 +32,15 @@ namespace WorkView.Agent
         private int _idleSeconds;
         private int _lockedSeconds;
         private readonly Dictionary<string, int> _appSeconds = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, int> _titleSeconds = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-        public ActivityTracker(InputCounters input, LocalBuffer buffer, int intervalSeconds, Func<bool> isLocked)
+        public ActivityTracker(InputCounters input, LocalBuffer buffer, int intervalSeconds, Func<bool> isLocked, bool captureTitle)
         {
             _input = input;
             _buffer = buffer;
             _intervalSeconds = intervalSeconds;
             _isLocked = isLocked;
+            _captureTitle = captureTitle;
             _intervalStartUtc = DateTime.UtcNow;
         }
 
@@ -65,6 +68,16 @@ namespace WorkView.Agent
                         _appSeconds.TryGetValue(app, out c);
                         _appSeconds[app] = c + 1;
                     }
+                    if (_captureTitle)
+                    {
+                        string title = GetForegroundTitle();
+                        if (!string.IsNullOrEmpty(title))
+                        {
+                            int tc;
+                            _titleSeconds.TryGetValue(title, out tc);
+                            _titleSeconds[title] = tc + 1;
+                        }
+                    }
                 }
                 else
                 {
@@ -91,6 +104,16 @@ namespace WorkView.Agent
                 if (kv.Value > best) { best = kv.Value; topApp = kv.Key; }
             }
 
+            string topTitle = null;
+            if (_captureTitle)
+            {
+                int bestT = -1;
+                foreach (KeyValuePair<string, int> kv in _titleSeconds)
+                {
+                    if (kv.Value > bestT) { bestT = kv.Value; topTitle = kv.Key; }
+                }
+            }
+
             IntervalRecord rec = new IntervalRecord
             {
                 IntervalStartIso = _intervalStartUtc.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture),
@@ -99,6 +122,7 @@ namespace WorkView.Agent
                 // locked sekundy spadají do "nečinnosti" + příznak SessionLocked
                 IdleSeconds = _idleSeconds + _lockedSeconds,
                 ForegroundApp = topApp,
+                WindowTitle = topTitle,
                 KeystrokeCount = ks,
                 MouseEvents = mouse,
                 SessionLocked = _lockedSeconds * 2 >= _elapsedSeconds
@@ -113,6 +137,7 @@ namespace WorkView.Agent
             _idleSeconds = 0;
             _lockedSeconds = 0;
             _appSeconds.Clear();
+            _titleSeconds.Clear();
         }
 
         private bool SafeIsLocked()
@@ -149,6 +174,26 @@ namespace WorkView.Agent
                         return p.ProcessName + ".exe";
                     }
                 }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static string GetForegroundTitle()
+        {
+            try
+            {
+                IntPtr hwnd = NativeMethods.GetForegroundWindow();
+                if (hwnd == IntPtr.Zero) return null;
+                int len = NativeMethods.GetWindowTextLength(hwnd);
+                if (len <= 0) return null;
+                var sb = new System.Text.StringBuilder(len + 1);
+                NativeMethods.GetWindowText(hwnd, sb, sb.Capacity);
+                string title = sb.ToString();
+                // ořež na rozumnou délku
+                return title.Length > 300 ? title.Substring(0, 300) : title;
             }
             catch
             {

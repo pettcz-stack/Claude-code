@@ -12,6 +12,9 @@ namespace WorkView.Agent
         public string BackendUrl { get; private set; }
         public string IngestToken { get; private set; }
         public int IntervalSeconds { get; private set; }
+        // Sbírat titulek aktivního okna (pro klasifikaci práce/zábava).
+        // Titulek je osobní údaj – nasazení musí krýt informace pro zaměstnance + DPIA.
+        public bool CaptureWindowTitle { get; private set; }
 
         public static AgentConfig Load()
         {
@@ -22,6 +25,9 @@ namespace WorkView.Agent
             int interval;
             if (!int.TryParse(intervalRaw, out interval) || interval <= 0) interval = 60;
 
+            string captureRaw = ReadRegistry("CaptureWindowTitle") ?? Environment.GetEnvironmentVariable("WORKVIEW_CAPTURE_TITLE");
+            bool captureTitle = captureRaw == "1" || string.Equals(captureRaw, "true", StringComparison.OrdinalIgnoreCase);
+
             if (string.IsNullOrWhiteSpace(backend))
                 throw new InvalidOperationException("Chybí BackendUrl (HKLM\\SOFTWARE\\WorkView nebo WORKVIEW_BACKEND_URL).");
             if (string.IsNullOrWhiteSpace(token))
@@ -31,7 +37,8 @@ namespace WorkView.Agent
             {
                 BackendUrl = backend.TrimEnd('/'),
                 IngestToken = token,
-                IntervalSeconds = interval
+                IntervalSeconds = interval,
+                CaptureWindowTitle = captureTitle
             };
         }
 
