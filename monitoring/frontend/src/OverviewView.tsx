@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Gauge, Clock, Wifi, ShieldAlert, AlertTriangle, ArrowUp, ArrowDown, Minus } from 'lucide-react';
-import { api, type Overview } from './api.js';
+import { Gauge, Clock, Wifi, ShieldAlert, AlertTriangle, ArrowUp, ArrowDown, Minus, Monitor } from 'lucide-react';
+import { api, type Overview, type MonitorsData } from './api.js';
 import { Donut } from './Donut.js';
 import { TrendChart } from './TrendChart.js';
 import { HeatmapView } from './HeatmapView.js';
@@ -31,7 +31,9 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
   from: string; to: string; department?: string; dark: boolean; onOpenUser: (id: string) => void;
 }) {
   const [o, setO] = useState<Overview | null>(null);
+  const [mon, setMon] = useState<MonitorsData | null>(null);
   useEffect(() => { api.overview(from, to, department).then(setO).catch(() => setO(null)); }, [from, to, department]);
+  useEffect(() => { api.monitors(from, to, department).then(setMon).catch(() => setMon(null)); }, [from, to, department]);
   if (!o) return <p className="muted-2">Načítám…</p>;
 
   const scoreColor = o.kpi.avgScore >= 70 ? 'text-emerald-500' : o.kpi.avgScore >= 45 ? 'text-amber-500' : 'text-red-500';
@@ -95,8 +97,36 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
         <RankCard title="Nejslabší" rows={o.bottom} onOpenUser={onOpenUser} />
       </div>
 
+      {/* Efektivita podle počtu monitorů */}
+      {mon && (
+        <div className="card p-5">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Monitor size={16} className="text-emerald-600" /> Efektivita podle počtu monitorů</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <MonitorBox label="1 monitor" data={mon.single} />
+            <MonitorBox label="2+ monitory" data={mon.multi} />
+          </div>
+          <p className="mt-3 text-xs muted-2">
+            Sledujeme pouze počet připojených monitorů (HW), nikoli obsah druhé obrazovky.
+          </p>
+        </div>
+      )}
+
       <TrendChart from={from} to={to} department={department} dark={dark} />
       <HeatmapView from={from} to={to} department={department} />
+    </div>
+  );
+}
+
+function MonitorBox({ label, data }: { label: string; data: { users: number; avgScore: number; avgActiveHours: number } }) {
+  const c = data.avgScore >= 70 ? 'text-emerald-500' : data.avgScore >= 45 ? 'text-amber-500' : 'text-red-500';
+  return (
+    <div className="rounded-lg border border-gray-200 p-4 dark:border-slate-700">
+      <div className="text-sm font-medium">{label}</div>
+      <div className="text-xs muted-2">{data.users} {data.users === 1 ? 'zaměstnanec' : 'zaměstnanců'}</div>
+      <div className="mt-2 flex items-end gap-3">
+        <span className={`text-3xl font-bold ${c}`}>{data.avgScore}%</span>
+        <span className="text-xs muted-2">prům. skóre · {data.avgActiveHours} h práce</span>
+      </div>
     </div>
   );
 }

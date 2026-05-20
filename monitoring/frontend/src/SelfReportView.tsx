@@ -53,7 +53,7 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
           <Stat label="Skóre efektivity" value={`${r.score}%`} />
           <Stat label="Aktivní práce" value={`${r.activeHours} h`} />
           <Stat label="Tempo psaní" value={`${r.avgKpm}/min`} />
-          <Stat label="Mimopracovní podíl" value={`${r.nonWorkPct}%`} />
+          <Stat label="Monitory" value={`${r.monitorTypical || '—'}`} />
         </div>
         <p className="mt-4 flex items-center gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
           <Trophy size={16} /> V psaní na klávesnici jsi rychlejší než <b>{r.kpmPercentile} %</b> zaměstnanců a celkově lepší než <b>{r.companyPercentile} %</b> firmy. Skvělé!

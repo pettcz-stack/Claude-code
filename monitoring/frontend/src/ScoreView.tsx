@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Keyboard, Clock, AlertTriangle, AppWindow } from 'lucide-react';
+import { Keyboard, Clock, AlertTriangle, AppWindow, Monitor } from 'lucide-react';
 import { api, type UserScore, type User } from './api.js';
 import { Donut } from './Donut.js';
 import { minutesToHm, chipClass, typeLabel, TYPE_COLORS } from './util.js';
@@ -68,7 +68,7 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card title="Tempo psaní" icon={<Keyboard size={13} />}>
           {s.avgKpm} úhozů/min
           <div className="mt-1 text-xs font-normal text-emerald-500">lepší než {s.kpmPercentile} % firmy {s.kpmPercentile >= 50 ? '🎉' : ''}</div>
@@ -76,6 +76,10 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
         <Card title="Aktivní práce" icon={<Clock size={13} />} accent="text-emerald-500">{minutesToHm(s.workMinutes)}</Card>
         <Card title="Mimopracovní" icon={<AlertTriangle size={13} />} accent="text-red-500">{minutesToHm(s.nonWorkMinutes)}</Card>
         <Card title="Nejčastější aplikace" icon={<AppWindow size={13} />}>{s.topApp ?? '—'}</Card>
+        <Card title="Monitory" icon={<Monitor size={13} />}>
+          {s.monitorTypical || '—'}
+          <div className="mt-1 text-xs font-normal muted-2">{s.multiMonitorPct}% času na 2+ obraz.</div>
+        </Card>
       </div>
 
       <div className="card p-5">

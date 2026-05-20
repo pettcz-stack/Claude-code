@@ -63,6 +63,7 @@ model ActivityInterval {
   keystrokeCount  Int      @default(0)
   mouseEvents     Int      @default(0)
   sessionLocked   Boolean  @default(false)
+  monitorCount    Int?
   createdAt       DateTime @default(now())
 
   device Device        @relation(fields: [deviceId], references: [id], onDelete: Cascade)

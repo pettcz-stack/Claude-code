@@ -14,6 +14,7 @@ namespace WorkView.Agent
         public long KeystrokeCount;        // POČET úhozů (nikdy obsah)
         public long MouseEvents;           // POČET pohybů/kliků (nikdy souřadnice)
         public bool SessionLocked;
+        public int MonitorCount; // počet připojených monitorů (jen číslo)
 
         public string ToJson()
         {
@@ -28,6 +29,7 @@ namespace WorkView.Agent
             sb.Append("\"keystrokeCount\":").Append(Json.Num(KeystrokeCount)).Append(',');
             sb.Append("\"mouseEvents\":").Append(Json.Num(MouseEvents)).Append(',');
             sb.Append("\"sessionLocked\":").Append(Json.Bool(SessionLocked));
+            if (MonitorCount > 0) { sb.Append(','); sb.Append("\"monitorCount\":").Append(Json.Num(MonitorCount)); }
             sb.Append('}');
             return sb.ToString();
         }

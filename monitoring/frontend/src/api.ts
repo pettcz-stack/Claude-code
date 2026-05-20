@@ -76,6 +76,13 @@ export type UserScore = {
   kpmPercentile: number;
   categories: CategorySlice[];
   topApp: string | null;
+  monitorTypical: number;
+  multiMonitorPct: number;
+};
+export type MonitorsData = {
+  single: { users: number; avgScore: number; avgActiveHours: number };
+  multi: { users: number; avgScore: number; avgActiveHours: number };
+  perUser: { userId: string; displayName: string | null; department: string | null; monitors: number; score: number }[];
 };
 
 export type ScoreboardRow = {
@@ -113,7 +120,7 @@ export type HomeOffice = {
   byDept: { department: string; hoScore: number; officeScore: number; hoDays: number }[];
   perUser: { userId: string; displayName: string | null; department: string | null; hoDays: number; hoScore: number; officeScore: number; diff: number }[];
 };
-export type SelfReportData = { displayName: string | null; department: string | null; score: number; companyPercentile: number; deptPercentile: number; kpmPercentile: number; avgKpm: number; activeHours: number; nonWorkPct: number };
+export type SelfReportData = { displayName: string | null; department: string | null; score: number; companyPercentile: number; deptPercentile: number; kpmPercentile: number; avgKpm: number; activeHours: number; nonWorkPct: number; monitorTypical: number; multiMonitorPct: number };
 
 export type AppSettings = { alertsEnabled: boolean; alertRecipients: string[]; offlineMinutes: number };
 
@@ -200,6 +207,11 @@ export const api = {
     if (opts.userId) q.set('userId', opts.userId);
     if (opts.department) q.set('department', opts.department);
     return getJson<Heatmap>(`/api/v1/dashboard/heatmap?${q}`);
+  },
+  monitors: (from: string, to: string, department?: string) => {
+    const q = new URLSearchParams({ from, to });
+    if (department) q.set('department', department);
+    return getJson<MonitorsData>(`/api/v1/dashboard/monitors?${q}`);
   },
   homeOffice: (from: string, to: string, department?: string) => {
     const q = new URLSearchParams({ from, to });

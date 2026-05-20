@@ -40,6 +40,12 @@ namespace WorkView.Agent
         [DllImport("user32.dll")]
         public static extern IntPtr GetForegroundWindow();
 
+        // Počet monitorů (SM_CMONITORS = 80). Jen číslo HW – žádný obsah obrazovky.
+        public const int SM_CMONITORS = 80;
+
+        [DllImport("user32.dll")]
+        public static extern int GetSystemMetrics(int nIndex);
+
         [DllImport("user32.dll", SetLastError = true)]
         public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 

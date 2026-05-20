@@ -28,6 +28,8 @@ export type UserScore = ScoreBreakdown & {
   kpmPercentile: number; // „lepší než X % firmy"
   categories: CategorySlice[];
   topApp: string | null;
+  monitorTypical: number; // nejčastější počet monitorů
+  multiMonitorPct: number; // podíl času na 2+ monitorech
 };
 
 function countWorkdays(from: Date, to: Date): number {
@@ -58,7 +60,7 @@ export async function computeUserScore(userId: string, from: Date, to: Date): Pr
   // a rozliší práci/zábavu i uvnitř prohlížeče.
   const intervals = await prisma.activityInterval.findMany({
     where: { userId, intervalStart: { gte: from, lt: to } },
-    select: { activeSeconds: true, idleSeconds: true, foregroundApp: true, windowTitle: true, keystrokeCount: true },
+    select: { activeSeconds: true, idleSeconds: true, foregroundApp: true, windowTitle: true, keystrokeCount: true, monitorCount: true },
   });
 
   let workMinutes = 0;
@@ -67,12 +69,16 @@ export async function computeUserScore(userId: string, from: Date, to: Date): Pr
   let totalKeystrokes = 0;
   const catMinutes = new Map<string, { type: CatType; minutes: number }>();
   const appActive = new Map<string, number>();
+  const monitorMinutes = new Map<number, number>(); // počet monitorů → aktivní minuty
 
   for (const it of intervals) {
     const activeMin = it.activeSeconds / 60;
     idleOnMinutes += it.idleSeconds / 60;
     totalKeystrokes += it.keystrokeCount;
     if (activeMin <= 0) continue;
+    if (it.monitorCount && it.monitorCount > 0) {
+      monitorMinutes.set(it.monitorCount, (monitorMinutes.get(it.monitorCount) ?? 0) + activeMin);
+    }
 
     const info = classifyActivity(catMap, webRules, it.foregroundApp, it.windowTitle);
     if (info.type === 'NON_WORK') nonWorkMinutes += activeMin;
@@ -101,6 +107,18 @@ export async function computeUserScore(userId: string, from: Date, to: Date): Pr
     .map(([category, v]) => ({ category, type: v.type, minutes: Math.round(v.minutes) }))
     .sort((a, b) => b.minutes - a.minutes);
 
+  // Monitory: nejčastější počet (vážený aktivním časem) a podíl času na 2+ monitorech
+  let monitorTypical = 0;
+  let monitorBest = -1;
+  let monitorTotal = 0;
+  let multiMinutes = 0;
+  for (const [count, min] of monitorMinutes) {
+    monitorTotal += min;
+    if (count >= 2) multiMinutes += min;
+    if (min > monitorBest) ((monitorBest = min), (monitorTypical = count));
+  }
+  const multiMonitorPct = monitorTotal > 0 ? Math.round((multiMinutes / monitorTotal) * 100) : 0;
+
   return {
     userId,
     displayName: user?.displayName ?? null,
@@ -120,6 +138,8 @@ export async function computeUserScore(userId: string, from: Date, to: Date): Pr
     kpmPercentile,
     categories,
     topApp,
+    monitorTypical,
+    multiMonitorPct,
   };
 }
 

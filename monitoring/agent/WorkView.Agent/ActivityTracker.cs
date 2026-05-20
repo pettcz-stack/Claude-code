@@ -138,7 +138,8 @@ namespace WorkView.Agent
                 WindowTitle = topTitle,
                 KeystrokeCount = ks,
                 MouseEvents = mouse,
-                SessionLocked = _lockedSeconds * 2 >= _elapsedSeconds
+                SessionLocked = _lockedSeconds * 2 >= _elapsedSeconds,
+                MonitorCount = SafeMonitorCount()
             };
 
             try { _buffer.Enqueue(rec.ToJson()); } catch { /* nesmí shodit ticker */ }
@@ -156,6 +157,12 @@ namespace WorkView.Agent
         private bool SafeIsLocked()
         {
             try { return _isLocked(); } catch { return false; }
+        }
+
+        private static int SafeMonitorCount()
+        {
+            try { int n = NativeMethods.GetSystemMetrics(NativeMethods.SM_CMONITORS); return n > 0 ? n : 1; }
+            catch { return 0; }
         }
 
         private static int GetIdleMs()

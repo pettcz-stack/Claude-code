@@ -17,6 +17,7 @@ const intervalSchema = z.object({
   keystrokeCount: z.number().int().min(0),
   mouseEvents: z.number().int().min(0),
   sessionLocked: z.boolean().default(false),
+  monitorCount: z.number().int().min(1).max(16).optional(),
 });
 
 const payloadSchema = z.object({
@@ -84,6 +85,7 @@ ingestRouter.post('/', requireIngestToken, async (req, res) => {
         keystrokeCount: iv.keystrokeCount,
         mouseEvents: iv.mouseEvents,
         sessionLocked: iv.sessionLocked,
+        monitorCount: iv.monitorCount,
       },
       update: {
         intervalSeconds: iv.intervalSeconds,
@@ -95,6 +97,7 @@ ingestRouter.post('/', requireIngestToken, async (req, res) => {
         keystrokeCount: iv.keystrokeCount,
         mouseEvents: iv.mouseEvents,
         sessionLocked: iv.sessionLocked,
+        monitorCount: iv.monitorCount,
       },
     });
     accepted++;

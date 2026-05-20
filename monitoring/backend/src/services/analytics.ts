@@ -432,6 +432,8 @@ export type SelfReport = {
   avgKpm: number;
   activeHours: number;
   nonWorkPct: number;
+  monitorTypical: number;
+  multiMonitorPct: number;
 };
 
 export async function selfReport(userId: string, from: Date, to: Date): Promise<SelfReport> {
@@ -460,5 +462,62 @@ export async function selfReport(userId: string, from: Date, to: Date): Promise<
     avgKpm: me.avgKpm,
     activeHours: Math.round(me.workMinutes / 60),
     nonWorkPct: me.expectedMinutes ? Math.round((me.nonWorkMinutes / Math.max(me.workMinutes + me.nonWorkMinutes, 1)) * 100) : 0,
+    monitorTypical: me.monitorTypical,
+    multiMonitorPct: me.multiMonitorPct,
+  };
+}
+
+// --- Efektivita podle počtu monitorů -----------------------------------------
+
+export type MonitorsResult = {
+  single: { users: number; avgScore: number; avgActiveHours: number };
+  multi: { users: number; avgScore: number; avgActiveHours: number };
+  perUser: { userId: string; displayName: string | null; department: string | null; monitors: number; score: number }[];
+};
+
+export async function monitorsComparison(from: Date, to: Date, department?: string): Promise<MonitorsResult> {
+  const users = await prisma.monitoredUser.findMany({
+    where: { active: true, ...(department ? { department } : {}) },
+    select: { id: true, displayName: true, department: true },
+  });
+  const ids = users.map((u) => u.id);
+  const expected = countWorkdays(from, to) * config.expectedWorkHoursPerDay * 60;
+  const scores = await perUser(ids, from, to);
+
+  // typický počet monitorů na uživatele (vážený aktivním časem)
+  const rows = await prisma.activityInterval.findMany({
+    where: { userId: { in: ids }, intervalStart: { gte: from, lt: to }, monitorCount: { not: null } },
+    select: { userId: true, activeSeconds: true, monitorCount: true },
+  });
+  const monByUser = new Map<string, Map<number, number>>();
+  for (const r of rows) {
+    if (!r.monitorCount || r.activeSeconds <= 0) continue;
+    let m = monByUser.get(r.userId);
+    if (!m) (m = new Map()), monByUser.set(r.userId, m);
+    m.set(r.monitorCount, (m.get(r.monitorCount) ?? 0) + r.activeSeconds);
+  }
+  const typicalOf = (id: string): number => {
+    const m = monByUser.get(id);
+    if (!m) return 1;
+    let best = -1, count = 1;
+    for (const [c, s] of m) if (s > best) ((best = s), (count = c));
+    return count;
+  };
+
+  const perUserOut: MonitorsResult['perUser'] = [];
+  const single: number[] = [], multi: number[] = [];
+  const singleHours: number[] = [], multiHours: number[] = [];
+  for (const u of users) {
+    const score = clampPct(((scores.get(u.id)?.work ?? 0) / expected) * 100);
+    const hours = (scores.get(u.id)?.work ?? 0) / 60;
+    const mon = typicalOf(u.id);
+    perUserOut.push({ userId: u.id, displayName: u.displayName, department: u.department, monitors: mon, score });
+    if (mon >= 2) { multi.push(score); multiHours.push(hours); } else { single.push(score); singleHours.push(hours); }
+  }
+  const avg = (a: number[]) => (a.length ? Math.round(a.reduce((s, x) => s + x, 0) / a.length) : 0);
+  return {
+    single: { users: single.length, avgScore: avg(single), avgActiveHours: avg(singleHours) },
+    multi: { users: multi.length, avgScore: avg(multi), avgActiveHours: avg(multiHours) },
+    perUser: perUserOut.sort((a, b) => b.monitors - a.monitors || b.score - a.score),
   };
 }

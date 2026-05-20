@@ -71,6 +71,7 @@ model ActivityInterval {
   keystrokeCount  Int      @default(0) // POČET úhozů (nikdy obsah)
   mouseEvents     Int      @default(0) // POČET pohybů+kliků (nikdy souřadnice)
   sessionLocked   Boolean  @default(false)
+  monitorCount    Int? // počet připojených monitorů (jen číslo, žádný obsah)
   createdAt       DateTime @default(now())
 
   device Device        @relation(fields: [deviceId], references: [id], onDelete: Cascade)

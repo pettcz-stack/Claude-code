@@ -35,7 +35,14 @@ const BROWSER_NONWORK_TITLES = ['YouTube', 'Facebook', 'Instagram', 'Novinky.cz'
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 const rnd = (n: number) => Math.floor(Math.random() * n);
 
-type Person = { id: string; deviceId: string; behavior: Behavior; diligence: number; hoDip: number };
+type Person = { id: string; deviceId: string; behavior: Behavior; diligence: number; hoDip: number; monitors: number };
+
+// Kolik monitorů kdo má (z HW). Část lidí 2, IT i 3.
+function monitorsFor(dept: string): number {
+  if (dept === 'IT') return 3;
+  if (['Konstrukce', 'Ekonomika', 'Vedení', 'Obchod Export'].includes(dept)) return 2;
+  return 1;
+}
 
 function hoDipFor(b: Behavior): number {
   if (b === 'slacker') return 0.28; // doma viditelně poleví
@@ -59,7 +66,7 @@ async function main() {
       update: { lastSeen: new Date(), agentVersion: '0.1.0', os: 'Windows 11' },
       create: { machineId, hostname: `ALB-PC-${i + 1}`, os: 'Windows 11', agentVersion: '0.1.0', lastSeen: new Date() },
     });
-    created.push({ id: user.id, deviceId: device.id, behavior: p.behavior, diligence: p.diligence, hoDip: hoDipFor(p.behavior) });
+    created.push({ id: user.id, deviceId: device.id, behavior: p.behavior, diligence: p.diligence, hoDip: hoDipFor(p.behavior), monitors: monitorsFor(p.dept) });
   }
 
   const userIds = created.map((c) => c.id);
@@ -106,7 +113,7 @@ async function main() {
 }
 
 function makeRow(c: Person, intervalStart: Date, isHO: boolean): Prisma.ActivityIntervalCreateManyInput | null {
-  const base = { deviceId: c.deviceId, userId: c.id, intervalStart, intervalSeconds: 300 };
+  const base = { deviceId: c.deviceId, userId: c.id, intervalStart, intervalSeconds: 300, monitorCount: c.monitors };
 
   // Podvodníci: vypadají „aktivně" celý den, ale vzor je strojový.
   if (c.behavior === 'cheater_mouse') {
