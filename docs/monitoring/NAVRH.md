@@ -18,8 +18,13 @@ Vytvořit interní nástroj, který zaměstnavateli umožní v souladu s § 316 
 - Architektura připravená na budoucí napojení **OKbase** (absence/HO/dovolená) a **Outlook/Exchange** (meetingy).
 
 **Platformy:**
-- **Agent: Windows — musí fungovat na všech podporovaných verzích** (Win 10/11 i starší dle potřeby, a **Windows Server**). Viz §5 — volba cílového frameworku kvůli maximální kompatibilitě.
-- **macOS: agent NE.** Na Macu stačí přístup k **dashboardu přes zabezpečené webové rozhraní** (dashboard je web → funguje v prohlížeči na jakémkoli OS včetně macOS).
+- **Agent: Windows — musí fungovat na všech podporovaných verzích** (Win 10/11 i starší dle potřeby, a **Windows Server**). Viz §5 — volba cílového frameworku kvůli maximální kompatibilitě. **macOS agent NE.**
+- **Kontrola výsledků z Macu i z PC** — pouze přes **zabezpečené webové rozhraní** (dashboard je web → funguje v prohlížeči na jakémkoli OS, Windows i macOS). Žádná nativní desktop aplikace.
+
+**Práce s daty (požadavek):**
+- **Historická data se ukládají dlouhodobě** pro pozdější analýzu (ne jen aktuální okno).
+- **Podrobná analýza** nad daty ve webovém rozhraní (filtry, srovnání, trendy, souhrny za firmu/oddělení/uživatele).
+- **Řádkový export do Excelu (`.xlsx`)** — surová i agregovaná data po řádcích, pro vlastní vyhodnocení celé firmy.
 
 **Co řešení vědomě NEdělá** (právní + etické hranice, viz §2):
 - ❌ Žádné screenshoty / záznam obrazovky
@@ -127,7 +132,8 @@ Agent pracuje v **intervalech** (výchozí 60 s). Za každý interval pošle jed
 - **Agregace:** rollup intervalů → **hodinové** agregáty per uživatel (aktivní min, idle min, top aplikace, průměr KPM, počet meetingů z Outlooku ve Fázi 3, stav absence z OKbase ve Fázi 2).
 - **Dashboard API:** čtení agregátů pro kalendář (filtry: uživatel, den/týden, oddělení).
 - **Správa:** uživatelé/zařízení, role (admin/náhled), audit log přístupů (kdo se na čí data díval — důležité pro GDPR).
-- **Retence:** plánovaná úloha maže syrová data po N dnech, agregáty po M měsících (konfigurovatelné).
+- **Retence (historie pro analýzu):** dvouúrovňová a konfigurovatelná. Syrové intervaly se drží po dobu nutnou pro detailní rozpad; **hodinové/denní agregáty se uchovávají dlouhodobě** jako historická data pro analýzy a srovnání v čase. Mazání řízeno retenční politikou (s ohledem na GDPR minimalizaci — nastavíme rozumný strop, např. agregáty 12–24 měsíců, k potvrzení v §14).
+- **Export:** služba pro **řádkový export do `.xlsx`** (a CSV) — výběr období/uživatelů/oddělení, surová i agregovaná data, pro vyhodnocení celé firmy.
 
 ### Datový model (návrh tabulek)
 - `devices` (id, hostname, last_seen, enrollment_token_hash)
@@ -145,7 +151,9 @@ Agent pracuje v **intervalech** (výchozí 60 s). Za každý interval pošle jed
 
 - **Hlavní pohled:** kalendář (den/týden) → pro vybraného uživatele **hodinový rozpad** (časová osa 0–24 h).
 - **Vizualizace hodiny:** barevné pásmo dle dominantního stavu — *aktivní práce / nečinnost / zamčeno / meeting (Fáze 3) / HO‑dovolená (Fáze 2)* + tooltip s detaily (top aplikace, průměr KPM, % aktivního času).
-- **Přehledy:** denní/týdenní souhrn na uživatele i oddělení; export (CSV/PDF).
+- **Podrobná analýza:** filtry (období, uživatel, oddělení, aplikace), srovnání uživatelů/oddělení, trendy v čase nad historickými daty, žebříčky aktivního času a průměru KPM.
+- **Přehledy:** denní/týdenní/měsíční souhrn na uživatele i oddělení.
+- **Export do Excelu:** **řádkový `.xlsx`** (a CSV/PDF) — uživatel volí období a rozsah; vhodné jako podklad pro vyhodnocení celé firmy.
 - **Role & přístup:** admin vs. náhled; každý přístup k datům konkrétního zaměstnance se loguje (GDPR).
 - **Vědomě chybí:** žádné „live" sledování obrazovky, žádné drill‑downy do obsahu — jen agregáty.
 
@@ -220,7 +228,7 @@ Každý blok je samostatná, odsouhlasitelná dodávka. Stavíme až po tvém po
 **FÁZE 1 — MVP**
 - **Blok 1.1** — Skeleton repo struktury nového produktu + datový model + DB migrace.
 - **Blok 1.2** — Backend: ingest API + agregace na hodiny + retence.
-- **Blok 1.3** — Dashboard: kalendář s hodinovým rozpadem (na mock/seed datech).
+- **Blok 1.3** — Dashboard: kalendář s hodinovým rozpadem + **podrobná analýza** (filtry, srovnání, trendy) + **řádkový export do `.xlsx`/CSV** (na mock/seed datech).
 - **Blok 1.4** — Agent (C#/.NET): idle, aktivní app, čítače kláves/myši, buffer, odeslání.
 - **Blok 1.5** — WiX `.msi` + dokumentace nasazení přes GPO (+ `.bat` fallback).
 - **Blok 1.6** — Právní šablony: informace pro zaměstnance, podklad DPIA, balanční test.
