@@ -11,4 +11,7 @@ export const config = {
   hourlyRetentionDays: Number(process.env.HOURLY_RETENTION_DAYS ?? 540), // ~18 měsíců
   // Zapnutí plánovaných úloh (agregace doběhů + retence).
   enableJobs: (process.env.ENABLE_JOBS ?? 'true') !== 'false',
+  // Výchozí admin účet (vytvoří se jen pokud žádný neexistuje).
+  adminUser: process.env.ADMIN_USER ?? 'admin',
+  adminPassword: process.env.ADMIN_PASSWORD ?? 'admin',
 };

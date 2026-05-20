@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import ExcelJS from 'exceljs';
 import { prisma } from '../db.js';
+import { logAccess } from '../auth.js';
 
 export const exportRouter = Router();
 
@@ -11,10 +12,6 @@ const querySchema = z.object({
   userId: z.string().optional(),
   department: z.string().optional(),
 });
-
-async function logAccess(adminIdentity: string, action: string, detail: string) {
-  await prisma.accessAudit.create({ data: { adminIdentity, action, detail } });
-}
 
 /** Řádkový export hodinových agregátů do .xlsx (podklad pro vyhodnocení firmy). */
 exportRouter.get('/hourly.xlsx', async (req, res) => {
@@ -71,7 +68,7 @@ exportRouter.get('/hourly.xlsx', async (req, res) => {
     });
   }
 
-  await logAccess('dev-admin', 'EXPORT', `hourly.xlsx ${from}..${to} rows=${rows.length}`);
+  await logAccess(req.admin?.username ?? 'unknown', 'EXPORT', `hourly.xlsx ${from}..${to} rows=${rows.length}`);
 
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', 'attachment; filename="workview-hourly.xlsx"');
@@ -126,7 +123,7 @@ exportRouter.get('/intervals.xlsx', async (req, res) => {
     });
   }
 
-  await logAccess('dev-admin', 'EXPORT', `intervals.xlsx ${from}..${to} rows=${rows.length}`);
+  await logAccess(req.admin?.username ?? 'unknown', 'EXPORT', `intervals.xlsx ${from}..${to} rows=${rows.length}`);
 
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', 'attachment; filename="workview-intervals.xlsx"');

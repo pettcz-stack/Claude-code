@@ -22,18 +22,18 @@ export function SummaryView({ from, to, department }: Props) {
   return (
     <div>
       <div className="mb-3 flex items-center gap-3">
-        <a
-          href={api.exportHourlyUrl(from, to, { department })}
+        <button
+          onClick={() => api.exportHourly(from, to, { department }).catch((e) => setError(String(e)))}
           className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
         >
           Export do Excelu (hodinová data)
-        </a>
-        <a
-          href={api.exportIntervalsUrl(from, to)}
+        </button>
+        <button
+          onClick={() => api.exportIntervals(from, to).catch((e) => setError(String(e)))}
           className="rounded border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
         >
           Export syrových intervalů
-        </a>
+        </button>
         {loading && <span className="text-sm text-blue-600">Načítám…</span>}
         {error && <span className="text-sm text-red-600">Chyba: {error}</span>}
       </div>

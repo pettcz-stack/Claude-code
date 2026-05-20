@@ -7,8 +7,10 @@ import { prisma } from './db.js';
 import { ingestRouter } from './routes/ingest.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { exportRouter } from './routes/export.js';
+import { adminRouter } from './routes/admin.js';
 import { aggregateRecent } from './services/aggregate.js';
 import { runRetention } from './jobs/retention.js';
+import { ensureAdmin, requireAuth } from './auth.js';
 
 const app = express();
 app.use(helmet());
@@ -25,11 +27,21 @@ app.get('/api/v1/health', async (_req, res) => {
   }
 });
 
+// Ingest má vlastní autentizaci (token agenta).
 app.use('/api/v1/ingest', ingestRouter);
-app.use('/api/v1/dashboard', dashboardRouter);
-app.use('/api/v1/export', exportRouter);
 
-const server = app.listen(config.port, () => {
+// Přihlášení dashboardu – ověří Basic auth a vrátí roli.
+app.get('/api/v1/me', requireAuth, (req, res) => {
+  res.json({ username: req.admin?.username, role: req.admin?.role });
+});
+
+// Čtení dat a správa vyžaduje přihlášení (role uvnitř routerů).
+app.use('/api/v1/dashboard', requireAuth, dashboardRouter);
+app.use('/api/v1/export', requireAuth, exportRouter);
+app.use('/api/v1/admin', requireAuth, adminRouter);
+
+const server = app.listen(config.port, async () => {
+  await ensureAdmin();
   // eslint-disable-next-line no-console
   console.log(`WorkView backend naslouchá na portu ${config.port}`);
 });

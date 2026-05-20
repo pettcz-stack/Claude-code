@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db.js';
+import { logAccess } from '../auth.js';
 
 export const dashboardRouter = Router();
 
@@ -37,6 +38,7 @@ dashboardRouter.get('/hourly', async (req, res) => {
     where: { userId, hourStart: { gte: new Date(from), lt: new Date(to) } },
     orderBy: { hourStart: 'asc' },
   });
+  await logAccess(req.admin?.username ?? 'unknown', 'VIEW', `hourly ${from}..${to}`, userId);
   res.json({ rows });
 });
 
