@@ -60,7 +60,7 @@ namespace WorkView.Agent
 
                     // Odesílací smyčka – každých 30 s zkusí odeslat nasbírané dávky.
                     // Odesílání dávek jednou za 5 minut (mezitím se data bufferují lokálně).
-                    Timer sendTimer = new Timer { Interval = 5 * 60 * 1000 };
+                    System.Windows.Forms.Timer sendTimer = new System.Windows.Forms.Timer { Interval = 5 * 60 * 1000 };
                     sendTimer.Tick += async (s, e) => await TrySendAsync();
                     sendTimer.Start();
 

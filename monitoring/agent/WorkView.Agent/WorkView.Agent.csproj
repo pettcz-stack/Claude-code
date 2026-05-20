@@ -16,4 +16,9 @@
          4.8 je předinstalovaný na Win10 1903+ a doinstalovatelný jinde. -->
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- V SDK-style net48 není System.Net.Http implicitně referencováno. -->
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
 </Project>
