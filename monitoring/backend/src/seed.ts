@@ -3,6 +3,7 @@
 // Vše jsou jen agregované metriky – žádný obsah.
 
 import { prisma } from './db.js';
+import { aggregateAll } from './services/aggregate.js';
 
 const DEPARTMENTS = ['Obchod', 'Vývoj', 'Podpora'];
 const APPS = ['winword.exe', 'excel.exe', 'chrome.exe', 'outlook.exe', 'teams.exe', 'code.exe'];
@@ -78,8 +79,9 @@ async function main() {
       }
     }
   }
+  const hours = await aggregateAll();
   // eslint-disable-next-line no-console
-  console.log(`Seed hotov: ${users.length} uživatelů, ${created} intervalů.`);
+  console.log(`Seed hotov: ${users.length} uživatelů, ${created} intervalů, ${hours} hodinových agregátů.`);
 }
 
 main()
