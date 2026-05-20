@@ -4,7 +4,7 @@ import { CalendarView } from './CalendarView.js';
 import { SummaryView } from './SummaryView.js';
 import { AdminView } from './AdminView.js';
 import { Login } from './Login.js';
-import { isoDate, startOfUtcDay } from './util.js';
+import { isoDate, startOfLocalDay } from './util.js';
 
 type Tab = 'calendar' | 'summary' | 'admin';
 
@@ -14,7 +14,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('calendar');
   const [users, setUsers] = useState<User[]>([]);
   const [userId, setUserId] = useState<string>('');
-  const [day, setDay] = useState<Date>(() => startOfUtcDay(new Date()));
+  const [day, setDay] = useState<Date>(() => startOfLocalDay(new Date()));
   const [rangeDays, setRangeDays] = useState(7);
   const [department, setDepartment] = useState<string>('');
 
@@ -45,20 +45,20 @@ export default function App() {
   const selectedUser = users.find((u) => u.id === userId);
 
   const to = useMemo(() => {
-    const t = startOfUtcDay(new Date());
-    t.setUTCDate(t.getUTCDate() + 1);
+    const t = startOfLocalDay(new Date());
+    t.setDate(t.getDate() + 1);
     return t.toISOString();
   }, []);
   const from = useMemo(() => {
-    const f = startOfUtcDay(new Date());
-    f.setUTCDate(f.getUTCDate() - rangeDays + 1);
+    const f = startOfLocalDay(new Date());
+    f.setDate(f.getDate() - rangeDays + 1);
     return f.toISOString();
   }, [rangeDays]);
 
   function shiftDay(delta: number) {
     setDay((d) => {
       const x = new Date(d);
-      x.setUTCDate(x.getUTCDate() + delta);
+      x.setDate(x.getDate() + delta);
       return x;
     });
   }

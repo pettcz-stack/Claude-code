@@ -1,12 +1,19 @@
-/** Začátek dne v UTC (data jsou ukládána v UTC). */
-export function startOfUtcDay(d: Date): Date {
+// Časy se ukládají v UTC. Dashboard je zobrazuje v MÍSTNÍM čase prohlížeče
+// (pro uživatele v ČR = Europe/Prague, včetně letního času).
+
+/** Začátek dne v místním čase prohlížeče. */
+export function startOfLocalDay(d: Date): Date {
   const x = new Date(d);
-  x.setUTCHours(0, 0, 0, 0);
+  x.setHours(0, 0, 0, 0);
   return x;
 }
 
+/** YYYY-MM-DD z místních složek data. */
 export function isoDate(d: Date): string {
-  return startOfUtcDay(d).toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 export function minutesToHm(min: number): string {
@@ -15,6 +22,7 @@ export function minutesToHm(min: number): string {
   return h > 0 ? `${h} h ${m} min` : `${m} min`;
 }
 
-export function utcHourOf(iso: string): number {
-  return new Date(iso).getUTCHours();
+/** Hodina dne (0–23) v místním čase z ISO časové značky. */
+export function localHourOf(iso: string): number {
+  return new Date(iso).getHours();
 }

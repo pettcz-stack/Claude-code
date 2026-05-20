@@ -2,8 +2,14 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { logAccess } from '../auth.js';
+import { getCategoryMap } from '../services/categories.js';
 
 export const dashboardRouter = Router();
+
+/** Mapa appName → kategorie (pro zobrazení „v čem pracoval"). */
+dashboardRouter.get('/categories', async (_req, res) => {
+  res.json({ categories: await getCategoryMap() });
+});
 
 const rangeSchema = z.object({
   from: z.string().datetime(),

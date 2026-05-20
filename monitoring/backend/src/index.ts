@@ -1,48 +1,18 @@
-import express from 'express';
-import helmet from 'helmet';
-import cors from 'cors';
 import cron from 'node-cron';
 import { config, smtpEnabled } from './config.js';
 import { prisma } from './db.js';
-import { sendReport } from './services/report.js';
-import { ingestRouter } from './routes/ingest.js';
-import { dashboardRouter } from './routes/dashboard.js';
-import { exportRouter } from './routes/export.js';
-import { adminRouter } from './routes/admin.js';
+import { createApp } from './app.js';
 import { aggregateRecent } from './services/aggregate.js';
 import { runRetention } from './jobs/retention.js';
-import { ensureAdmin, requireAuth } from './auth.js';
+import { ensureAdmin } from './auth.js';
+import { ensureDefaultCategories } from './services/categories.js';
+import { sendReport } from './services/report.js';
 
-const app = express();
-app.use(helmet());
-app.use(cors());
-app.use(express.json({ limit: '4mb' }));
-
-// Health/readiness – ověří i spojení s DB.
-app.get('/api/v1/health', async (_req, res) => {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    res.json({ status: 'ok', db: 'up' });
-  } catch {
-    res.status(503).json({ status: 'degraded', db: 'down' });
-  }
-});
-
-// Ingest má vlastní autentizaci (token agenta).
-app.use('/api/v1/ingest', ingestRouter);
-
-// Přihlášení dashboardu – ověří Basic auth a vrátí roli.
-app.get('/api/v1/me', requireAuth, (req, res) => {
-  res.json({ username: req.admin?.username, role: req.admin?.role });
-});
-
-// Čtení dat a správa vyžaduje přihlášení (role uvnitř routerů).
-app.use('/api/v1/dashboard', requireAuth, dashboardRouter);
-app.use('/api/v1/export', requireAuth, exportRouter);
-app.use('/api/v1/admin', requireAuth, adminRouter);
+const app = createApp();
 
 const server = app.listen(config.port, async () => {
   await ensureAdmin();
+  await ensureDefaultCategories();
   // eslint-disable-next-line no-console
   console.log(`WorkView backend naslouchá na portu ${config.port}`);
 });

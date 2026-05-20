@@ -39,6 +39,19 @@ Produkce běží na PostgreSQL — viz `prisma/schema.postgres.prisma`.
 - [x] **Blok 1.7** — role/přístup (ADMIN/VIEWER), audit log, centrální správa agentů
 - [x] **Blok 1.8** — e-mailové reporty (nodemailer, cron, ruční spuštění)
 
-**Fáze 1 (MVP) hotová.** Další fáze (na vyžádání):
+**Fáze 1 (MVP) hotová.**
+
+Vylepšení MVP:
+- [x] lokální čas v dashboardu (časové pásmo prohlížeče, řeší letní čas)
+- [x] kategorizace aplikací (Práce/Komunikace/Web) – „v čem pracoval"
+- [x] automatické testy backendu (vitest – unit + integrace) → `npm test`
+
+Další fáze (čeká na přístupy):
 - [ ] Blok 2.1 — adaptér OKbase (absence/HO/dovolená)
 - [ ] Blok 3.1 — adaptér Outlook/Exchange (meetingy)
+
+## Testy
+
+```bash
+cd monitoring/backend && npm test   # vitest (vlastní SQLite test.db)
+```

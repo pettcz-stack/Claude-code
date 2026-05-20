@@ -102,6 +102,8 @@ export const auth = {
 
 export const api = {
   users: () => getJson<{ users: User[] }>('/api/v1/dashboard/users').then((d) => d.users),
+  categories: () =>
+    getJson<{ categories: Record<string, string> }>('/api/v1/dashboard/categories').then((d) => d.categories),
   hourly: (userId: string, from: string, to: string) =>
     getJson<{ rows: HourlyRow[] }>(
       `/api/v1/dashboard/hourly?userId=${encodeURIComponent(userId)}&from=${from}&to=${to}`,
