@@ -3,6 +3,7 @@ import { config } from '../config.js';
 import { getCategoryMap, type CatType } from './categories.js';
 import { classifyActivity, getWebRules } from './classify.js';
 import { computeIntegrity } from './integrity.js';
+import { computeUserScore } from './scoring.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -314,4 +315,150 @@ export async function heatmap(from: Date, to: Date, department?: string, userId?
     }),
   );
   return { matrix, max: Math.round(max) };
+}
+
+// --- Home Office vyhodnocení -------------------------------------------------
+
+const dk = (d: Date) => new Date(d).toISOString().slice(0, 10);
+
+export type HomeOfficeResult = {
+  company: {
+    usersWithHo: number;
+    hoDays: number; officeDays: number;
+    hoScore: number; officeScore: number;
+    hoActiveHours: number; officeActiveHours: number;
+    hoNonWorkPct: number; officeNonWorkPct: number;
+  };
+  byDept: { department: string; hoScore: number; officeScore: number; hoDays: number }[];
+  perUser: { userId: string; displayName: string | null; department: string | null; hoDays: number; hoScore: number; officeScore: number; diff: number }[];
+};
+
+export async function homeOffice(from: Date, to: Date, department?: string): Promise<HomeOfficeResult> {
+  const users = await prisma.monitoredUser.findMany({
+    where: { active: true, ...(department ? { department } : {}) },
+    select: { id: true, displayName: true, department: true },
+  });
+  const ids = users.map((u) => u.id);
+  const expectedPerDay = config.expectedWorkHoursPerDay * 60;
+  const totalWorkdays = countWorkdays(from, to);
+  const catMap = await getCategoryMap();
+  const webRules = await getWebRules();
+
+  // HO dny z OKbase (Absence type HOME_OFFICE)
+  const abs = await prisma.absence.findMany({
+    where: { userId: { in: ids }, type: 'HOME_OFFICE', date: { gte: from, lt: to } },
+    select: { userId: true, date: true },
+  });
+  const hoDaysByUser = new Map<string, Set<string>>();
+  for (const a of abs) {
+    let s = hoDaysByUser.get(a.userId);
+    if (!s) (s = new Set()), hoDaysByUser.set(a.userId, s);
+    s.add(dk(a.date));
+  }
+
+  const intervals = await prisma.activityInterval.findMany({
+    where: { userId: { in: ids }, intervalStart: { gte: from, lt: to } },
+    select: { userId: true, intervalStart: true, activeSeconds: true, foregroundApp: true, windowTitle: true },
+  });
+
+  type B = { work: number; nonwork: number };
+  const acc = new Map<string, { ho: B; office: B }>();
+  for (const u of ids) acc.set(u, { ho: { work: 0, nonwork: 0 }, office: { work: 0, nonwork: 0 } });
+  for (const it of intervals) {
+    const m = it.activeSeconds / 60;
+    if (m <= 0) continue;
+    const set = hoDaysByUser.get(it.userId);
+    const isHO = set ? set.has(dk(it.intervalStart)) : false;
+    const info = classifyActivity(catMap, webRules, it.foregroundApp, it.windowTitle);
+    const a = acc.get(it.userId)!;
+    const b = isHO ? a.ho : a.office;
+    if (info.type === 'NON_WORK') b.nonwork += m;
+    else b.work += m;
+  }
+
+  const score = (work: number, days: number) => (days > 0 ? clampPct((work / (days * expectedPerDay)) * 100) : 0);
+
+  let cHoWork = 0, cOfficeWork = 0, cHoNon = 0, cOfficeNon = 0, cHoDays = 0, cOfficeDays = 0, usersWithHo = 0;
+  const deptMap = new Map<string, { hoWork: number; officeWork: number; hoDays: number; officeDays: number }>();
+  const perUser: HomeOfficeResult['perUser'] = [];
+
+  for (const u of users) {
+    const a = acc.get(u.id)!;
+    const hoDays = hoDaysByUser.get(u.id)?.size ?? 0;
+    const officeDays = Math.max(totalWorkdays - hoDays, 0);
+    if (hoDays > 0) usersWithHo++;
+    cHoWork += a.ho.work; cOfficeWork += a.office.work; cHoNon += a.ho.nonwork; cOfficeNon += a.office.nonwork;
+    cHoDays += hoDays; cOfficeDays += officeDays;
+
+    const dep = u.department ?? '—';
+    const d = deptMap.get(dep) ?? { hoWork: 0, officeWork: 0, hoDays: 0, officeDays: 0 };
+    d.hoWork += a.ho.work; d.officeWork += a.office.work; d.hoDays += hoDays; d.officeDays += officeDays;
+    deptMap.set(dep, d);
+
+    if (hoDays > 0) {
+      const hoScore = score(a.ho.work, hoDays);
+      const officeScore = score(a.office.work, officeDays);
+      perUser.push({ userId: u.id, displayName: u.displayName, department: u.department, hoDays, hoScore, officeScore, diff: hoScore - officeScore });
+    }
+  }
+  perUser.sort((x, y) => x.diff - y.diff); // největší propad na HO nahoře
+
+  return {
+    company: {
+      usersWithHo,
+      hoDays: cHoDays, officeDays: cOfficeDays,
+      hoScore: score(cHoWork, cHoDays), officeScore: score(cOfficeWork, cOfficeDays),
+      hoActiveHours: Math.round(cHoWork / 60), officeActiveHours: Math.round(cOfficeWork / 60),
+      hoNonWorkPct: clampPct((cHoNon / Math.max(cHoWork + cHoNon, 1)) * 100),
+      officeNonWorkPct: clampPct((cOfficeNon / Math.max(cOfficeWork + cOfficeNon, 1)) * 100),
+    },
+    byDept: Array.from(deptMap.entries())
+      .map(([department, d]) => ({ department, hoScore: score(d.hoWork, d.hoDays), officeScore: score(d.officeWork, d.officeDays), hoDays: d.hoDays }))
+      .filter((d) => d.hoDays > 0)
+      .sort((a, b) => b.officeScore - a.officeScore),
+    perUser,
+  };
+}
+
+// --- Self-report pro zaměstnance (anonymizované srovnání) --------------------
+
+export type SelfReport = {
+  displayName: string | null;
+  department: string | null;
+  score: number;
+  companyPercentile: number; // lepší než X % firmy
+  deptPercentile: number; // lepší než X % oddělení
+  kpmPercentile: number; // rychlejší v psaní než X %
+  avgKpm: number;
+  activeHours: number;
+  nonWorkPct: number;
+};
+
+export async function selfReport(userId: string, from: Date, to: Date): Promise<SelfReport> {
+  const users = await prisma.monitoredUser.findMany({ where: { active: true }, select: { id: true, department: true } });
+  const ids = users.map((u) => u.id);
+  const expected = countWorkdays(from, to) * config.expectedWorkHoursPerDay * 60;
+
+  const scores = await perUser(ids, from, to);
+  const scoreOf = (id: string) => clampPct(((scores.get(id)?.work ?? 0) / expected) * 100);
+
+  const me = await computeUserScore(userId, from, to);
+  const myScore = me.score;
+  const myDept = users.find((u) => u.id === userId)?.department ?? null;
+
+  const all = ids.map(scoreOf);
+  const dept = users.filter((u) => u.department === myDept).map((u) => scoreOf(u.id));
+  const pct = (arr: number[]) => (arr.length <= 1 ? 50 : Math.round((arr.filter((v) => v < myScore).length / arr.length) * 100));
+
+  return {
+    displayName: me.displayName,
+    department: me.department,
+    score: myScore,
+    companyPercentile: pct(all),
+    deptPercentile: pct(dept),
+    kpmPercentile: me.kpmPercentile,
+    avgKpm: me.avgKpm,
+    activeHours: Math.round(me.workMinutes / 60),
+    nonWorkPct: me.expectedMinutes ? Math.round((me.nonWorkMinutes / Math.max(me.workMinutes + me.nonWorkMinutes, 1)) * 100) : 0,
+  };
 }

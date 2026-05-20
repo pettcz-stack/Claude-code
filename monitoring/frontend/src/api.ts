@@ -108,6 +108,13 @@ export type Overview = {
 };
 export type Heatmap = { matrix: number[][]; max: number };
 
+export type HomeOffice = {
+  company: { usersWithHo: number; hoDays: number; officeDays: number; hoScore: number; officeScore: number; hoActiveHours: number; officeActiveHours: number; hoNonWorkPct: number; officeNonWorkPct: number };
+  byDept: { department: string; hoScore: number; officeScore: number; hoDays: number }[];
+  perUser: { userId: string; displayName: string | null; department: string | null; hoDays: number; hoScore: number; officeScore: number; diff: number }[];
+};
+export type SelfReportData = { displayName: string | null; department: string | null; score: number; companyPercentile: number; deptPercentile: number; kpmPercentile: number; avgKpm: number; activeHours: number; nonWorkPct: number };
+
 export type AppSettings = { alertsEnabled: boolean; alertRecipients: string[]; offlineMinutes: number };
 
 export type Me = { username: string; role: string };
@@ -194,6 +201,13 @@ export const api = {
     if (opts.department) q.set('department', opts.department);
     return getJson<Heatmap>(`/api/v1/dashboard/heatmap?${q}`);
   },
+  homeOffice: (from: string, to: string, department?: string) => {
+    const q = new URLSearchParams({ from, to });
+    if (department) q.set('department', department);
+    return getJson<HomeOffice>(`/api/v1/dashboard/homeoffice?${q}`);
+  },
+  selfReport: (userId: string, from: string, to: string) =>
+    getJson<{ report: SelfReportData }>(`/api/v1/dashboard/selfreport?userId=${encodeURIComponent(userId)}&from=${from}&to=${to}`).then((d) => d.report),
   trend: (from: string, to: string, opts: { userId?: string; department?: string } = {}) => {
     const q = new URLSearchParams({ from, to });
     if (opts.userId) q.set('userId', opts.userId);

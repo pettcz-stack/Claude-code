@@ -4,7 +4,7 @@ import { prisma } from '../db.js';
 import { logAccess } from '../auth.js';
 import { getCategoryMap } from '../services/categories.js';
 import { computeUserScore } from '../services/scoring.js';
-import { trend, topActivities, overview, heatmap } from '../services/analytics.js';
+import { trend, topActivities, overview, heatmap, homeOffice, selfReport } from '../services/analytics.js';
 import { computeIntegrity, detectAlerts } from '../services/integrity.js';
 
 export const dashboardRouter = Router();
@@ -23,6 +23,24 @@ dashboardRouter.get('/heatmap', async (req, res) => {
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
   const { from, to, department, userId } = parsed.data;
   res.json(await heatmap(new Date(from), new Date(to), department, userId));
+});
+
+/** Home Office vyhodnocení (efektivita HO vs. kancelář). */
+dashboardRouter.get('/homeoffice', async (req, res) => {
+  const parsed = rangeSchema.safeParse(req.query);
+  if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
+  const { from, to, department } = parsed.data;
+  res.json(await homeOffice(new Date(from), new Date(to), department));
+});
+
+/** Self-report pro zaměstnance (anonymizované srovnání). */
+dashboardRouter.get('/selfreport', async (req, res) => {
+  const parsed = rangeSchema.safeParse(req.query);
+  if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
+  const { from, to, userId } = parsed.data;
+  if (!userId) return void res.status(400).json({ error: 'userId_required' });
+  await logAccess(req.admin?.username ?? 'unknown', 'VIEW', `selfreport ${from}..${to}`, userId);
+  res.json({ report: await selfReport(userId, new Date(from), new Date(to)) });
 });
 
 /** Integrita aktivity jednoho uživatele (detekce nepovolených praktik). */

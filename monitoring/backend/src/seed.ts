@@ -35,8 +35,16 @@ const BROWSER_NONWORK_TITLES = ['YouTube', 'Facebook', 'Instagram', 'Novinky.cz'
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 const rnd = (n: number) => Math.floor(Math.random() * n);
 
+type Person = { id: string; deviceId: string; behavior: Behavior; diligence: number; hoDip: number };
+
+function hoDipFor(b: Behavior): number {
+  if (b === 'slacker') return 0.28; // doma viditelně poleví
+  if (b.startsWith('cheater')) return 0; // podvodníci jedou stejně (vzor je strojový)
+  return 0.07; // běžní lidé jen mírně
+}
+
 async function main() {
-  const created: { id: string; deviceId: string; behavior: Behavior; diligence: number }[] = [];
+  const created: Person[] = [];
   for (let i = 0; i < PEOPLE.length; i++) {
     const p = PEOPLE[i];
     const sid = `S-1-5-21-DEMO-${1000 + i}`;
@@ -51,15 +59,17 @@ async function main() {
       update: { lastSeen: new Date(), agentVersion: '0.1.0', os: 'Windows 11' },
       create: { machineId, hostname: `ALB-PC-${i + 1}`, os: 'Windows 11', agentVersion: '0.1.0', lastSeen: new Date() },
     });
-    created.push({ id: user.id, deviceId: device.id, behavior: p.behavior, diligence: p.diligence });
+    created.push({ id: user.id, deviceId: device.id, behavior: p.behavior, diligence: p.diligence, hoDip: hoDipFor(p.behavior) });
   }
 
   const userIds = created.map((c) => c.id);
   await prisma.activityInterval.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.activityHourly.deleteMany({ where: { userId: { in: userIds } } });
+  await prisma.absence.deleteMany({ where: { userId: { in: userIds } } });
 
   const now = new Date();
   const batch: Prisma.ActivityIntervalCreateManyInput[] = [];
+  const absences: Prisma.AbsenceCreateManyInput[] = [];
 
   for (const c of created) {
     for (let dayBack = 0; dayBack < 30; dayBack++) {
@@ -68,11 +78,18 @@ async function main() {
       const dow = day.getDay();
       if (dow === 0 || dow === 6) continue;
 
+      // Home office den (z OKbase by to byl fakt). Podvodníci jezdí do kanceláře.
+      const isHO = c.behavior.startsWith('cheater') ? false : Math.random() < 0.25;
+      if (isHO) {
+        const date = new Date(Date.UTC(day.getFullYear(), day.getMonth(), day.getDate()));
+        absences.push({ userId: c.id, date, type: 'HOME_OFFICE', source: 'OKBASE' });
+      }
+
       for (let hour = 8; hour < 16; hour++) {
         for (let min = 0; min < 60; min += 5) {
           const intervalStart = new Date(day);
           intervalStart.setHours(hour, min, 0, 0);
-          const row = makeRow(c, intervalStart);
+          const row = makeRow(c, intervalStart, isHO);
           if (row) batch.push(row);
         }
       }
@@ -82,15 +99,13 @@ async function main() {
   for (let i = 0; i < batch.length; i += 1000) {
     await prisma.activityInterval.createMany({ data: batch.slice(i, i + 1000) });
   }
+  if (absences.length) await prisma.absence.createMany({ data: absences });
   const hours = await aggregateAll();
   // eslint-disable-next-line no-console
-  console.log(`Seed hotov: ${created.length} uživatelů, ${batch.length} intervalů, ${hours} hodinových agregátů.`);
+  console.log(`Seed hotov: ${created.length} uživatelů, ${batch.length} intervalů, ${absences.length} HO dnů, ${hours} agregátů.`);
 }
 
-function makeRow(
-  c: { id: string; deviceId: string; behavior: Behavior; diligence: number },
-  intervalStart: Date,
-): Prisma.ActivityIntervalCreateManyInput | null {
+function makeRow(c: Person, intervalStart: Date, isHO: boolean): Prisma.ActivityIntervalCreateManyInput | null {
   const base = { deviceId: c.deviceId, userId: c.id, intervalStart, intervalSeconds: 300 };
 
   // Podvodníci: vypadají „aktivně" celý den, ale vzor je strojový.
@@ -102,10 +117,12 @@ function makeRow(
   }
 
   // Běžní lidé: občas PC off, mix práce/neutrál/mimopráce dle píle.
-  const offChance = (1 - c.diligence) * 0.25 + (intervalStart.getHours() >= 14 ? 0.08 : 0);
+  // Na home office méně pilní lidé poleví víc (hoDip).
+  const hoDip = isHO ? c.hoDip : 0;
+  const offChance = (1 - c.diligence) * 0.25 + (intervalStart.getHours() >= 14 ? 0.08 : 0) + hoDip;
   if (Math.random() < offChance) return null;
 
-  const nonWorkProb = (1 - c.diligence) * 0.35;
+  const nonWorkProb = (1 - c.diligence) * 0.35 + hoDip * 0.5;
   const r = Math.random();
   let app: string;
   let title: string | null = null;

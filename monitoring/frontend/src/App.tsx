@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Gauge, LayoutDashboard, User as UserIcon, Trophy, TrendingUp, AppWindow, CalendarDays, Table2, Shield,
-  ShieldAlert, SlidersHorizontal, Sun, Moon, LogOut, ChevronLeft, ChevronRight,
+  ShieldAlert, SlidersHorizontal, House, BadgeCheck, Sun, Moon, LogOut, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { api, auth, type Me, type User } from './api.js';
 import { OverviewView } from './OverviewView.js';
+import { HomeOfficeView } from './HomeOfficeView.js';
+import { SelfReportView } from './SelfReportView.js';
 import { DetailView } from './DetailView.js';
 import { CalendarView } from './CalendarView.js';
 import { Scoreboard } from './Scoreboard.js';
@@ -19,12 +21,14 @@ import { Login } from './Login.js';
 import { useTheme } from './theme.js';
 import { isoDate, startOfLocalDay } from './util.js';
 
-type Tab = 'overview' | 'detail' | 'scoreboard' | 'alerts' | 'trends' | 'apps' | 'calendar' | 'summary' | 'admin' | 'settings';
+type Tab = 'overview' | 'homeoffice' | 'detail' | 'selfreport' | 'scoreboard' | 'alerts' | 'trends' | 'apps' | 'calendar' | 'summary' | 'admin' | 'settings';
 type PeriodMode = 'day' | 'week' | 'month' | 'custom';
 
 const NAV: { id: Tab; label: string; Icon: typeof UserIcon }[] = [
   { id: 'overview', label: 'Přehled firmy', Icon: LayoutDashboard },
+  { id: 'homeoffice', label: 'Home Office', Icon: House },
   { id: 'detail', label: 'Detail uživatele', Icon: UserIcon },
+  { id: 'selfreport', label: 'Report zaměstnance', Icon: BadgeCheck },
   { id: 'scoreboard', label: 'Žebříček', Icon: Trophy },
   { id: 'alerts', label: 'Upozornění', Icon: ShieldAlert },
   { id: 'trends', label: 'Trendy', Icon: TrendingUp },
@@ -77,9 +81,9 @@ export default function App() {
   if (!authChecked) return <div className="p-6 muted-2">Načítám…</div>;
   if (!me) return <Login onLogin={setMe} />;
 
-  const needsUser = tab === 'detail' || tab === 'calendar';
-  const needsPeriod = tab === 'overview' || tab === 'detail' || tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'trends' || tab === 'alerts';
-  const needsDept = tab === 'overview' || tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'trends' || tab === 'alerts';
+  const needsUser = tab === 'detail' || tab === 'calendar' || tab === 'selfreport';
+  const needsPeriod = tab === 'overview' || tab === 'homeoffice' || tab === 'detail' || tab === 'selfreport' || tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'trends' || tab === 'alerts';
+  const needsDept = tab === 'overview' || tab === 'homeoffice' || tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'trends' || tab === 'alerts';
   const title = NAV.find((n) => n.id === tab)?.label ?? '';
 
   return (
@@ -168,6 +172,8 @@ export default function App() {
 
         <main className="p-6">
           {tab === 'overview' && <OverviewView from={from} to={to} department={department || undefined} dark={dark} onOpenUser={(id) => { setUserId(id); setTab('detail'); }} />}
+          {tab === 'homeoffice' && <HomeOfficeView from={from} to={to} department={department || undefined} onOpenUser={(id) => { setUserId(id); setTab('detail'); }} />}
+          {tab === 'selfreport' && selectedUser && <SelfReportView user={selectedUser} from={from} to={to} />}
           {tab === 'detail' && selectedUser && <DetailView user={selectedUser} from={from} to={to} dark={dark} />}
           {tab === 'scoreboard' && <Scoreboard from={from} to={to} department={department || undefined} />}
           {tab === 'alerts' && <AlertsView from={from} to={to} department={department || undefined} onOpenUser={(id) => { setUserId(id); setTab('detail'); }} />}
