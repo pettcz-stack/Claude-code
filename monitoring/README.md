@@ -55,3 +55,20 @@ Další fáze (čeká na přístupy):
 ```bash
 cd monitoring/backend && npm test   # vitest (vlastní SQLite test.db)
 ```
+
+## Nasazení on-premise (Docker)
+
+PostgreSQL + backend + frontend přes docker-compose:
+
+```bash
+cd monitoring
+# nastav tajemství (jinak se použijí defaulty)
+export ADMIN_PASSWORD=... INGEST_TOKEN=... DB_PASSWORD=...
+docker compose up -d --build
+# dashboard: http://localhost:8080
+```
+
+Backend při startu synchronizuje schéma do PostgreSQL (`prisma db push` proti
+`schema.postgres.prisma`). Agent posílá data na `http(s)://<server>/api` (přes
+nginx proxy frontendu, nebo přímo na backend:4000).
+
