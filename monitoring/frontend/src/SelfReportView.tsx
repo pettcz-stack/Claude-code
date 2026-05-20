@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ShieldCheck, X, Keyboard, Trophy, Users, Building2, Sparkles, Award, Footprints, Flame, HeartPulse, PersonStanding, GlassWater, Eye, Coffee, Wind, Target, Armchair, Activity } from 'lucide-react';
+import { ShieldCheck, X, Keyboard, Trophy, Users, Building2, Sparkles, Award, Footprints, Flame, HeartPulse, PersonStanding, GlassWater, Eye, Coffee, Wind, Target, Armchair, Activity, Quote } from 'lucide-react';
 import { api, type SelfReportData, type User } from './api.js';
 
 // Mikro-doporučení, která NEBEROU pozornost od práce (max pár vteřin, často
@@ -48,6 +48,28 @@ const CAT_ICON: Record<Cat, React.ReactNode> = {
   mood: <HeartPulse size={16} className="text-rose-500" />,
 };
 
+// Rozvojový režim – moudra velikánů, jedno na celý den.
+const QUOTES: { text: string; author: string }[] = [
+  { text: 'Náš zákazník – náš pán.', author: 'Tomáš Baťa' },
+  { text: 'Co chceš, můžeš.', author: 'Tomáš Baťa' },
+  { text: 'Lidé nestojí o lacinou věc, ale o věc dobrou.', author: 'Tomáš Baťa' },
+  { text: 'Než začneš pracovat, rozmysli si, co děláš a proč to děláš.', author: 'Tomáš Baťa' },
+  { text: 'Neříkej, že to nejde, řekni, že to zatím neumíš.', author: 'Tomáš Baťa' },
+  { text: 'Největší chybou je dělat všechno najednou a nic pořádně.', author: 'Tomáš Baťa' },
+  { text: 'Slibuj méně, než kolik můžeš splnit.', author: 'Tomáš Baťa' },
+  { text: 'Den má 86 400 vteřin – využij je.', author: 'Tomáš Baťa' },
+  { text: 'Nebát se a nekrást.', author: 'T. G. Masaryk' },
+  { text: 'Kdo chvíli stál, již stojí opodál.', author: 'Jan Neruda' },
+  { text: 'Práce je nejlepší způsob, jak si užít život.', author: 'Immanuel Kant' },
+  { text: 'Kvalita znamená dělat věci správně, i když se nikdo nedívá.', author: 'Henry Ford' },
+  { text: 'Ať si myslíš, že to dokážeš, nebo ne – máš pravdu.', author: 'Henry Ford' },
+  { text: 'Spojit se je začátek, zůstat spolu je pokrok, spolupracovat je úspěch.', author: 'Henry Ford' },
+];
+
+function quoteOfDay(): { text: string; author: string } {
+  return QUOTES[Math.floor(Date.now() / 86400000) % QUOTES.length];
+}
+
 /** Deterministicky vybere N tipů „pro dnešek" (mění se den ode dne). */
 function pickTips(n: number): { cat: Cat; text: string }[] {
   const seed = Math.floor(Date.now() / 86400000); // den
@@ -86,12 +108,14 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
   const [showPrivacy, setShowPrivacy] = useState(true);
   const [funMode, setFunMode] = useState(false);
   const [healthMode, setHealthMode] = useState(false);
+  const [growthMode, setGrowthMode] = useState(false);
   useEffect(() => { api.selfReport(user.id, from, to).then(setR).catch(() => setR(null)); }, [user.id, from, to]);
-  useEffect(() => { api.getSettings().then((d) => { setFunMode(d.settings.funMode); setHealthMode(d.settings.healthMode); }).catch(() => undefined); }, []);
+  useEffect(() => { api.getSettings().then((d) => { setFunMode(d.settings.funMode); setHealthMode(d.settings.healthMode); setGrowthMode(d.settings.growthMode); }).catch(() => undefined); }, []);
   if (!r) return <p className="muted-2">Načítám…</p>;
 
   const distance = r.distanceMeters >= 1000 ? `${(r.distanceMeters / 1000).toFixed(1)} km` : `${r.distanceMeters} m`;
   const tips = pickTips(6);
+  const quote = quoteOfDay();
 
   const grade = r.score >= 70 ? { t: 'Skvělá práce!', e: '🏆' } : r.score >= 45 ? { t: 'Dobrá práce', e: '👍' } : { t: 'Je co zlepšovat', e: '💪' };
 
@@ -110,6 +134,18 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
           </div>
         </div>
       </div>
+
+      {/* Rozvojový režim – moudro dne */}
+      {growthMode && (
+        <div className="card flex items-start gap-3 border-indigo-200 p-5 dark:border-indigo-500/30">
+          <Quote size={26} className="shrink-0 text-indigo-400" />
+          <div>
+            <div className="text-xs uppercase tracking-wide muted-2">Moudro dne</div>
+            <blockquote className="text-lg font-medium italic">„{quote.text}"</blockquote>
+            <div className="mt-1 text-sm muted">— {quote.author}</div>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Compare icon={<Users size={15} className="text-emerald-600" />} label="Ve firmě" pct={r.companyPercentile} color="#10b981" />

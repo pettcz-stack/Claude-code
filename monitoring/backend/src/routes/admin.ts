@@ -20,6 +20,7 @@ const settingsSchema = z.object({
   offlineMinutes: z.number().int().min(5).max(1440).optional(),
   funMode: z.boolean().optional(),
   healthMode: z.boolean().optional(),
+  growthMode: z.boolean().optional(),
 });
 adminRouter.put('/settings', requireRole('ADMIN'), async (req, res) => {
   const p = settingsSchema.safeParse(req.body);

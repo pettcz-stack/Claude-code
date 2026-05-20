@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, Save, Play, AlertTriangle, Smile, HeartPulse } from 'lucide-react';
+import { Bell, Save, Play, AlertTriangle, Smile, HeartPulse, Quote } from 'lucide-react';
 import { api } from './api.js';
 
 export function SettingsView({ canEdit }: { canEdit: boolean }) {
@@ -8,6 +8,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
   const [offline, setOffline] = useState(20);
   const [funMode, setFunMode] = useState(false);
   const [healthMode, setHealthMode] = useState(false);
+  const [growthMode, setGrowthMode] = useState(false);
   const [smtp, setSmtp] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -18,6 +19,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
       setOffline(d.settings.offlineMinutes);
       setFunMode(d.settings.funMode);
       setHealthMode(d.settings.healthMode);
+      setGrowthMode(d.settings.growthMode);
       setSmtp(d.smtpConfigured);
     }).catch(() => undefined);
   }
@@ -25,7 +27,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
 
   async function save() {
     setMsg('Ukládám…');
-    await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline, funMode, healthMode }).catch((e) => setMsg('Chyba: ' + e));
+    await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline, funMode, healthMode, growthMode }).catch((e) => setMsg('Chyba: ' + e));
     setMsg('Uloženo.');
     load();
   }
@@ -92,11 +94,19 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
           </span>
         </label>
 
-        <label className="flex items-start gap-3 text-sm">
+        <label className="mb-3 flex items-start gap-3 text-sm">
           <input type="checkbox" checked={healthMode} disabled={!canEdit} onChange={(e) => setHealthMode(e.target.checked)} className="mt-1" />
           <span>
             <span className="flex items-center gap-1.5 font-medium"><HeartPulse size={15} className="text-rose-500" /> Zdravotní režim</span>
-            <span className="muted-2">Mikropřestávky (postav se, protáhni), pitný režim, pravidlo 20-20-20 pro oči, doporučení ke kávě. Péče o pohodu.</span>
+            <span className="muted-2">Mikro-tipy proveditelné při práci (bez přestávek): postavit se a pracovat ve stoje, narovnat záda, doušek vody, pohled do dálky.</span>
+          </span>
+        </label>
+
+        <label className="flex items-start gap-3 text-sm">
+          <input type="checkbox" checked={growthMode} disabled={!canEdit} onChange={(e) => setGrowthMode(e.target.checked)} className="mt-1" />
+          <span>
+            <span className="flex items-center gap-1.5 font-medium"><Quote size={15} className="text-indigo-500" /> Rozvojový režim</span>
+            <span className="muted-2">Moudro dne od velikánů (Tomáš Baťa a další), které firma ctí. Jeden citát na celý den – předává firemní hodnoty.</span>
           </span>
         </label>
 

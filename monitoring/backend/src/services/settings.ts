@@ -7,9 +7,10 @@ export type AppSettings = {
   offlineMinutes: number; // po kolika minutách bez dat hlásit „agent offline"
   funMode: boolean; // zábavný režim v reportu zaměstnance
   healthMode: boolean; // zdravotní režim (přestávky, pití, kalorie)
+  growthMode: boolean; // rozvojový režim (moudra/citáty velikánů)
 };
 
-const KEYS = { enabled: 'alertsEnabled', recipients: 'alertRecipients', offline: 'offlineMinutes', fun: 'funMode', health: 'healthMode' };
+const KEYS = { enabled: 'alertsEnabled', recipients: 'alertRecipients', offline: 'offlineMinutes', fun: 'funMode', health: 'healthMode', growth: 'growthMode' };
 
 export async function getSettings(): Promise<AppSettings> {
   const rows = await prisma.setting.findMany();
@@ -27,16 +28,18 @@ export async function getSettings(): Promise<AppSettings> {
     offlineMinutes: Number(map.get(KEYS.offline) ?? 20),
     funMode: (map.get(KEYS.fun) ?? 'false') === 'true',
     healthMode: (map.get(KEYS.health) ?? 'false') === 'true',
+    growthMode: (map.get(KEYS.growth) ?? 'false') === 'true',
   };
 }
 
-export async function saveSettings(s: Partial<{ alertsEnabled: boolean; alertRecipients: string; offlineMinutes: number; funMode: boolean; healthMode: boolean }>): Promise<void> {
+export async function saveSettings(s: Partial<{ alertsEnabled: boolean; alertRecipients: string; offlineMinutes: number; funMode: boolean; healthMode: boolean; growthMode: boolean }>): Promise<void> {
   const ups: { key: string; value: string }[] = [];
   if (s.alertsEnabled !== undefined) ups.push({ key: KEYS.enabled, value: String(s.alertsEnabled) });
   if (s.alertRecipients !== undefined) ups.push({ key: KEYS.recipients, value: s.alertRecipients });
   if (s.offlineMinutes !== undefined) ups.push({ key: KEYS.offline, value: String(s.offlineMinutes) });
   if (s.funMode !== undefined) ups.push({ key: KEYS.fun, value: String(s.funMode) });
   if (s.healthMode !== undefined) ups.push({ key: KEYS.health, value: String(s.healthMode) });
+  if (s.growthMode !== undefined) ups.push({ key: KEYS.growth, value: String(s.growthMode) });
   for (const u of ups) {
     await prisma.setting.upsert({ where: { key: u.key }, create: u, update: { value: u.value } });
   }
