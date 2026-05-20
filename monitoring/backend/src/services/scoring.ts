@@ -1,7 +1,7 @@
 import { prisma } from '../db.js';
 import { config } from '../config.js';
 import { getCategoryMap, type CatType } from './categories.js';
-import { classifyActivity } from './classify.js';
+import { classifyActivity, getWebRules } from './classify.js';
 
 export type ScoreBreakdown = {
   expectedMinutes: number;
@@ -52,6 +52,7 @@ export async function computeUserScore(userId: string, from: Date, to: Date): Pr
     select: { id: true, displayName: true, department: true },
   });
   const catMap = await getCategoryMap();
+  const webRules = await getWebRules();
 
   // Počítáme z intervalů – klasifikace podle aplikace + titulku okna je přesnější
   // a rozliší práci/zábavu i uvnitř prohlížeče.
@@ -73,7 +74,7 @@ export async function computeUserScore(userId: string, from: Date, to: Date): Pr
     totalKeystrokes += it.keystrokeCount;
     if (activeMin <= 0) continue;
 
-    const info = classifyActivity(catMap, it.foregroundApp, it.windowTitle);
+    const info = classifyActivity(catMap, webRules, it.foregroundApp, it.windowTitle);
     if (info.type === 'NON_WORK') nonWorkMinutes += activeMin;
     else workMinutes += activeMin; // WORK + NEUTRAL
 

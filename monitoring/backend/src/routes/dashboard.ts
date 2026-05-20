@@ -4,8 +4,33 @@ import { prisma } from '../db.js';
 import { logAccess } from '../auth.js';
 import { getCategoryMap } from '../services/categories.js';
 import { computeUserScore } from '../services/scoring.js';
+import { trend, topActivities } from '../services/analytics.js';
 
 export const dashboardRouter = Router();
+
+/** Denní trend skóre (uživatel nebo firma). */
+dashboardRouter.get('/trend', async (req, res) => {
+  const parsed = rangeSchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'invalid_query', detail: parsed.error.flatten() });
+    return;
+  }
+  const { from, to, userId, department } = parsed.data;
+  const points = await trend(new Date(from), new Date(to), userId, department);
+  res.json({ points });
+});
+
+/** Top aplikace a weby za období. */
+dashboardRouter.get('/top-activities', async (req, res) => {
+  const parsed = rangeSchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'invalid_query', detail: parsed.error.flatten() });
+    return;
+  }
+  const { from, to, userId, department } = parsed.data;
+  const result = await topActivities(new Date(from), new Date(to), userId, department);
+  res.json(result);
+});
 
 /** Mapa appName → {category, type} (pro zobrazení „v čem pracoval"). */
 dashboardRouter.get('/categories', async (_req, res) => {

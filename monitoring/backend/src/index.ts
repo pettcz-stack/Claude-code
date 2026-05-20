@@ -6,6 +6,7 @@ import { aggregateRecent } from './services/aggregate.js';
 import { runRetention } from './jobs/retention.js';
 import { ensureAdmin } from './auth.js';
 import { ensureDefaultCategories } from './services/categories.js';
+import { ensureDefaultWebRules } from './services/classify.js';
 import { sendReport } from './services/report.js';
 
 const app = createApp();
@@ -13,6 +14,7 @@ const app = createApp();
 const server = app.listen(config.port, async () => {
   await ensureAdmin();
   await ensureDefaultCategories();
+  await ensureDefaultWebRules();
   // eslint-disable-next-line no-console
   console.log(`WorkView backend naslouchá na portu ${config.port}`);
 });

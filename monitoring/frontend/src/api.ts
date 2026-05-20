@@ -90,6 +90,11 @@ export type ScoreboardRow = {
   avgKpm: number;
 };
 
+export type TrendPoint = { date: string; score: number; workMinutes: number; nonWorkMinutes: number; idleMinutes: number };
+export type ActivityItem = { label: string; category: string; type: 'WORK' | 'NON_WORK' | 'NEUTRAL'; minutes: number };
+export type AppCategoryRow = { id: string; appName: string; category: string; type: string };
+export type WebRuleRow = { id: string; keyword: string; category: string; type: string };
+
 export type Me = { username: string; role: string };
 
 const STORAGE_KEY = 'workview_auth';
@@ -157,6 +162,29 @@ export const api = {
     getJson<{ rows: ScoreboardRow[] }>(
       `/api/v1/dashboard/scoreboard?from=${from}&to=${to}${department ? `&department=${encodeURIComponent(department)}` : ''}`,
     ).then((d) => d.rows),
+  trend: (from: string, to: string, opts: { userId?: string; department?: string } = {}) => {
+    const q = new URLSearchParams({ from, to });
+    if (opts.userId) q.set('userId', opts.userId);
+    if (opts.department) q.set('department', opts.department);
+    return getJson<{ points: TrendPoint[] }>(`/api/v1/dashboard/trend?${q}`).then((d) => d.points);
+  },
+  topActivities: (from: string, to: string, opts: { userId?: string; department?: string } = {}) => {
+    const q = new URLSearchParams({ from, to });
+    if (opts.userId) q.set('userId', opts.userId);
+    if (opts.department) q.set('department', opts.department);
+    return getJson<{ apps: ActivityItem[]; sites: ActivityItem[] }>(`/api/v1/dashboard/top-activities?${q}`);
+  },
+  // Správa kategorií a pravidel
+  adminCategories: () => getJson<{ categories: AppCategoryRow[] }>('/api/v1/admin/categories').then((d) => d.categories),
+  saveCategory: (data: { appName: string; category: string; type: string }) =>
+    fetch('/api/v1/admin/categories', { method: 'POST', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
+  deleteCategory: (appName: string) =>
+    fetch(`/api/v1/admin/categories/${encodeURIComponent(appName)}`, { method: 'DELETE', headers: authHeader() }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
+  adminWebRules: () => getJson<{ rules: WebRuleRow[] }>('/api/v1/admin/webrules').then((d) => d.rules),
+  saveWebRule: (data: { keyword: string; category: string; type: string }) =>
+    fetch('/api/v1/admin/webrules', { method: 'POST', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
+  deleteWebRule: (keyword: string) =>
+    fetch(`/api/v1/admin/webrules/${encodeURIComponent(keyword)}`, { method: 'DELETE', headers: authHeader() }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   hourly: (userId: string, from: string, to: string) =>
     getJson<{ rows: HourlyRow[] }>(
       `/api/v1/dashboard/hourly?userId=${encodeURIComponent(userId)}&from=${from}&to=${to}`,

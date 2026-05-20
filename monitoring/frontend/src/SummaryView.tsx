@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { FileSpreadsheet, FileDown } from 'lucide-react';
 import { api, type SummaryRow } from './api.js';
 import { minutesToHm } from './util.js';
 
@@ -12,65 +13,46 @@ export function SummaryView({ from, to, department }: Props) {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    api
-      .summary(from, to, department)
+    api.summary(from, to, department)
       .then((r) => setRows([...r].sort((a, b) => b.activeMinutes - a.activeMinutes)))
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
   }, [from, to, department]);
 
   return (
-    <div>
-      <div className="mb-3 flex items-center gap-3">
-        <button
-          onClick={() => api.exportHourly(from, to, { department }).catch((e) => setError(String(e)))}
-          className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700"
-        >
-          Export do Excelu (hodinová data)
+    <div className="card p-5">
+      <div className="mb-4 flex items-center gap-3">
+        <button onClick={() => api.exportHourly(from, to, { department }).catch((e) => setError(String(e)))} className="btn-primary">
+          <FileSpreadsheet size={15} /> Export do Excelu
         </button>
-        <button
-          onClick={() => api.exportIntervals(from, to).catch((e) => setError(String(e)))}
-          className="rounded border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-        >
-          Export syrových intervalů
+        <button onClick={() => api.exportIntervals(from, to).catch((e) => setError(String(e)))} className="btn-ghost">
+          <FileDown size={15} /> Surová data
         </button>
-        {loading && <span className="text-sm text-blue-600">Načítám…</span>}
-        {error && <span className="text-sm text-red-600">Chyba: {error}</span>}
+        {loading && <span className="text-sm text-blue-500">Načítám…</span>}
+        {error && <span className="text-sm text-red-500">Chyba: {error}</span>}
       </div>
-
-      <div className="overflow-hidden rounded-lg border border-gray-200">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-left text-gray-500">
-            <tr>
-              <th className="px-3 py-2">Zaměstnanec</th>
-              <th className="px-3 py-2">Oddělení</th>
-              <th className="px-3 py-2 text-right">Aktivní</th>
-              <th className="px-3 py-2 text-right">Nečinnost</th>
-              <th className="px-3 py-2 text-right">Zamčeno</th>
-              <th className="px-3 py-2 text-right">Prům. úhozy/min</th>
+      <table className="w-full">
+        <thead>
+          <tr>
+            <th className="th">Zaměstnanec</th><th className="th">Oddělení</th>
+            <th className="th text-right">Aktivní</th><th className="th text-right">Nečinnost</th>
+            <th className="th text-right">Zamčeno</th><th className="th text-right">Úhozy/min</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.userId} className="divide-row">
+              <td className="td font-medium">{r.displayName ?? r.userId}</td>
+              <td className="td muted">{r.department ?? '—'}</td>
+              <td className="td text-right tabular-nums text-emerald-500">{minutesToHm(r.activeMinutes)}</td>
+              <td className="td text-right tabular-nums muted">{minutesToHm(r.idleMinutes)}</td>
+              <td className="td text-right tabular-nums muted-2">{minutesToHm(r.lockedMinutes)}</td>
+              <td className="td text-right tabular-nums">{r.avgKpm}</td>
             </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.userId} className="border-t border-gray-100">
-                <td className="px-3 py-2 font-medium text-gray-800">{r.displayName ?? r.userId}</td>
-                <td className="px-3 py-2 text-gray-500">{r.department ?? '—'}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-emerald-700">{minutesToHm(r.activeMinutes)}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-gray-600">{minutesToHm(r.idleMinutes)}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-gray-500">{minutesToHm(r.lockedMinutes)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{r.avgKpm}</td>
-              </tr>
-            ))}
-            {rows.length === 0 && !loading && (
-              <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-gray-400">
-                  Žádná data pro zvolené období.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+          ))}
+          {rows.length === 0 && !loading && <tr><td colSpan={6} className="td py-6 text-center muted-2">Žádná data pro zvolené období.</td></tr>}
+        </tbody>
+      </table>
     </div>
   );
 }

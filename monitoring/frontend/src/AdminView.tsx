@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Mail, Save } from 'lucide-react';
 import { api, type AdminUserRow, type AuditRow, type Device } from './api.js';
 
 export function AdminView({ role }: { role: string }) {
@@ -16,7 +17,6 @@ export function AdminView({ role }: { role: string }) {
       api.audit().then(setAudit).catch(() => undefined);
     }
   }
-
   useEffect(loadAll, [role]);
 
   async function triggerReport() {
@@ -24,171 +24,83 @@ export function AdminView({ role }: { role: string }) {
     const r = await api.sendReport();
     setReportMsg(r.ok ? `Report odeslán (${r.rows} řádků, ${r.recipients} příjemců).` : `Chyba: ${r.error}`);
   }
-
-  async function toggleDevice(d: Device) {
-    await api.patchDevice(d.id, !d.active).catch((e) => setError(String(e)));
-    loadAll();
-  }
-
-  async function saveUser(u: AdminUserRow) {
-    await api
-      .patchUser(u.id, { displayName: u.displayName ?? '', department: u.department ?? '', active: u.active })
-      .catch((e) => setError(String(e)));
-    loadAll();
-  }
-
-  function patchLocalUser(id: string, patch: Partial<AdminUserRow>) {
-    setUsers((list) => list.map((u) => (u.id === id ? { ...u, ...patch } : u)));
-  }
+  async function toggleDevice(d: Device) { await api.patchDevice(d.id, !d.active).catch((e) => setError(String(e))); loadAll(); }
+  async function saveUser(u: AdminUserRow) { await api.patchUser(u.id, { displayName: u.displayName ?? '', department: u.department ?? '', active: u.active }).catch((e) => setError(String(e))); loadAll(); }
+  function patchLocalUser(id: string, patch: Partial<AdminUserRow>) { setUsers((list) => list.map((u) => (u.id === id ? { ...u, ...patch } : u))); }
 
   return (
-    <div className="space-y-8">
-      <section>
-        <h2 className="mb-2 text-sm font-semibold text-gray-700">Zařízení (stav agentů)</h2>
-        {error && <p className="text-sm text-red-600">Chyba: {error}</p>}
-        <div className="overflow-hidden rounded-lg border border-gray-200">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-left text-gray-500">
-              <tr>
-                <th className="px-3 py-2">Stav</th>
-                <th className="px-3 py-2">Hostname</th>
-                <th className="px-3 py-2">OS</th>
-                <th className="px-3 py-2">Verze agenta</th>
-                <th className="px-3 py-2">Poslední kontakt</th>
-                {isAdmin && <th className="px-3 py-2">Sledování</th>}
+    <div className="space-y-4">
+      <div className="card p-5">
+        <h3 className="mb-3 text-sm font-semibold">Zařízení (stav agentů)</h3>
+        {error && <p className="text-sm text-red-500">Chyba: {error}</p>}
+        <table className="w-full">
+          <thead><tr><th className="th">Stav</th><th className="th">Hostname</th><th className="th">OS</th><th className="th">Verze</th><th className="th">Poslední kontakt</th>{isAdmin && <th className="th">Sledování</th>}</tr></thead>
+          <tbody>
+            {devices.map((d) => (
+              <tr key={d.id} className="divide-row">
+                <td className="td"><span className={`inline-block h-2.5 w-2.5 rounded-full ${d.online ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-slate-600'}`} /></td>
+                <td className="td font-medium">{d.hostname}</td>
+                <td className="td muted">{d.os ?? '—'}</td>
+                <td className="td muted">{d.agentVersion ?? '—'}</td>
+                <td className="td muted-2">{d.lastSeen ? new Date(d.lastSeen).toLocaleString('cs-CZ') : '—'}</td>
+                {isAdmin && <td className="td"><button onClick={() => toggleDevice(d)} className={d.active ? 'chip-work' : 'chip-neutral'}>{d.active ? 'Aktivní' : 'Pozastaveno'}</button></td>}
               </tr>
-            </thead>
+            ))}
+            {devices.length === 0 && <tr><td colSpan={isAdmin ? 6 : 5} className="td py-6 text-center muted-2">Žádná zařízení.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      {isAdmin && (
+        <div className="card p-5">
+          <h3 className="mb-3 text-sm font-semibold">Sledovaní uživatelé</h3>
+          <table className="w-full">
+            <thead><tr><th className="th">Jméno</th><th className="th">Oddělení</th><th className="th">Aktivní</th><th className="th"></th></tr></thead>
             <tbody>
-              {devices.map((d) => (
-                <tr key={d.id} className="border-t border-gray-100">
-                  <td className="px-3 py-2">
-                    <span className={`inline-block h-2.5 w-2.5 rounded-full ${d.online ? 'bg-emerald-500' : 'bg-gray-300'}`} />
-                  </td>
-                  <td className="px-3 py-2 font-medium text-gray-800">{d.hostname}</td>
-                  <td className="px-3 py-2 text-gray-600">{d.os ?? '—'}</td>
-                  <td className="px-3 py-2 text-gray-600">{d.agentVersion ?? '—'}</td>
-                  <td className="px-3 py-2 text-gray-500">{d.lastSeen ? new Date(d.lastSeen).toLocaleString('cs-CZ') : '—'}</td>
-                  {isAdmin && (
-                    <td className="px-3 py-2">
-                      <button
-                        onClick={() => toggleDevice(d)}
-                        className={`rounded px-2 py-1 text-xs ${d.active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}
-                      >
-                        {d.active ? 'Aktivní' : 'Pozastaveno'}
-                      </button>
-                    </td>
-                  )}
+              {users.map((u) => (
+                <tr key={u.id} className="divide-row">
+                  <td className="td"><input value={u.displayName ?? ''} onChange={(e) => patchLocalUser(u.id, { displayName: e.target.value })} className="field w-full" /></td>
+                  <td className="td"><input value={u.department ?? ''} onChange={(e) => patchLocalUser(u.id, { department: e.target.value })} className="field w-full" /></td>
+                  <td className="td"><input type="checkbox" checked={u.active} onChange={(e) => patchLocalUser(u.id, { active: e.target.checked })} /></td>
+                  <td className="td text-right"><button onClick={() => saveUser(u)} className="btn-ghost"><Save size={14} /> Uložit</button></td>
                 </tr>
               ))}
-              {devices.length === 0 && (
-                <tr>
-                  <td colSpan={isAdmin ? 6 : 5} className="px-3 py-6 text-center text-gray-400">Žádná zařízení.</td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
-      </section>
-
-      {isAdmin && (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold text-gray-700">Sledovaní uživatelé</h2>
-          <div className="overflow-hidden rounded-lg border border-gray-200">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-left text-gray-500">
-                <tr>
-                  <th className="px-3 py-2">Jméno</th>
-                  <th className="px-3 py-2">Oddělení</th>
-                  <th className="px-3 py-2">Aktivní</th>
-                  <th className="px-3 py-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr key={u.id} className="border-t border-gray-100">
-                    <td className="px-3 py-2">
-                      <input
-                        value={u.displayName ?? ''}
-                        onChange={(e) => patchLocalUser(u.id, { displayName: e.target.value })}
-                        className="w-full rounded border border-gray-300 px-2 py-1"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        value={u.department ?? ''}
-                        onChange={(e) => patchLocalUser(u.id, { department: e.target.value })}
-                        className="w-full rounded border border-gray-300 px-2 py-1"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="checkbox"
-                        checked={u.active}
-                        onChange={(e) => patchLocalUser(u.id, { active: e.target.checked })}
-                      />
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <button onClick={() => saveUser(u)} className="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50">
-                        Uložit
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {users.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="px-3 py-6 text-center text-gray-400">Žádní uživatelé.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
       )}
 
       {isAdmin && (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold text-gray-700">E-mailový report</h2>
+        <div className="card p-5">
+          <h3 className="mb-3 text-sm font-semibold">E-mailový report</h3>
           <div className="flex items-center gap-3">
-            <button onClick={triggerReport} className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">
-              Odeslat report nyní
-            </button>
-            {reportMsg && <span className="text-sm text-gray-600">{reportMsg}</span>}
+            <button onClick={triggerReport} className="btn-primary"><Mail size={15} /> Odeslat report nyní</button>
+            {reportMsg && <span className="text-sm muted">{reportMsg}</span>}
           </div>
-          <p className="mt-1 text-xs text-gray-400">Vyžaduje nastavený SMTP a příjemce (REPORT_RECIPIENTS). Plánovaně dle REPORT_CRON.</p>
-        </section>
+          <p className="mt-1 text-xs muted-2">Vyžaduje nastavený SMTP a příjemce. Plánovaně dle REPORT_CRON.</p>
+        </div>
       )}
 
       {isAdmin && (
-        <section>
-          <h2 className="mb-2 text-sm font-semibold text-gray-700">Audit přístupů (GDPR)</h2>
-          <div className="overflow-hidden rounded-lg border border-gray-200">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-left text-gray-500">
-                <tr>
-                  <th className="px-3 py-2">Čas</th>
-                  <th className="px-3 py-2">Uživatel</th>
-                  <th className="px-3 py-2">Akce</th>
-                  <th className="px-3 py-2">Detail</th>
-                </tr>
-              </thead>
+        <div className="card p-5">
+          <h3 className="mb-3 text-sm font-semibold">Audit přístupů (GDPR)</h3>
+          <div className="max-h-96 overflow-auto">
+            <table className="w-full">
+              <thead><tr><th className="th">Čas</th><th className="th">Uživatel</th><th className="th">Akce</th><th className="th">Detail</th></tr></thead>
               <tbody>
                 {audit.map((a) => (
-                  <tr key={a.id} className="border-t border-gray-100">
-                    <td className="px-3 py-2 text-gray-500">{new Date(a.createdAt).toLocaleString('cs-CZ')}</td>
-                    <td className="px-3 py-2 text-gray-700">{a.adminIdentity}</td>
-                    <td className="px-3 py-2">{a.action}</td>
-                    <td className="px-3 py-2 text-gray-500">{a.detail}</td>
+                  <tr key={a.id} className="divide-row">
+                    <td className="td muted-2">{new Date(a.createdAt).toLocaleString('cs-CZ')}</td>
+                    <td className="td">{a.adminIdentity}</td>
+                    <td className="td">{a.action}</td>
+                    <td className="td muted">{a.detail}</td>
                   </tr>
                 ))}
-                {audit.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="px-3 py-6 text-center text-gray-400">Zatím žádné záznamy.</td>
-                  </tr>
-                )}
+                {audit.length === 0 && <tr><td colSpan={4} className="td py-6 text-center muted-2">Zatím žádné záznamy.</td></tr>}
               </tbody>
             </table>
           </div>
-        </section>
+        </div>
       )}
     </div>
   );

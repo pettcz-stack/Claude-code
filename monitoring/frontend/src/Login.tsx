@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Gauge } from 'lucide-react';
 import { auth, type Me } from './api.js';
 
 export function Login({ onLogin }: { onLogin: (me: Me) => void }) {
@@ -12,8 +13,7 @@ export function Login({ onLogin }: { onLogin: (me: Me) => void }) {
     setBusy(true);
     setError(null);
     try {
-      const me = await auth.login(username, password);
-      onLogin(me);
+      onLogin(await auth.login(username, password));
     } catch (err) {
       setError(String(err instanceof Error ? err.message : err));
     } finally {
@@ -22,34 +22,25 @@ export function Login({ onLogin }: { onLogin: (me: Me) => void }) {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <form onSubmit={submit} className="w-80 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h1 className="mb-1 text-lg font-semibold">WorkView</h1>
-        <p className="mb-4 text-xs text-gray-500">Přihlášení do přehledu pracovní aktivity</p>
-        <label className="mb-2 block text-sm">
-          <span className="text-gray-600">Uživatel</span>
-          <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="mt-1 w-full rounded border border-gray-300 px-3 py-1.5"
-            autoFocus
-          />
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-slate-900">
+      <form onSubmit={submit} className="card w-96 p-7">
+        <div className="mb-5 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white"><Gauge size={22} /></div>
+          <div>
+            <h1 className="text-base font-semibold leading-tight">Monitoring efektivity práce</h1>
+            <p className="text-xs muted-2">Přihlášení do administrace</p>
+          </div>
+        </div>
+        <label className="mb-3 block text-sm">
+          <span className="muted">Uživatel</span>
+          <input value={username} onChange={(e) => setUsername(e.target.value)} className="field mt-1 w-full" autoFocus />
         </label>
         <label className="mb-4 block text-sm">
-          <span className="text-gray-600">Heslo</span>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded border border-gray-300 px-3 py-1.5"
-          />
+          <span className="muted">Heslo</span>
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="field mt-1 w-full" />
         </label>
-        {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={busy}
-          className="w-full rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-        >
+        {error && <p className="mb-3 text-sm text-red-500">{error}</p>}
+        <button type="submit" disabled={busy} className="btn-primary w-full justify-center py-2 disabled:opacity-50">
           {busy ? 'Přihlašuji…' : 'Přihlásit'}
         </button>
       </form>

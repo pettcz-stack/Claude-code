@@ -26,3 +26,25 @@ export function minutesToHm(min: number): string {
 export function localHourOf(iso: string): number {
   return new Date(iso).getHours();
 }
+
+/** Barvy pro typy aktivity. */
+export const TYPE_COLORS = {
+  work: '#10b981',
+  nonwork: '#ef4444',
+  idle: '#cbd5e1',
+  off: '#94a3b8',
+};
+
+export function chipClass(type: string): string {
+  return type === 'NON_WORK' ? 'chip-nonwork' : type === 'WORK' ? 'chip-work' : 'chip-neutral';
+}
+
+export function typeLabel(type: string): string {
+  return type === 'NON_WORK' ? 'mimo' : type === 'WORK' ? 'práce' : 'neutrál';
+}
+
+/** Krátký název dne z ISO data (pro grafy). */
+export function shortDay(isoDate: string): string {
+  const d = new Date(isoDate + 'T00:00:00');
+  return `${d.getDate()}.${d.getMonth() + 1}.`;
+}

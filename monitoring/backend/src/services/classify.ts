@@ -1,46 +1,56 @@
+import { prisma } from '../db.js';
 import type { CatType, CategoryInfo } from './categories.js';
 
-/**
- * Klasifikace podle TITULKU okna (zejména pro prohlížeč). Klíčové slovo
- * v titulku → kategorie + typ. Rozšiřitelné. Porovnává se malými písmeny.
- *
- * Pozn.: titulek okna je osobní údaj a sbírá se jen při zapnutém režimu
- * (agent: CaptureWindowTitle). Informace pro zaměstnance + DPIA to musí krýt.
- */
-export const TITLE_RULES: { match: string; category: string; type: CatType }[] = [
+/** Výchozí pravidla pro klasifikaci podle titulku okna (zejména weby). */
+export const DEFAULT_WEB_RULES: { keyword: string; category: string; type: CatType }[] = [
   // Mimopracovní
-  { match: 'youtube', category: 'Video', type: 'NON_WORK' },
-  { match: 'netflix', category: 'Video', type: 'NON_WORK' },
-  { match: 'twitch', category: 'Video', type: 'NON_WORK' },
-  { match: 'facebook', category: 'Sociální sítě', type: 'NON_WORK' },
-  { match: 'instagram', category: 'Sociální sítě', type: 'NON_WORK' },
-  { match: 'tiktok', category: 'Sociální sítě', type: 'NON_WORK' },
-  { match: 'novinky', category: 'Zpravodajství', type: 'NON_WORK' },
-  { match: 'idnes', category: 'Zpravodajství', type: 'NON_WORK' },
-  { match: 'seznam.cz - e', category: 'Soukromý e-mail', type: 'NON_WORK' },
-  { match: 'gmail', category: 'Soukromý e-mail', type: 'NON_WORK' },
-  { match: 'hra', category: 'Hry', type: 'NON_WORK' },
-  { match: 'game', category: 'Hry', type: 'NON_WORK' },
-  { match: 'aukro', category: 'Nákupy', type: 'NON_WORK' },
-  { match: 'alza', category: 'Nákupy', type: 'NON_WORK' },
+  { keyword: 'youtube', category: 'Video', type: 'NON_WORK' },
+  { keyword: 'netflix', category: 'Video', type: 'NON_WORK' },
+  { keyword: 'twitch', category: 'Video', type: 'NON_WORK' },
+  { keyword: 'facebook', category: 'Sociální sítě', type: 'NON_WORK' },
+  { keyword: 'instagram', category: 'Sociální sítě', type: 'NON_WORK' },
+  { keyword: 'tiktok', category: 'Sociální sítě', type: 'NON_WORK' },
+  { keyword: 'novinky', category: 'Zpravodajství', type: 'NON_WORK' },
+  { keyword: 'idnes', category: 'Zpravodajství', type: 'NON_WORK' },
+  { keyword: 'seznam.cz - e', category: 'Soukromý e-mail', type: 'NON_WORK' },
+  { keyword: 'gmail', category: 'Soukromý e-mail', type: 'NON_WORK' },
+  { keyword: 'hra', category: 'Hry', type: 'NON_WORK' },
+  { keyword: 'game', category: 'Hry', type: 'NON_WORK' },
+  { keyword: 'aukro', category: 'Nákupy', type: 'NON_WORK' },
+  { keyword: 'alza', category: 'Nákupy', type: 'NON_WORK' },
   // Pracovní
-  { match: 'jira', category: 'Práce – nástroje', type: 'WORK' },
-  { match: 'confluence', category: 'Práce – nástroje', type: 'WORK' },
-  { match: 'gitlab', category: 'Vývoj', type: 'WORK' },
-  { match: 'github', category: 'Vývoj', type: 'WORK' },
-  { match: 'sharepoint', category: 'Práce – nástroje', type: 'WORK' },
-  { match: 'crm', category: 'Práce – nástroje', type: 'WORK' },
-  { match: 'erp', category: 'Podnikový systém', type: 'WORK' },
+  { keyword: 'jira', category: 'Práce – nástroje', type: 'WORK' },
+  { keyword: 'confluence', category: 'Práce – nástroje', type: 'WORK' },
+  { keyword: 'gitlab', category: 'Vývoj', type: 'WORK' },
+  { keyword: 'github', category: 'Vývoj', type: 'WORK' },
+  { keyword: 'sharepoint', category: 'Práce – nástroje', type: 'WORK' },
+  { keyword: 'crm', category: 'Práce – nástroje', type: 'WORK' },
+  { keyword: 'erp', category: 'Podnikový systém', type: 'WORK' },
 ];
+
+export type WebRule = { keyword: string; category: string; type: CatType };
+
+/** Naplní tabulku WebRule výchozími pravidly (jen pokud je prázdná). */
+export async function ensureDefaultWebRules(): Promise<void> {
+  const count = await prisma.webRule.count();
+  if (count > 0) return;
+  await prisma.webRule.createMany({ data: DEFAULT_WEB_RULES });
+}
+
+export async function getWebRules(): Promise<WebRule[]> {
+  const rows = await prisma.webRule.findMany({ select: { keyword: true, category: true, type: true } });
+  return rows.map((r) => ({ keyword: r.keyword, category: r.category, type: r.type as CatType }));
+}
 
 /**
  * Vrátí kategorii aktivity z procesu + titulku okna.
- * 1) Pokud je proces jednoznačně pracovní/mimopracovní, použije se.
- * 2) Jinak (prohlížeč / neutrální / neznámý) se zkusí pravidla podle titulku.
+ * 1) Jednoznačně pracovní/mimopracovní proces → použije se.
+ * 2) Jinak (prohlížeč / neutrální / neznámý) → pravidla podle titulku.
  * 3) Fallback = kategorie procesu, jinak Ostatní/NEUTRAL.
  */
 export function classifyActivity(
   catMap: Record<string, CategoryInfo>,
+  webRules: WebRule[],
   app: string | null,
   windowTitle: string | null,
 ): CategoryInfo {
@@ -49,8 +59,10 @@ export function classifyActivity(
 
   const t = (windowTitle ?? '').toLowerCase();
   if (t) {
-    for (const rule of TITLE_RULES) {
-      if (t.includes(rule.match)) return { category: rule.category, type: rule.type };
+    for (const rule of webRules) {
+      if (rule.keyword && t.includes(rule.keyword.toLowerCase())) {
+        return { category: rule.category, type: rule.type };
+      }
     }
   }
   return appInfo ?? { category: app ? 'Ostatní' : 'Bez aktivity', type: 'NEUTRAL' };

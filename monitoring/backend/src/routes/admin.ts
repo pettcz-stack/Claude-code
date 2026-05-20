@@ -74,6 +74,57 @@ adminRouter.patch('/users/:id', requireRole('ADMIN'), async (req, res) => {
   res.json({ user: { id: user.id, displayName: user.displayName, department: user.department, active: user.active } });
 });
 
+const catSchema = z.object({
+  appName: z.string().min(1).max(260),
+  category: z.string().min(1).max(64),
+  type: z.enum(['WORK', 'NON_WORK', 'NEUTRAL']),
+});
+const ruleSchema = z.object({
+  keyword: z.string().min(1).max(120),
+  category: z.string().min(1).max(64),
+  type: z.enum(['WORK', 'NON_WORK', 'NEUTRAL']),
+});
+
+/** Kategorie aplikací (proces → kategorie/typ). */
+adminRouter.get('/categories', async (_req, res) => {
+  const rows = await prisma.appCategory.findMany({ orderBy: [{ type: 'asc' }, { appName: 'asc' }] });
+  res.json({ categories: rows });
+});
+adminRouter.post('/categories', requireRole('ADMIN'), async (req, res) => {
+  const p = catSchema.safeParse(req.body);
+  if (!p.success) return void res.status(400).json({ error: 'invalid_payload' });
+  const row = await prisma.appCategory.upsert({
+    where: { appName: p.data.appName },
+    create: p.data,
+    update: { category: p.data.category, type: p.data.type },
+  });
+  res.json({ category: row });
+});
+adminRouter.delete('/categories/:appName', requireRole('ADMIN'), async (req, res) => {
+  await prisma.appCategory.deleteMany({ where: { appName: req.params.appName } });
+  res.json({ ok: true });
+});
+
+/** Pravidla pro klasifikaci podle titulku okna (weby). */
+adminRouter.get('/webrules', async (_req, res) => {
+  const rows = await prisma.webRule.findMany({ orderBy: [{ type: 'asc' }, { keyword: 'asc' }] });
+  res.json({ rules: rows });
+});
+adminRouter.post('/webrules', requireRole('ADMIN'), async (req, res) => {
+  const p = ruleSchema.safeParse(req.body);
+  if (!p.success) return void res.status(400).json({ error: 'invalid_payload' });
+  const row = await prisma.webRule.upsert({
+    where: { keyword: p.data.keyword },
+    create: p.data,
+    update: { category: p.data.category, type: p.data.type },
+  });
+  res.json({ rule: row });
+});
+adminRouter.delete('/webrules/:keyword', requireRole('ADMIN'), async (req, res) => {
+  await prisma.webRule.deleteMany({ where: { keyword: req.params.keyword } });
+  res.json({ ok: true });
+});
+
 /** Audit log přístupů (GDPR) – jen ADMIN. */
 adminRouter.get('/audit', requireRole('ADMIN'), async (req, res) => {
   const limit = Math.min(Number(req.query.limit ?? 200), 1000);

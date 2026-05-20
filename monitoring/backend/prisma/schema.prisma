@@ -114,6 +114,16 @@ model AppCategory {
   updatedAt DateTime @updatedAt
 }
 
+/// Pravidlo klasifikace podle klíčového slova v titulku okna (zejm. weby).
+model WebRule {
+  id        String   @id @default(cuid())
+  keyword   String   @unique // hledá se malými písmeny v titulku
+  category  String
+  type      String   @default("NON_WORK") // WORK | NON_WORK | NEUTRAL
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 /// Absence importovaná z OKbase (Fáze 2). Legitimizuje nečinnost v daný den.
 model Absence {
   id        String   @id @default(cuid())
