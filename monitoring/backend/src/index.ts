@@ -8,6 +8,7 @@ import { ensureAdmin } from './auth.js';
 import { ensureDefaultCategories } from './services/categories.js';
 import { ensureDefaultWebRules } from './services/classify.js';
 import { sendReport } from './services/report.js';
+import { runAlertChecks } from './services/alerts.js';
 
 // V produkci odmítni start se slabými výchozími tajemstvími.
 assertProductionSecrets();
@@ -48,6 +49,23 @@ if (config.enableJobs) {
       }
     }),
   );
+  // Kontrola upozornění (pirátské praktiky + výpadek agenta) – každých 15 minut.
+  if (config.smtp.host) {
+    jobs.push(
+      cron.schedule('*/15 * * * *', async () => {
+        try {
+          const r = await runAlertChecks();
+          if (r.integritySent || r.offlineSent) {
+            // eslint-disable-next-line no-console
+            console.log(`Upozornění odeslána: praktiky=${r.integritySent}, offline=${r.offlineSent}`);
+          }
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error('runAlertChecks selhalo', e);
+        }
+      }),
+    );
+  }
   // E-mailový report – dle REPORT_CRON, jen pokud je nastaven SMTP.
   if (smtpEnabled()) {
     jobs.push(

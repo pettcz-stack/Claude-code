@@ -142,6 +142,17 @@ model CalendarEvent {
   @@index([userId, startsAt])
 }
 
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model SentAlert {
+  key        String   @id
+  lastSentAt DateTime @default(now())
+}
+
 model AdminUser {
   id           String   @id @default(cuid())
   username     String   @unique

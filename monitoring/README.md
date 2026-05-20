@@ -55,6 +55,14 @@ Vylepšení MVP:
 - [x] kategorizace aplikací (Práce/Komunikace/Web) – „v čem pracoval"
 - [x] automatické testy backendu (vitest – unit + integrace) → `npm test`
 
+Rozšíření:
+- [x] e-mailová upozornění (pirátské praktiky + výpadek agenta) + Nastavení v UI
+- [x] bezpečnostní hardening (tokeny, rate limit, CSP) – viz `../docs/monitoring/BEZPECNOST.md`
+
+Nápady do budoucna:
+- self-service náhled pro zaměstnance + soutěž „Zaměstnanec měsíce"
+- AD/SSO přihlášení + manažerské role (jen své oddělení)
+
 Další fáze (čeká na přístupy):
 - [ ] Blok 2.1 — adaptér OKbase (absence/HO/dovolená)
 - [ ] Blok 3.1 — adaptér Outlook/Exchange (meetingy)

@@ -155,6 +155,19 @@ model CalendarEvent {
   @@index([userId, startsAt])
 }
 
+/// Konfigurace nastavitelná z UI (klíč–hodnota).
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+/// Anti-spam dedup pro odeslaná upozornění (klíč + čas posledního odeslání).
+model SentAlert {
+  key        String   @id
+  lastSentAt DateTime @default(now())
+}
+
 /// Účet pro přístup do dashboardu (role ADMIN | VIEWER).
 model AdminUser {
   id           String   @id @default(cuid())

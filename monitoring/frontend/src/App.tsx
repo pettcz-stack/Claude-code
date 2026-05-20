@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Gauge, User as UserIcon, Trophy, TrendingUp, AppWindow, CalendarDays, Table2, Shield,
-  ShieldAlert, Sun, Moon, LogOut, ChevronLeft, ChevronRight,
+  ShieldAlert, SlidersHorizontal, Sun, Moon, LogOut, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { api, auth, type Me, type User } from './api.js';
 import { DetailView } from './DetailView.js';
@@ -13,11 +13,12 @@ import { TrendChart } from './TrendChart.js';
 import { TopActivities } from './TopActivities.js';
 import { CategoryAdmin } from './CategoryAdmin.js';
 import { AlertsView } from './AlertsView.js';
+import { SettingsView } from './SettingsView.js';
 import { Login } from './Login.js';
 import { useTheme } from './theme.js';
 import { isoDate, startOfLocalDay } from './util.js';
 
-type Tab = 'detail' | 'scoreboard' | 'alerts' | 'trends' | 'apps' | 'calendar' | 'summary' | 'admin';
+type Tab = 'detail' | 'scoreboard' | 'alerts' | 'trends' | 'apps' | 'calendar' | 'summary' | 'admin' | 'settings';
 type PeriodMode = 'day' | 'week' | 'month' | 'custom';
 
 const NAV: { id: Tab; label: string; Icon: typeof UserIcon }[] = [
@@ -29,6 +30,7 @@ const NAV: { id: Tab; label: string; Icon: typeof UserIcon }[] = [
   { id: 'calendar', label: 'Kalendář', Icon: CalendarDays },
   { id: 'summary', label: 'Firemní přehled', Icon: Table2 },
   { id: 'admin', label: 'Správa', Icon: Shield },
+  { id: 'settings', label: 'Nastavení', Icon: SlidersHorizontal },
 ];
 
 export default function App() {
@@ -181,6 +183,7 @@ export default function App() {
           {tab === 'calendar' && selectedUser && <CalendarView user={selectedUser} day={day} />}
           {tab === 'summary' && <SummaryView from={from} to={to} department={department || undefined} />}
           {tab === 'admin' && <AdminView role={me.role} />}
+          {tab === 'settings' && <SettingsView canEdit={me.role === 'ADMIN'} />}
         </main>
       </div>
     </div>

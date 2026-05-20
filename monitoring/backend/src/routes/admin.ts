@@ -4,8 +4,32 @@ import { prisma } from '../db.js';
 import { requireRole } from '../auth.js';
 import { sendReport } from '../services/report.js';
 import { smtpEnabled } from '../config.js';
+import { getSettings, saveSettings } from '../services/settings.js';
+import { runAlertChecks } from '../services/alerts.js';
 
 export const adminRouter = Router();
+
+/** Nastavení (e-maily pro upozornění atd.). */
+adminRouter.get('/settings', async (_req, res) => {
+  res.json({ settings: await getSettings(), smtpConfigured: smtpEnabled() });
+});
+
+const settingsSchema = z.object({
+  alertsEnabled: z.boolean().optional(),
+  alertRecipients: z.string().max(2000).optional(),
+  offlineMinutes: z.number().int().min(5).max(1440).optional(),
+});
+adminRouter.put('/settings', requireRole('ADMIN'), async (req, res) => {
+  const p = settingsSchema.safeParse(req.body);
+  if (!p.success) return void res.status(400).json({ error: 'invalid_payload' });
+  await saveSettings(p.data);
+  res.json({ settings: await getSettings() });
+});
+
+/** Ruční spuštění kontroly upozornění (test). */
+adminRouter.post('/alerts/run', requireRole('ADMIN'), async (_req, res) => {
+  res.json(await runAlertChecks());
+});
 
 /** Ruční odeslání e-mailového reportu (test) – jen ADMIN. */
 adminRouter.post('/report/send', requireRole('ADMIN'), async (_req, res) => {
