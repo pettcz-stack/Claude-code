@@ -14,6 +14,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "seed": "tsx src/seed.ts",
+    "simulate": "tsx src/bin/simulate-agent.ts",
     "test": "vitest run",
     "lint": "eslint src --ext .ts"
   },

@@ -28,6 +28,15 @@ npm run dev                             # http://localhost:4000/api/v1/health
 
 Produkce běží na PostgreSQL — viz `prisma/schema.postgres.prisma`.
 
+### Simulátor agenta (bez Windows)
+
+Pošle realistická data jako skutečný agent – pro vyzkoušení celého řetězce:
+
+```bash
+WORKVIEW_BACKEND_URL=http://localhost:4000 INGEST_TOKEN=dev-token \
+  npm run simulate -- --machine SIM-PC-1 --sid S-1-5-21-SIM-1 --minutes 120
+```
+
 ## Stav (roadmap viz NAVRH.md §13)
 
 - [x] **Blok 1.1** — kostra + datový model + migrace
