@@ -48,6 +48,15 @@ adminRouter.patch('/devices/:id', requireRole('ADMIN'), async (req, res) => {
   res.json({ device: { id: device.id, active: device.active } });
 });
 
+/** Výpis všech sledovaných uživatelů (vč. neaktivních) pro správu. */
+adminRouter.get('/users', async (_req, res) => {
+  const users = await prisma.monitoredUser.findMany({
+    orderBy: [{ active: 'desc' }, { department: 'asc' }, { displayName: 'asc' }],
+    select: { id: true, sid: true, displayName: true, department: true, active: true },
+  });
+  res.json({ users });
+});
+
 const userPatch = z.object({
   displayName: z.string().max(255).optional(),
   department: z.string().max(128).optional(),

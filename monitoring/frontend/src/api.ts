@@ -38,6 +38,14 @@ export type Device = {
   online: boolean;
 };
 
+export type AdminUserRow = {
+  id: string;
+  sid: string;
+  displayName: string | null;
+  department: string | null;
+  active: boolean;
+};
+
 export type AuditRow = {
   id: string;
   adminIdentity: string;
@@ -113,7 +121,24 @@ export const api = {
       `/api/v1/dashboard/summary?from=${from}&to=${to}${department ? `&department=${encodeURIComponent(department)}` : ''}`,
     ).then((d) => d.summary),
   devices: () => getJson<{ devices: Device[] }>('/api/v1/admin/devices').then((d) => d.devices),
+  adminUsers: () => getJson<{ users: AdminUserRow[] }>('/api/v1/admin/users').then((d) => d.users),
   audit: () => getJson<{ rows: AuditRow[] }>('/api/v1/admin/audit').then((d) => d.rows),
+  patchDevice: (id: string, active: boolean) =>
+    fetch(`/api/v1/admin/devices/${id}`, {
+      method: 'PATCH',
+      headers: { ...authHeader(), 'content-type': 'application/json' },
+      body: JSON.stringify({ active }),
+    }).then((r) => {
+      if (!r.ok) throw new Error(`${r.status}`);
+    }),
+  patchUser: (id: string, data: { displayName?: string; department?: string; active?: boolean }) =>
+    fetch(`/api/v1/admin/users/${id}`, {
+      method: 'PATCH',
+      headers: { ...authHeader(), 'content-type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then((r) => {
+      if (!r.ok) throw new Error(`${r.status}`);
+    }),
   sendReport: async (): Promise<{ ok?: boolean; error?: string; rows?: number; recipients?: number }> => {
     const res = await fetch('/api/v1/admin/report/send', { method: 'POST', headers: authHeader() });
     return res.json();
