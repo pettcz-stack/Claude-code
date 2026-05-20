@@ -59,7 +59,8 @@ namespace WorkView.Agent
                     SystemEvents.SessionSwitch += OnSessionSwitch;
 
                     // Odesílací smyčka – každých 30 s zkusí odeslat nasbírané dávky.
-                    Timer sendTimer = new Timer { Interval = 30000 };
+                    // Odesílání dávek jednou za 5 minut (mezitím se data bufferují lokálně).
+                    Timer sendTimer = new Timer { Interval = 5 * 60 * 1000 };
                     sendTimer.Tick += async (s, e) => await TrySendAsync();
                     sendTimer.Start();
 
