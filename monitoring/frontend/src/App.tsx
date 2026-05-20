@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Gauge, User as UserIcon, Trophy, TrendingUp, AppWindow, CalendarDays, Table2, Shield,
+  Gauge, LayoutDashboard, User as UserIcon, Trophy, TrendingUp, AppWindow, CalendarDays, Table2, Shield,
   ShieldAlert, SlidersHorizontal, Sun, Moon, LogOut, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { api, auth, type Me, type User } from './api.js';
+import { OverviewView } from './OverviewView.js';
 import { DetailView } from './DetailView.js';
 import { CalendarView } from './CalendarView.js';
 import { Scoreboard } from './Scoreboard.js';
@@ -18,10 +19,11 @@ import { Login } from './Login.js';
 import { useTheme } from './theme.js';
 import { isoDate, startOfLocalDay } from './util.js';
 
-type Tab = 'detail' | 'scoreboard' | 'alerts' | 'trends' | 'apps' | 'calendar' | 'summary' | 'admin' | 'settings';
+type Tab = 'overview' | 'detail' | 'scoreboard' | 'alerts' | 'trends' | 'apps' | 'calendar' | 'summary' | 'admin' | 'settings';
 type PeriodMode = 'day' | 'week' | 'month' | 'custom';
 
 const NAV: { id: Tab; label: string; Icon: typeof UserIcon }[] = [
+  { id: 'overview', label: 'Přehled firmy', Icon: LayoutDashboard },
   { id: 'detail', label: 'Detail uživatele', Icon: UserIcon },
   { id: 'scoreboard', label: 'Žebříček', Icon: Trophy },
   { id: 'alerts', label: 'Upozornění', Icon: ShieldAlert },
@@ -37,7 +39,7 @@ export default function App() {
   const [theme, toggleTheme] = useTheme();
   const [me, setMe] = useState<Me | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [tab, setTab] = useState<Tab>('detail');
+  const [tab, setTab] = useState<Tab>('overview');
   const [users, setUsers] = useState<User[]>([]);
   const [userId, setUserId] = useState<string>('');
   const [day, setDay] = useState<Date>(() => startOfLocalDay(new Date()));
@@ -76,8 +78,8 @@ export default function App() {
   if (!me) return <Login onLogin={setMe} />;
 
   const needsUser = tab === 'detail' || tab === 'calendar';
-  const needsPeriod = tab === 'detail' || tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'trends' || tab === 'alerts';
-  const needsDept = tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'trends' || tab === 'alerts';
+  const needsPeriod = tab === 'overview' || tab === 'detail' || tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'trends' || tab === 'alerts';
+  const needsDept = tab === 'overview' || tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'trends' || tab === 'alerts';
   const title = NAV.find((n) => n.id === tab)?.label ?? '';
 
   return (
@@ -165,6 +167,7 @@ export default function App() {
         </header>
 
         <main className="p-6">
+          {tab === 'overview' && <OverviewView from={from} to={to} department={department || undefined} dark={dark} onOpenUser={(id) => { setUserId(id); setTab('detail'); }} />}
           {tab === 'detail' && selectedUser && <DetailView user={selectedUser} from={from} to={to} dark={dark} />}
           {tab === 'scoreboard' && <Scoreboard from={from} to={to} department={department || undefined} />}
           {tab === 'alerts' && <AlertsView from={from} to={to} department={department || undefined} onOpenUser={(id) => { setUserId(id); setTab('detail'); }} />}

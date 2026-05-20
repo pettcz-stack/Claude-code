@@ -2,6 +2,7 @@ import { prisma } from '../db.js';
 import { config } from '../config.js';
 import { getCategoryMap, type CatType } from './categories.js';
 import { classifyActivity, getWebRules } from './classify.js';
+import { computeIntegrity } from './integrity.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -128,4 +129,189 @@ export async function topActivities(
     Array.from(map.values()).sort((a, b) => b.minutes - a.minutes).slice(0, n).map(round);
 
   return { apps: top(apps, 12), sites: top(sites, 12) };
+}
+
+// --- Přehled firmy a heatmapa využití ----------------------------------------
+
+function countWorkdays(from: Date, to: Date): number {
+  let n = 0;
+  const d = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()));
+  while (d < to) {
+    const dow = d.getUTCDay();
+    if (dow >= 1 && dow <= 5) n++;
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return Math.max(n, 1);
+}
+
+type Acc = { work: number; nonwork: number; idle: number };
+
+/** Agregace aktivních minut na uživatele z intervalů (jeden průchod). */
+async function perUser(userIds: string[], from: Date, to: Date): Promise<Map<string, Acc>> {
+  const catMap = await getCategoryMap();
+  const webRules = await getWebRules();
+  const rows = await prisma.activityInterval.findMany({
+    where: { userId: { in: userIds }, intervalStart: { gte: from, lt: to } },
+    select: { userId: true, activeSeconds: true, idleSeconds: true, foregroundApp: true, windowTitle: true },
+  });
+  const map = new Map<string, Acc>();
+  for (const r of rows) {
+    let a = map.get(r.userId);
+    if (!a) (a = { work: 0, nonwork: 0, idle: 0 }), map.set(r.userId, a);
+    a.idle += r.idleSeconds / 60;
+    const m = r.activeSeconds / 60;
+    if (m > 0) {
+      const info = classifyActivity(catMap, webRules, r.foregroundApp, r.windowTitle);
+      if (info.type === 'NON_WORK') a.nonwork += m;
+      else a.work += m;
+    }
+  }
+  return map;
+}
+
+const clampPct = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
+
+export type OverviewResult = {
+  kpi: {
+    userCount: number;
+    avgScore: number;
+    avgScoreDelta: number | null;
+    activeHours: number;
+    nonWorkHours: number;
+    idleHours: number;
+    nonWorkPct: number;
+    flaggedCount: number;
+    onlineCount: number;
+  };
+  split: { work: number; nonwork: number; idle: number; pcoff: number }; // hodiny
+  departments: { department: string; avgScore: number; activeHours: number; nonWorkPct: number; users: number }[];
+  top: { userId: string; displayName: string | null; department: string | null; score: number }[];
+  bottom: { userId: string; displayName: string | null; department: string | null; score: number }[];
+};
+
+export async function overview(from: Date, to: Date, department?: string): Promise<OverviewResult> {
+  const users = await prisma.monitoredUser.findMany({
+    where: { active: true, ...(department ? { department } : {}) },
+    select: { id: true, displayName: true, department: true },
+  });
+  const ids = users.map((u) => u.id);
+  const expected = countWorkdays(from, to) * config.expectedWorkHoursPerDay * 60;
+
+  const cur = await perUser(ids, from, to);
+
+  // předchozí stejně dlouhé období (pro deltu skóre)
+  const span = to.getTime() - from.getTime();
+  const prev = await perUser(ids, new Date(from.getTime() - span), from);
+  const prevScore = (id: string) => clampPct(((prev.get(id)?.work ?? 0) / expected) * 100);
+
+  let workSum = 0, nonworkSum = 0, idleSum = 0, scoreSum = 0;
+  const perUserScore = new Map<string, number>();
+  const deptMap = new Map<string, { score: number; active: number; nonwork: number; n: number }>();
+
+  for (const u of users) {
+    const a = cur.get(u.id) ?? { work: 0, nonwork: 0, idle: 0 };
+    const score = clampPct((a.work / expected) * 100);
+    perUserScore.set(u.id, score);
+    workSum += a.work; nonworkSum += a.nonwork; idleSum += a.idle; scoreSum += score;
+    const dep = u.department ?? '—';
+    const d = deptMap.get(dep) ?? { score: 0, active: 0, nonwork: 0, n: 0 };
+    d.score += score; d.active += a.work; d.nonwork += a.nonwork; d.n++;
+    deptMap.set(dep, d);
+  }
+
+  const n = Math.max(users.length, 1);
+  const avgScore = Math.round(scoreSum / n);
+  const prevAvg = Math.round(users.reduce((s, u) => s + prevScore(u.id), 0) / n);
+  const avgScoreDelta = prev.size > 0 ? avgScore - prevAvg : null;
+
+  // počet podezřelých (integrita)
+  let flagged = 0;
+  for (const u of users) {
+    const r = await computeIntegrity(u.id, from, to);
+    if (r.suspicious) flagged++;
+  }
+
+  const now = Date.now();
+  const devices = await prisma.device.findMany({ where: { active: true }, select: { lastSeen: true } });
+  const onlineCount = devices.filter((d) => d.lastSeen && now - new Date(d.lastSeen).getTime() < 5 * 60 * 1000).length;
+
+  const ranked = users
+    .map((u) => ({ userId: u.id, displayName: u.displayName, department: u.department, score: perUserScore.get(u.id) ?? 0 }))
+    .sort((a, b) => b.score - a.score);
+
+  const totalExpectedHours = (expected * users.length) / 60;
+  const pcoffHours = Math.max(0, totalExpectedHours - (workSum + nonworkSum + idleSum) / 60);
+
+  return {
+    kpi: {
+      userCount: users.length,
+      avgScore,
+      avgScoreDelta,
+      activeHours: Math.round(workSum / 60),
+      nonWorkHours: Math.round(nonworkSum / 60),
+      idleHours: Math.round(idleSum / 60),
+      nonWorkPct: clampPct((nonworkSum / Math.max(workSum + nonworkSum, 1)) * 100),
+      flaggedCount: flagged,
+      onlineCount,
+    },
+    split: {
+      work: Math.round(workSum / 60),
+      nonwork: Math.round(nonworkSum / 60),
+      idle: Math.round(idleSum / 60),
+      pcoff: Math.round(pcoffHours),
+    },
+    departments: Array.from(deptMap.entries())
+      .map(([department, d]) => ({
+        department,
+        avgScore: Math.round(d.score / d.n),
+        activeHours: Math.round(d.active / 60),
+        nonWorkPct: clampPct((d.nonwork / Math.max(d.active + d.nonwork, 1)) * 100),
+        users: d.n,
+      }))
+      .sort((a, b) => b.avgScore - a.avgScore),
+    top: ranked.slice(0, 5),
+    bottom: ranked.slice(-5).reverse(),
+  };
+}
+
+export type HeatmapResult = { matrix: number[][]; max: number };
+
+/** Průměrné aktivní minuty podle dne v týdnu (0=Ne) × hodina (0–23). */
+export async function heatmap(from: Date, to: Date, department?: string, userId?: string): Promise<HeatmapResult> {
+  const userIds = userId
+    ? [userId]
+    : (
+        await prisma.monitoredUser.findMany({
+          where: { active: true, ...(department ? { department } : {}) },
+          select: { id: true },
+        })
+      ).map((u) => u.id);
+
+  const rows = await prisma.activityInterval.findMany({
+    where: { userId: { in: userIds }, intervalStart: { gte: from, lt: to } },
+    select: { intervalStart: true, activeSeconds: true },
+  });
+
+  // počet výskytů každého dne v týdnu v období (pro průměr na slot)
+  const dowCount = new Array(7).fill(0);
+  for (let t = from.getTime(); t < to.getTime(); t += 24 * 60 * 60 * 1000) {
+    dowCount[new Date(t).getUTCDay()]++;
+  }
+
+  const sum: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  for (const r of rows) {
+    const d = new Date(r.intervalStart);
+    sum[d.getUTCDay()][d.getUTCHours()] += r.activeSeconds / 60;
+  }
+
+  let max = 0;
+  const matrix = sum.map((row, dow) =>
+    row.map((v) => {
+      const days = Math.max(dowCount[dow], 1);
+      const avg = v / days; // průměrné aktivní minuty v daném slotu (napříč uživateli)
+      max = Math.max(max, avg);
+      return Math.round(avg);
+    }),
+  );
+  return { matrix, max: Math.round(max) };
 }

@@ -4,10 +4,26 @@ import { prisma } from '../db.js';
 import { logAccess } from '../auth.js';
 import { getCategoryMap } from '../services/categories.js';
 import { computeUserScore } from '../services/scoring.js';
-import { trend, topActivities } from '../services/analytics.js';
+import { trend, topActivities, overview, heatmap } from '../services/analytics.js';
 import { computeIntegrity, detectAlerts } from '../services/integrity.js';
 
 export const dashboardRouter = Router();
+
+/** Přehled firmy – KPI, rozdělení času, oddělení, top/bottom. */
+dashboardRouter.get('/overview', async (req, res) => {
+  const parsed = rangeSchema.safeParse(req.query);
+  if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
+  const { from, to, department } = parsed.data;
+  res.json(await overview(new Date(from), new Date(to), department));
+});
+
+/** Heatmapa využití: den v týdnu × hodina. */
+dashboardRouter.get('/heatmap', async (req, res) => {
+  const parsed = rangeSchema.safeParse(req.query);
+  if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
+  const { from, to, department, userId } = parsed.data;
+  res.json(await heatmap(new Date(from), new Date(to), department, userId));
+});
 
 /** Integrita aktivity jednoho uživatele (detekce nepovolených praktik). */
 dashboardRouter.get('/integrity', async (req, res) => {

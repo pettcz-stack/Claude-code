@@ -99,6 +99,15 @@ export type IntegrityFlag = { type: string; severity: 'high' | 'medium'; detail:
 export type IntegrityResult = { userId: string; riskScore: number; suspicious: boolean; flags: IntegrityFlag[] };
 export type AlertItem = { userId: string; displayName: string | null; department: string | null; riskScore: number; suspicious: boolean; flags: IntegrityFlag[] };
 
+export type Overview = {
+  kpi: { userCount: number; avgScore: number; avgScoreDelta: number | null; activeHours: number; nonWorkHours: number; idleHours: number; nonWorkPct: number; flaggedCount: number; onlineCount: number };
+  split: { work: number; nonwork: number; idle: number; pcoff: number };
+  departments: { department: string; avgScore: number; activeHours: number; nonWorkPct: number; users: number }[];
+  top: { userId: string; displayName: string | null; department: string | null; score: number }[];
+  bottom: { userId: string; displayName: string | null; department: string | null; score: number }[];
+};
+export type Heatmap = { matrix: number[][]; max: number };
+
 export type AppSettings = { alertsEnabled: boolean; alertRecipients: string[]; offlineMinutes: number };
 
 export type Me = { username: string; role: string };
@@ -174,6 +183,17 @@ export const api = {
     getJson<{ rows: ScoreboardRow[] }>(
       `/api/v1/dashboard/scoreboard?from=${from}&to=${to}${department ? `&department=${encodeURIComponent(department)}` : ''}`,
     ).then((d) => d.rows),
+  overview: (from: string, to: string, department?: string) => {
+    const q = new URLSearchParams({ from, to });
+    if (department) q.set('department', department);
+    return getJson<Overview>(`/api/v1/dashboard/overview?${q}`);
+  },
+  heatmap: (from: string, to: string, opts: { userId?: string; department?: string } = {}) => {
+    const q = new URLSearchParams({ from, to });
+    if (opts.userId) q.set('userId', opts.userId);
+    if (opts.department) q.set('department', opts.department);
+    return getJson<Heatmap>(`/api/v1/dashboard/heatmap?${q}`);
+  },
   trend: (from: string, to: string, opts: { userId?: string; department?: string } = {}) => {
     const q = new URLSearchParams({ from, to });
     if (opts.userId) q.set('userId', opts.userId);
