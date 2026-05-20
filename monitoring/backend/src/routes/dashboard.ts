@@ -5,8 +5,26 @@ import { logAccess } from '../auth.js';
 import { getCategoryMap } from '../services/categories.js';
 import { computeUserScore } from '../services/scoring.js';
 import { trend, topActivities } from '../services/analytics.js';
+import { computeIntegrity, detectAlerts } from '../services/integrity.js';
 
 export const dashboardRouter = Router();
+
+/** Integrita aktivity jednoho uživatele (detekce nepovolených praktik). */
+dashboardRouter.get('/integrity', async (req, res) => {
+  const parsed = rangeSchema.safeParse(req.query);
+  if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
+  const { from, to, userId } = parsed.data;
+  if (!userId) return void res.status(400).json({ error: 'userId_required' });
+  res.json({ integrity: await computeIntegrity(userId, new Date(from), new Date(to)) });
+});
+
+/** Upozornění napříč firmou (uživatelé s podezřelým chováním). */
+dashboardRouter.get('/alerts', async (req, res) => {
+  const parsed = rangeSchema.safeParse(req.query);
+  if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
+  const { from, to, department } = parsed.data;
+  res.json({ alerts: await detectAlerts(new Date(from), new Date(to), department) });
+});
 
 /** Denní trend skóre (uživatel nebo firma). */
 dashboardRouter.get('/trend', async (req, res) => {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Gauge, User as UserIcon, Trophy, TrendingUp, AppWindow, CalendarDays, Table2, Shield,
-  Sun, Moon, LogOut, ChevronLeft, ChevronRight,
+  ShieldAlert, Sun, Moon, LogOut, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { api, auth, type Me, type User } from './api.js';
 import { DetailView } from './DetailView.js';
@@ -12,16 +12,18 @@ import { AdminView } from './AdminView.js';
 import { TrendChart } from './TrendChart.js';
 import { TopActivities } from './TopActivities.js';
 import { CategoryAdmin } from './CategoryAdmin.js';
+import { AlertsView } from './AlertsView.js';
 import { Login } from './Login.js';
 import { useTheme } from './theme.js';
 import { isoDate, startOfLocalDay } from './util.js';
 
-type Tab = 'detail' | 'scoreboard' | 'trends' | 'apps' | 'calendar' | 'summary' | 'admin';
+type Tab = 'detail' | 'scoreboard' | 'alerts' | 'trends' | 'apps' | 'calendar' | 'summary' | 'admin';
 type PeriodMode = 'day' | 'week' | 'month' | 'custom';
 
 const NAV: { id: Tab; label: string; Icon: typeof UserIcon }[] = [
   { id: 'detail', label: 'Detail uživatele', Icon: UserIcon },
   { id: 'scoreboard', label: 'Žebříček', Icon: Trophy },
+  { id: 'alerts', label: 'Upozornění', Icon: ShieldAlert },
   { id: 'trends', label: 'Trendy', Icon: TrendingUp },
   { id: 'apps', label: 'Aplikace & weby', Icon: AppWindow },
   { id: 'calendar', label: 'Kalendář', Icon: CalendarDays },
@@ -72,8 +74,8 @@ export default function App() {
   if (!me) return <Login onLogin={setMe} />;
 
   const needsUser = tab === 'detail' || tab === 'calendar';
-  const needsPeriod = tab === 'detail' || tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'trends';
-  const needsDept = tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'trends';
+  const needsPeriod = tab === 'detail' || tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'trends' || tab === 'alerts';
+  const needsDept = tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'trends' || tab === 'alerts';
   const title = NAV.find((n) => n.id === tab)?.label ?? '';
 
   return (
@@ -163,6 +165,7 @@ export default function App() {
         <main className="p-6">
           {tab === 'detail' && selectedUser && <DetailView user={selectedUser} from={from} to={to} dark={dark} />}
           {tab === 'scoreboard' && <Scoreboard from={from} to={to} department={department || undefined} />}
+          {tab === 'alerts' && <AlertsView from={from} to={to} department={department || undefined} onOpenUser={(id) => { setUserId(id); setTab('detail'); }} />}
           {tab === 'trends' && (
             <div className="space-y-4">
               <TrendChart from={from} to={to} department={department || undefined} dark={dark} />

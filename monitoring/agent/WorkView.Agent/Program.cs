@@ -50,7 +50,7 @@ namespace WorkView.Agent
                 _sender = new Sender(cfg);
 
                 using (InputCounters input = new InputCounters())
-                using (ActivityTracker tracker = new ActivityTracker(input, _buffer, cfg.IntervalSeconds, () => _sessionLocked, cfg.CaptureWindowTitle))
+                using (ActivityTracker tracker = new ActivityTracker(input, _buffer, cfg.IntervalSeconds, () => _sessionLocked, cfg.CaptureWindowTitle, cfg.IdleThresholdSeconds))
                 using (NotifyIcon tray = CreateTrayIcon(cfg.CaptureWindowTitle))
                 {
                     input.Install();

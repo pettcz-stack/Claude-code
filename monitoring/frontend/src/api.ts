@@ -95,6 +95,10 @@ export type ActivityItem = { label: string; category: string; type: 'WORK' | 'NO
 export type AppCategoryRow = { id: string; appName: string; category: string; type: string };
 export type WebRuleRow = { id: string; keyword: string; category: string; type: string };
 
+export type IntegrityFlag = { type: string; severity: 'high' | 'medium'; detail: string; affectedMinutes: number };
+export type IntegrityResult = { userId: string; riskScore: number; suspicious: boolean; flags: IntegrityFlag[] };
+export type AlertItem = { userId: string; displayName: string | null; department: string | null; riskScore: number; suspicious: boolean; flags: IntegrityFlag[] };
+
 export type Me = { username: string; role: string };
 
 const STORAGE_KEY = 'workview_auth';
@@ -173,6 +177,13 @@ export const api = {
     if (opts.userId) q.set('userId', opts.userId);
     if (opts.department) q.set('department', opts.department);
     return getJson<{ apps: ActivityItem[]; sites: ActivityItem[] }>(`/api/v1/dashboard/top-activities?${q}`);
+  },
+  integrity: (userId: string, from: string, to: string) =>
+    getJson<{ integrity: IntegrityResult }>(`/api/v1/dashboard/integrity?userId=${encodeURIComponent(userId)}&from=${from}&to=${to}`).then((d) => d.integrity),
+  alerts: (from: string, to: string, department?: string) => {
+    const q = new URLSearchParams({ from, to });
+    if (department) q.set('department', department);
+    return getJson<{ alerts: AlertItem[] }>(`/api/v1/dashboard/alerts?${q}`).then((d) => d.alerts);
   },
   // Správa kategorií a pravidel
   adminCategories: () => getJson<{ categories: AppCategoryRow[] }>('/api/v1/admin/categories').then((d) => d.categories),

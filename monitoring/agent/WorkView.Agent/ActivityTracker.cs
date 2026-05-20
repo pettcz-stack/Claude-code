@@ -15,7 +15,9 @@ namespace WorkView.Agent
     /// </summary>
     internal sealed class ActivityTracker : IDisposable
     {
-        private const int IdleThresholdMs = 2000; // bez vstupu déle než 2 s = nečinná sekunda
+        // Bez vstupu (myš/klávesnice/přepnutí okna) déle než tento práce = nečinnost.
+        // Výchozí 5 minut – člověk je „u PC" dokud do 5 min něco neudělá.
+        private readonly int _idleThresholdMs;
 
         private readonly InputCounters _input;
         private readonly LocalBuffer _buffer;
@@ -34,13 +36,14 @@ namespace WorkView.Agent
         private readonly Dictionary<string, int> _appSeconds = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, int> _titleSeconds = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
-        public ActivityTracker(InputCounters input, LocalBuffer buffer, int intervalSeconds, Func<bool> isLocked, bool captureTitle)
+        public ActivityTracker(InputCounters input, LocalBuffer buffer, int intervalSeconds, Func<bool> isLocked, bool captureTitle, int idleThresholdSeconds)
         {
             _input = input;
             _buffer = buffer;
             _intervalSeconds = intervalSeconds;
             _isLocked = isLocked;
             _captureTitle = captureTitle;
+            _idleThresholdMs = Math.Max(1, idleThresholdSeconds) * 1000;
             _intervalStartUtc = DateTime.UtcNow;
         }
 
@@ -58,7 +61,7 @@ namespace WorkView.Agent
                 {
                     _lockedSeconds++;
                 }
-                else if (GetIdleMs() < IdleThresholdMs)
+                else if (GetIdleMs() < _idleThresholdMs)
                 {
                     _activeSeconds++;
                     string app = GetForegroundApp();
