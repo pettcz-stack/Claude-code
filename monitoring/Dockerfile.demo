@@ -1,0 +1,28 @@
+# All-in-one DEMO image: frontend + backend + SQLite + demo data, jeden port.
+# Build & run:  cd monitoring && docker compose -f docker-compose.demo.yml up
+# Pak otevři:   http://localhost:8080  (admin / admin)
+
+FROM node:20-alpine AS fe
+WORKDIR /fe
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+FROM node:20-alpine
+WORKDIR /app/backend
+COPY backend/package*.json ./
+RUN npm ci
+COPY backend/ ./
+# Frontend build tam, kde ho backend servíruje (../frontend/dist)
+COPY --from=fe /fe/dist /app/frontend/dist
+
+ENV DATABASE_URL=file:./demo.db
+ENV PORT=8080
+ENV ADMIN_USER=admin
+ENV ADMIN_PASSWORD=admin
+ENV ENABLE_JOBS=false
+EXPOSE 8080
+
+# Při startu: vygeneruje klienta, vytvoří DB, naseeduje demo data a spustí server.
+CMD sh -c "npx prisma generate && npx prisma migrate deploy && npm run seed && npm run dev"

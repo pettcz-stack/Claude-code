@@ -1,0 +1,11 @@
+# DEMO – vše v jednom kontejneru (SQLite + demo data), jeden port.
+# Spuštění:  docker compose -f docker-compose.demo.yml up
+# Otevři:    http://localhost:8080   (přihlášení: admin / admin)
+
+services:
+  demo:
+    build:
+      context: .
+      dockerfile: Dockerfile.demo
+    ports:
+      - '8080:8080'
