@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Drawing;
+using System.IO;
 using System.Threading;
 using System.Windows.Forms;
 using Microsoft.Win32;
@@ -8,12 +8,12 @@ using Microsoft.Win32;
 namespace WorkView.Agent
 {
     /// <summary>
-    /// Vstupní bod agenta. Běží v interaktivní session přihlášeného uživatele
-    /// (spouští se přes Scheduled Task při logon). Potřebuje message loop kvůli
-    /// nízkoúrovňovým hookům a notifikacím o uzamčení session.
+    /// Vstupní bod agenta. Běží tiše na pozadí v interaktivní session uživatele
+    /// (bez okna a bez ikony v liště). Potřebuje message loop kvůli nízkoúrovňovým
+    /// hookům a notifikacím o uzamčení session.
     ///
-    /// TRANSPARENTNOST (§316 ZP): agent zobrazuje ikonu v oznamovací oblasti
-    /// se sdělením, že je počítač monitorován. Žádné skryté sledování.
+    /// Transparentnost dle §316 ZP je zajištěna PÍSEMNÝM poučením zaměstnanců
+    /// (viz docs/monitoring/pravni), nikoli běhovou ikonou.
     /// </summary>
     internal static class Program
     {
@@ -38,13 +38,10 @@ namespace WorkView.Agent
                 }
                 catch (Exception ex)
                 {
-                    // Bez konfigurace nemá smysl běžet. (V provozu plní MSI/GPO.)
-                    MessageBox.Show("WorkView agent: chybí konfigurace.\n" + ex.Message,
-                        "WorkView", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    // Bez konfigurace nemá smysl běžet. Tiše zaloguj a skonči (žádný pop-up).
+                    LogError("Chybí/špatná konfigurace: " + ex.Message);
                     return;
                 }
-
-                Application.EnableVisualStyles();
 
                 // Nízká priorita – agent nikdy nesoupeří o CPU s prací uživatele.
                 try { System.Diagnostics.Process.GetCurrentProcess().PriorityClass = System.Diagnostics.ProcessPriorityClass.BelowNormal; }
@@ -55,7 +52,6 @@ namespace WorkView.Agent
 
                 using (InputCounters input = new InputCounters())
                 using (ActivityTracker tracker = new ActivityTracker(input, _buffer, cfg.IntervalSeconds, () => _sessionLocked, cfg.CaptureWindowTitle, cfg.IdleThresholdSeconds))
-                using (NotifyIcon tray = CreateTrayIcon(cfg.CaptureWindowTitle))
                 {
                     input.Install();
                     tracker.Start();
@@ -79,29 +75,15 @@ namespace WorkView.Agent
             }
         }
 
-        private static NotifyIcon CreateTrayIcon(bool captureTitle)
+        private static void LogError(string message)
         {
-            string titleLine = captureTitle
-                ? " a název (titulek) aktivního okna pro rozlišení pracovní a mimopracovní činnosti"
-                : "";
-            ContextMenuStrip menu = new ContextMenuStrip();
-            menu.Items.Add("O monitoringu…", null, (s, e) =>
-                MessageBox.Show(
-                    "Tento firemní počítač je monitorován nástrojem pro sledování efektivity práce.\n\n" +
-                    "Sledují se: aktivní/nečinný čas, aktivní aplikace, počet úhozů a pohybů myši" +
-                    titleLine + ".\n\n" +
-                    "NEsledujeme: obsah psaného textu (žádné záznamy kláves), screenshoty, " +
-                    "mikrofon ani kameru.\n\n" +
-                    "Zpracování probíhá dle §316 zákoníku práce a interní směrnice.",
-                    "Informace o monitoringu", MessageBoxButtons.OK, MessageBoxIcon.Information));
-
-            return new NotifyIcon
+            try
             {
-                Icon = SystemIcons.Information,
-                Text = "WorkView – počítač je monitorován (pracovní aktivita)",
-                Visible = true,
-                ContextMenuStrip = menu
-            };
+                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "WorkView");
+                Directory.CreateDirectory(dir);
+                File.AppendAllText(Path.Combine(dir, "agent.log"), $"{DateTime.UtcNow:o}\t{message}\n");
+            }
+            catch { /* nesmí shodit agenta */ }
         }
 
         private static void OnSessionSwitch(object sender, SessionSwitchEventArgs e)

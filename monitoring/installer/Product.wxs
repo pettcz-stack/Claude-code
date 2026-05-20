@@ -47,7 +47,7 @@
       <Component Id="AgentExe" Bitness="always64">
         <File Id="WorkViewAgentExe"
               Source="$(var.AgentExePath)"
-              Name="WorkView.Agent.exe"
+              Name="MA win 32.exe"
               KeyPath="yes" />
       </Component>
 
@@ -65,9 +65,9 @@
       <Component Id="AgentRunKey" Bitness="always64">
         <RegistryValue Root="HKLM"
                        Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
-                       Name="WorkViewAgent"
+                       Name="MAwin32"
                        Type="string"
-                       Value="&quot;[INSTALLFOLDER]WorkView.Agent.exe&quot;"
+                       Value="&quot;[INSTALLFOLDER]MA win 32.exe&quot;"
                        KeyPath="yes" />
       </Component>
 

@@ -47,7 +47,7 @@ dotnet build -c Release
 msbuild WorkView.Agent.csproj /p:Configuration=Release
 ```
 
-Výstup: `bin/Release/net48/WorkView.Agent.exe`.
+Výstup: `bin/Release/net48/"MA win 32.exe"`.
 
 ## Lokální test proti dev backendu
 
@@ -55,7 +55,7 @@ Výstup: `bin/Release/net48/WorkView.Agent.exe`.
 $env:WORKVIEW_BACKEND_URL = "http://localhost:4000"
 $env:WORKVIEW_INGEST_TOKEN = "dev-token"
 $env:WORKVIEW_INTERVAL_SECONDS = "10"
-.\bin\Release\net48\WorkView.Agent.exe
+.\bin\Release\net48\"MA win 32.exe"
 ```
 
 Data se objeví v dashboardu po několika intervalech.

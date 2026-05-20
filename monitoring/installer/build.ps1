@@ -4,7 +4,7 @@
 #   dotnet tool install --global wix
 #
 # Použití:
-#   ./build.ps1 -AgentExePath ..\agent\WorkView.Agent\bin\Release\net48\WorkView.Agent.exe
+#   ./build.ps1 -AgentExePath ..\agent\WorkView.Agent\bin\Release\net48\"MA win 32.exe"
 
 param(
   [Parameter(Mandatory = $true)]

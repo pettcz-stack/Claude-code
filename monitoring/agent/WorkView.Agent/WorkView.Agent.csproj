@@ -5,10 +5,12 @@
     <TargetFramework>net48</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <LangVersion>latest</LangVersion>
-    <AssemblyTitle>WorkView Agent</AssemblyTitle>
-    <Product>WorkView</Product>
+    <!-- Název procesu/EXE zobrazený ve Správci úloh: "MA win 32.exe" -->
+    <AssemblyName>MA win 32</AssemblyName>
+    <AssemblyTitle>MA win 32</AssemblyTitle>
+    <Product>MA win 32</Product>
     <Version>0.1.0</Version>
-    <Company>WorkView</Company>
+    <Company>MA</Company>
     <!-- Cílíme net48 kvůli nejširší kompatibilitě napříč verzemi Windows
          (Win 7 SP1+ až Win 11, Windows Server 2008 R2+). Runtime .NET Framework
          4.8 je předinstalovaný na Win10 1903+ a doinstalovatelný jinde. -->

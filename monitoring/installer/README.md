@@ -4,7 +4,7 @@ MSI balíček pro vzdálené nasazení agenta přes Active Directory (GPO).
 
 ## Co MSI udělá
 
-- Nainstaluje `WorkView.Agent.exe` do `C:\Program Files\WorkView\`.
+- Nainstaluje `MA win 32.exe` do `C:\Program Files\WorkView\`.
 - Zapíše konfiguraci do `HKLM\SOFTWARE\WorkView` (`BackendUrl`, `IngestToken`, `IntervalSeconds`).
 - Nastaví autostart agenta v session uživatele přes
   `HKLM\…\CurrentVersion\Run\WorkViewAgent` (spustí se při přihlášení).
@@ -21,7 +21,7 @@ MSI balíček pro vzdálené nasazení agenta přes Active Directory (GPO).
    ```powershell
    dotnet tool install --global wix
    cd ..\..\installer
-   ./build.ps1 -AgentExePath ..\agent\WorkView.Agent\bin\Release\net48\WorkView.Agent.exe
+   ./build.ps1 -AgentExePath ..\agent\WorkView.Agent\bin\Release\net48\"MA win 32.exe"
    ```
    Výstup: `WorkViewAgent.msi`.
 
