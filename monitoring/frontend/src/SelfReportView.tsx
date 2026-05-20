@@ -1,6 +1,60 @@
 import { useEffect, useState } from 'react';
-import { ShieldCheck, X, Keyboard, Trophy, Users, Building2, Sparkles, Award, Footprints, Flame, HeartPulse, PersonStanding, GlassWater, Eye, Coffee } from 'lucide-react';
+import { ShieldCheck, X, Keyboard, Trophy, Users, Building2, Sparkles, Award, Footprints, Flame, HeartPulse, PersonStanding, GlassWater, Eye, Coffee, Wind, Target, Armchair, Activity } from 'lucide-react';
 import { api, type SelfReportData, type User } from './api.js';
+
+// Mikro-doporučení, která NEBEROU pozornost od práce (max pár vteřin, často
+// se dají dělat vstoje/u práce). Žádné přestávky – cílem je výkon i pohoda.
+type Cat = 'stand' | 'move' | 'eyes' | 'breath' | 'water' | 'coffee' | 'ergo' | 'focus' | 'mood';
+const TIPS: { cat: Cat; text: string }[] = [
+  { cat: 'stand', text: 'Postavte se a chvíli pracujte ve stoje – prokrví nohy, aniž přestanete pracovat.' },
+  { cat: 'stand', text: 'Při čtení e-mailu se na chvíli zvedněte – krev se rozproudí, hlava zůstane u práce.' },
+  { cat: 'move', text: 'Zakružte kotníky pod stolem – nakopne oběh v nohou (pár vteřin).' },
+  { cat: 'move', text: 'Sevřete a povolte lýtka 5× pod stolem – prevence těžkých nohou.' },
+  { cat: 'move', text: 'Otevřete a zavřete dlaně 5× – uvolní prsty unavené z psaní.' },
+  { cat: 'move', text: 'Krátce zakružte rameny – uvolní napětí z myši, trvá to 2 vteřiny.' },
+  { cat: 'move', text: 'Protáhněte prsty u nohou v botě – nenápadný mikrocvik při práci.' },
+  { cat: 'ergo', text: 'Narovnejte záda a stáhněte ramena dozadu – vydržte pár vteřin.' },
+  { cat: 'ergo', text: 'Horní okraj monitoru dejte do výšky očí – uleví krční páteři.' },
+  { cat: 'ergo', text: 'Lokty držte zhruba v úhlu 90° – méně únavy předloktí.' },
+  { cat: 'ergo', text: 'Chodidla opřete celou plochou o zem – stabilnější a zdravější sed.' },
+  { cat: 'ergo', text: 'Myš mějte blízko klávesnice – kratší pohyby šetří rameno.' },
+  { cat: 'ergo', text: 'Zápěstí nepokládejte na ostrou hranu stolu.' },
+  { cat: 'ergo', text: 'Židli nastavte tak, aby kolena byla v úhlu ~90°.' },
+  { cat: 'eyes', text: 'Na 2 vteřiny se podívejte z okna do dálky – odpočinou oči.' },
+  { cat: 'eyes', text: 'Vědomě několikrát mrkněte – obrazovka oči vysušuje.' },
+  { cat: 'eyes', text: 'Posuňte monitor zhruba na délku paže od očí.' },
+  { cat: 'breath', text: 'Jeden pomalý nádech nosem a výdech – okysličí mozek pro soustředění.' },
+  { cat: 'breath', text: 'Narovnejte se a 3× se zhluboka nadechněte – během chvilky.' },
+  { cat: 'water', text: 'Dejte si doušek vody – i mírná dehydratace snižuje výkon.' },
+  { cat: 'water', text: 'Mějte sklenici vody na dosah, ať kvůli ní nevstáváte.' },
+  { cat: 'coffee', text: 'Kávu spíš dopoledne – odpolední ruší spánek a tím i zítřejší výkon.' },
+  { cat: 'coffee', text: 'Po kávě sklenici vody – vyrovná odvodnění.' },
+  { cat: 'focus', text: 'Zavřete nepotřebné karty – méně přepínání, vyšší soustředění.' },
+  { cat: 'focus', text: 'Ztlumte notifikace a dokončete jeden úkol v kuse.' },
+  { cat: 'focus', text: 'Velký úkol rozdělte na 2–3 menší – rychlejší rozjezd.' },
+  { cat: 'mood', text: 'Krátce se usmějte – sníží stres a zlepší náladu i výkon. :)' },
+  { cat: 'mood', text: 'Pochvalte se za hotový úkol – motivace táhne výkon.' },
+];
+
+const CAT_ICON: Record<Cat, React.ReactNode> = {
+  stand: <PersonStanding size={16} className="text-rose-500" />,
+  move: <Activity size={16} className="text-emerald-500" />,
+  eyes: <Eye size={16} className="text-violet-500" />,
+  breath: <Wind size={16} className="text-sky-500" />,
+  water: <GlassWater size={16} className="text-sky-500" />,
+  coffee: <Coffee size={16} className="text-amber-700" />,
+  ergo: <Armchair size={16} className="text-teal-500" />,
+  focus: <Target size={16} className="text-indigo-500" />,
+  mood: <HeartPulse size={16} className="text-rose-500" />,
+};
+
+/** Deterministicky vybere N tipů „pro dnešek" (mění se den ode dne). */
+function pickTips(n: number): { cat: Cat; text: string }[] {
+  const seed = Math.floor(Date.now() / 86400000); // den
+  const out: { cat: Cat; text: string }[] = [];
+  for (let i = 0; i < n; i++) out.push(TIPS[(seed * 7 + i * 5) % TIPS.length]);
+  return out;
+}
 
 function badges(r: SelfReportData): string[] {
   const b: string[] = [];
@@ -11,13 +65,6 @@ function badges(r: SelfReportData): string[] {
   if (r.nonWorkPct <= 5) b.push('💎 Bez rozptýlení');
   return b.length ? b : ['🌱 Začátečník'];
 }
-
-const HEALTH_TIPS = [
-  { icon: <PersonStanding size={16} className="text-rose-500" />, text: 'Postav se a protáhni se na 1 minutu – uvolní záda a nakopne soustředění.' },
-  { icon: <GlassWater size={16} className="text-sky-500" />, text: 'Dej si sklenici vody. Cíl: 6–8 sklenic za pracovní den.' },
-  { icon: <Eye size={16} className="text-violet-500" />, text: 'Pravidlo 20-20-20: každých 20 minut se na 20 s podívej 6 m daleko.' },
-  { icon: <Coffee size={16} className="text-amber-700" />, text: 'Káva s mírou – ideálně max. 3 denně a ne po 15:00 kvůli spánku.' },
-];
 
 function Compare({ icon, label, pct, color }: { icon: React.ReactNode; label: string; pct: number; color: string }) {
   return (
@@ -44,7 +91,7 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
   if (!r) return <p className="muted-2">Načítám…</p>;
 
   const distance = r.distanceMeters >= 1000 ? `${(r.distanceMeters / 1000).toFixed(1)} km` : `${r.distanceMeters} m`;
-  const tip = HEALTH_TIPS[new Date().getDate() % HEALTH_TIPS.length];
+  const tips = pickTips(6);
 
   const grade = r.score >= 70 ? { t: 'Skvělá práce!', e: '🏆' } : r.score >= 45 ? { t: 'Dobrá práce', e: '👍' } : { t: 'Je co zlepšovat', e: '💪' };
 
@@ -112,19 +159,20 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
         </div>
       )}
 
-      {/* Zdravotní režim */}
+      {/* Zdravotní režim – mikro-doporučení BEZ ztráty pozornosti (žádné přestávky) */}
       {healthMode && (
         <div className="card border-rose-200 p-5 dark:border-rose-500/30">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-rose-600 dark:text-rose-300"><HeartPulse size={16} /> Zdravotní režim</h3>
+          <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-rose-600 dark:text-rose-300"><HeartPulse size={16} /> Zdravotní mikro-tipy</h3>
+          <p className="mb-3 text-xs muted-2">Drobnosti, které zvládnete při práci a neberou pozornost déle než pár vteřin.</p>
           <div className="mb-3 flex items-center gap-3 rounded-lg bg-rose-50 p-3 text-sm dark:bg-rose-500/10">
-            {tip.icon} <span>{tip.text}</span>
+            {CAT_ICON[tips[0].cat]} <span><b>Tip teď:</b> {tips[0].text}</span>
           </div>
-          <ul className="space-y-2 text-sm">
-            {HEALTH_TIPS.map((t, i) => (
-              <li key={i} className="flex items-center gap-2 muted">{t.icon} {t.text}</li>
+          <ul className="grid gap-2 text-sm sm:grid-cols-2">
+            {tips.slice(1).map((t, i) => (
+              <li key={i} className="flex items-start gap-2 muted">{CAT_ICON[t.cat]} {t.text}</li>
             ))}
           </ul>
-          <p className="mt-3 text-xs muted-2">Doporučení jsou orientační, nejde o lékařskou radu.</p>
+          <p className="mt-3 text-xs muted-2">Tipy se každý den obměňují. Orientační, nejde o lékařskou radu.</p>
         </div>
       )}
 
