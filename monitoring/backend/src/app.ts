@@ -1,6 +1,8 @@
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import fs from 'node:fs';
+import path from 'node:path';
 import { prisma } from './db.js';
 import { ingestRouter } from './routes/ingest.js';
 import { dashboardRouter } from './routes/dashboard.js';
@@ -11,7 +13,7 @@ import { requireAuth } from './auth.js';
 /** Sestaví Express aplikaci (bez naslouchání) – sdílí index.ts i testy. */
 export function createApp() {
   const app = express();
-  app.use(helmet());
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors());
   app.use(express.json({ limit: '4mb' }));
 
@@ -36,6 +38,15 @@ export function createApp() {
   app.use('/api/v1/dashboard', requireAuth, dashboardRouter);
   app.use('/api/v1/export', requireAuth, exportRouter);
   app.use('/api/v1/admin', requireAuth, adminRouter);
+
+  // Volitelně servíruje sestavený frontend (single-port nasazení), pokud existuje.
+  const distDir = path.resolve(process.cwd(), '../frontend/dist');
+  if (fs.existsSync(path.join(distDir, 'index.html'))) {
+    app.use(express.static(distDir));
+    app.get(/^\/(?!api\/).*/, (_req, res) => {
+      res.sendFile(path.join(distDir, 'index.html'));
+    });
+  }
 
   return app;
 }
