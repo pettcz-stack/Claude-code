@@ -98,6 +98,7 @@ model AppCategory {
   id        String   @id @default(cuid())
   appName   String   @unique
   category  String
+  type      String   @default("NEUTRAL")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

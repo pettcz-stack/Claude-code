@@ -55,6 +55,41 @@ export type AuditRow = {
   createdAt: string;
 };
 
+export type CategorySlice = { category: string; type: 'WORK' | 'NON_WORK' | 'NEUTRAL'; minutes: number };
+
+export type UserScore = {
+  userId: string;
+  displayName: string | null;
+  department: string | null;
+  expectedMinutes: number;
+  workMinutes: number;
+  nonWorkMinutes: number;
+  idleOnMinutes: number;
+  pcOffMinutes: number;
+  meetingMinutes: number;
+  workPct: number;
+  nonWorkPct: number;
+  idlePct: number;
+  pcOffPct: number;
+  score: number;
+  avgKpm: number;
+  kpmPercentile: number;
+  categories: CategorySlice[];
+  topApp: string | null;
+};
+
+export type ScoreboardRow = {
+  userId: string;
+  displayName: string | null;
+  department: string | null;
+  score: number;
+  workPct: number;
+  nonWorkPct: number;
+  idlePct: number;
+  pcOffPct: number;
+  avgKpm: number;
+};
+
 export type Me = { username: string; role: string };
 
 const STORAGE_KEY = 'workview_auth';
@@ -111,7 +146,17 @@ export const auth = {
 export const api = {
   users: () => getJson<{ users: User[] }>('/api/v1/dashboard/users').then((d) => d.users),
   categories: () =>
-    getJson<{ categories: Record<string, string> }>('/api/v1/dashboard/categories').then((d) => d.categories),
+    getJson<{ categories: Record<string, { category: string; type: string }> }>(
+      '/api/v1/dashboard/categories',
+    ).then((d) => d.categories),
+  score: (userId: string, from: string, to: string) =>
+    getJson<{ score: UserScore }>(
+      `/api/v1/dashboard/score?userId=${encodeURIComponent(userId)}&from=${from}&to=${to}`,
+    ).then((d) => d.score),
+  scoreboard: (from: string, to: string, department?: string) =>
+    getJson<{ rows: ScoreboardRow[] }>(
+      `/api/v1/dashboard/scoreboard?from=${from}&to=${to}${department ? `&department=${encodeURIComponent(department)}` : ''}`,
+    ).then((d) => d.rows),
   hourly: (userId: string, from: string, to: string) =>
     getJson<{ rows: HourlyRow[] }>(
       `/api/v1/dashboard/hourly?userId=${encodeURIComponent(userId)}&from=${from}&to=${to}`,

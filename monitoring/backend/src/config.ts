@@ -14,6 +14,8 @@ export const config = {
   // Výchozí admin účet (vytvoří se jen pokud žádný neexistuje).
   adminUser: process.env.ADMIN_USER ?? 'admin',
   adminPassword: process.env.ADMIN_PASSWORD ?? 'admin',
+  // Očekávaný pracovní fond pro výpočet skóre.
+  expectedWorkHoursPerDay: Number(process.env.EXPECTED_WORK_HOURS ?? 8),
   // E-mailové reporty (Blok 1.8). Aktivní jen pokud je nastaven SMTP_HOST.
   smtp: {
     host: process.env.SMTP_HOST ?? '',

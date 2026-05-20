@@ -6,7 +6,7 @@ type Props = { user: User; day: Date };
 
 export function CalendarView({ user, day }: Props) {
   const [rows, setRows] = useState<HourlyRow[]>([]);
-  const [categories, setCategories] = useState<Record<string, string>>({});
+  const [categories, setCategories] = useState<Record<string, { category: string; type: string }>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,8 +83,16 @@ export function CalendarView({ user, day }: Props) {
                       <span>
                         {r.topApp}
                         {categories[r.topApp] && (
-                          <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">
-                            {categories[r.topApp]}
+                          <span
+                            className={`ml-2 rounded px-1.5 py-0.5 text-xs ${
+                              categories[r.topApp].type === 'NON_WORK'
+                                ? 'bg-red-100 text-red-700'
+                                : categories[r.topApp].type === 'WORK'
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : 'bg-gray-100 text-gray-500'
+                            }`}
+                          >
+                            {categories[r.topApp].category}
                           </span>
                         )}
                       </span>

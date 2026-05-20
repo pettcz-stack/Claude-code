@@ -3,12 +3,61 @@ import { z } from 'zod';
 import { prisma } from '../db.js';
 import { logAccess } from '../auth.js';
 import { getCategoryMap } from '../services/categories.js';
+import { computeUserScore } from '../services/scoring.js';
 
 export const dashboardRouter = Router();
 
-/** Mapa appName → kategorie (pro zobrazení „v čem pracoval"). */
+/** Mapa appName → {category, type} (pro zobrazení „v čem pracoval"). */
 dashboardRouter.get('/categories', async (_req, res) => {
   res.json({ categories: await getCategoryMap() });
+});
+
+/** Skóre a barevný rozpad jednoho uživatele za období. */
+dashboardRouter.get('/score', async (req, res) => {
+  const parsed = rangeSchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'invalid_query', detail: parsed.error.flatten() });
+    return;
+  }
+  const { from, to, userId } = parsed.data;
+  if (!userId) {
+    res.status(400).json({ error: 'userId_required' });
+    return;
+  }
+  const score = await computeUserScore(userId, new Date(from), new Date(to));
+  await logAccess(req.admin?.username ?? 'unknown', 'VIEW', `score ${from}..${to}`, userId);
+  res.json({ score });
+});
+
+/** Žebříček skóre všech aktivních uživatelů za období (přehled firmy). */
+dashboardRouter.get('/scoreboard', async (req, res) => {
+  const parsed = rangeSchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'invalid_query', detail: parsed.error.flatten() });
+    return;
+  }
+  const { from, to, department } = parsed.data;
+  const users = await prisma.monitoredUser.findMany({
+    where: { active: true, ...(department ? { department } : {}) },
+    select: { id: true },
+  });
+  const rows = [];
+  for (const u of users) {
+    const s = await computeUserScore(u.id, new Date(from), new Date(to));
+    rows.push({
+      userId: s.userId,
+      displayName: s.displayName,
+      department: s.department,
+      score: s.score,
+      workPct: s.workPct,
+      nonWorkPct: s.nonWorkPct,
+      idlePct: s.idlePct,
+      pcOffPct: s.pcOffPct,
+      avgKpm: s.avgKpm,
+    });
+  }
+  rows.sort((a, b) => b.score - a.score);
+  res.json({ rows });
 });
 
 const rangeSchema = z.object({

@@ -107,7 +107,8 @@ model ActivityHourly {
 model AppCategory {
   id        String   @id @default(cuid())
   appName   String   @unique // např. "winword.exe"
-  category  String // např. "PRACE" | "KOMUNIKACE" | "WEB" | "OSTATNI"
+  category  String // čitelný název, např. "Kancelář", "Hry", "Soukromý e-mail"
+  type      String   @default("NEUTRAL") // WORK | NON_WORK | NEUTRAL
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
