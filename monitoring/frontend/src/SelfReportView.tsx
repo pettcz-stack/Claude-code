@@ -1,6 +1,23 @@
 import { useEffect, useState } from 'react';
-import { ShieldCheck, X, Keyboard, Trophy, Users, Building2, Sparkles } from 'lucide-react';
+import { ShieldCheck, X, Keyboard, Trophy, Users, Building2, Sparkles, Award, Footprints, Flame, HeartPulse, PersonStanding, GlassWater, Eye, Coffee } from 'lucide-react';
 import { api, type SelfReportData, type User } from './api.js';
+
+function badges(r: SelfReportData): string[] {
+  const b: string[] = [];
+  if (r.kpmPercentile >= 80) b.push('🏎️ Rychloprsťák');
+  if (r.score >= 70) b.push('⭐ Tahoun týmu');
+  if (r.companyPercentile >= 75) b.push('🏆 TOP firmy');
+  if (r.appSwitchesPerHour > 0 && r.appSwitchesPerHour <= 8) b.push('🎯 Soustředěný');
+  if (r.nonWorkPct <= 5) b.push('💎 Bez rozptýlení');
+  return b.length ? b : ['🌱 Začátečník'];
+}
+
+const HEALTH_TIPS = [
+  { icon: <PersonStanding size={16} className="text-rose-500" />, text: 'Postav se a protáhni se na 1 minutu – uvolní záda a nakopne soustředění.' },
+  { icon: <GlassWater size={16} className="text-sky-500" />, text: 'Dej si sklenici vody. Cíl: 6–8 sklenic za pracovní den.' },
+  { icon: <Eye size={16} className="text-violet-500" />, text: 'Pravidlo 20-20-20: každých 20 minut se na 20 s podívej 6 m daleko.' },
+  { icon: <Coffee size={16} className="text-amber-700" />, text: 'Káva s mírou – ideálně max. 3 denně a ne po 15:00 kvůli spánku.' },
+];
 
 function Compare({ icon, label, pct, color }: { icon: React.ReactNode; label: string; pct: number; color: string }) {
   return (
@@ -20,8 +37,14 @@ function Compare({ icon, label, pct, color }: { icon: React.ReactNode; label: st
 export function SelfReportView({ user, from, to }: { user: User; from: string; to: string }) {
   const [r, setR] = useState<SelfReportData | null>(null);
   const [showPrivacy, setShowPrivacy] = useState(true);
+  const [funMode, setFunMode] = useState(false);
+  const [healthMode, setHealthMode] = useState(false);
   useEffect(() => { api.selfReport(user.id, from, to).then(setR).catch(() => setR(null)); }, [user.id, from, to]);
+  useEffect(() => { api.getSettings().then((d) => { setFunMode(d.settings.funMode); setHealthMode(d.settings.healthMode); }).catch(() => undefined); }, []);
   if (!r) return <p className="muted-2">Načítám…</p>;
+
+  const distance = r.distanceMeters >= 1000 ? `${(r.distanceMeters / 1000).toFixed(1)} km` : `${r.distanceMeters} m`;
+  const tip = HEALTH_TIPS[new Date().getDate() % HEALTH_TIPS.length];
 
   const grade = r.score >= 70 ? { t: 'Skvělá práce!', e: '🏆' } : r.score >= 45 ? { t: 'Dobrá práce', e: '👍' } : { t: 'Je co zlepšovat', e: '💪' };
 
@@ -59,6 +82,51 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
           <Trophy size={16} /> V psaní na klávesnici jsi rychlejší než <b>{r.kpmPercentile} %</b> zaměstnanců a celkově lepší než <b>{r.companyPercentile} %</b> firmy. Skvělé!
         </p>
       </div>
+
+      {/* Zábavný režim */}
+      {funMode && (
+        <div className="card p-5">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Sparkles size={16} className="text-amber-500" /> Zábavný režim</h3>
+          <div className="mb-4 flex flex-wrap gap-2">
+            {badges(r).map((b) => (
+              <span key={b} className="rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">{b}</span>
+            ))}
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="rounded-lg border border-gray-200 p-4 dark:border-slate-700">
+              <div className="flex items-center gap-1.5 text-xs uppercase muted-2"><Footprints size={13} /> Naťukaná vzdálenost</div>
+              <div className="text-2xl font-bold">{distance}</div>
+              <div className="text-xs muted-2">tolik nacestovaly tvé prsty po klávesnici</div>
+            </div>
+            <div className="rounded-lg border border-gray-200 p-4 dark:border-slate-700">
+              <div className="flex items-center gap-1.5 text-xs uppercase muted-2"><Flame size={13} /> Spáleno psaním</div>
+              <div className="text-2xl font-bold">{r.caloriesTyping} kcal</div>
+              <div className="text-xs muted-2">orientačně za zvolené období</div>
+            </div>
+            <div className="rounded-lg border border-gray-200 p-4 dark:border-slate-700">
+              <div className="flex items-center gap-1.5 text-xs uppercase muted-2"><Award size={13} /> Úhozů celkem</div>
+              <div className="text-2xl font-bold">{r.keystrokeTotal.toLocaleString('cs-CZ')}</div>
+              <div className="text-xs muted-2">to je pořádná porce práce!</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Zdravotní režim */}
+      {healthMode && (
+        <div className="card border-rose-200 p-5 dark:border-rose-500/30">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-rose-600 dark:text-rose-300"><HeartPulse size={16} /> Zdravotní režim</h3>
+          <div className="mb-3 flex items-center gap-3 rounded-lg bg-rose-50 p-3 text-sm dark:bg-rose-500/10">
+            {tip.icon} <span>{tip.text}</span>
+          </div>
+          <ul className="space-y-2 text-sm">
+            {HEALTH_TIPS.map((t, i) => (
+              <li key={i} className="flex items-center gap-2 muted">{t.icon} {t.text}</li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs muted-2">Doporučení jsou orientační, nejde o lékařskou radu.</p>
+        </div>
+      )}
 
       {/* Ujištění o soukromí – odebíratelné */}
       {showPrivacy && (

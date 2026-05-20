@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Bell, Save, Play, Info, AlertTriangle } from 'lucide-react';
+import { Bell, Save, Play, AlertTriangle, Smile, HeartPulse } from 'lucide-react';
 import { api } from './api.js';
 
 export function SettingsView({ canEdit }: { canEdit: boolean }) {
   const [enabled, setEnabled] = useState(true);
   const [recipients, setRecipients] = useState('');
   const [offline, setOffline] = useState(20);
+  const [funMode, setFunMode] = useState(false);
+  const [healthMode, setHealthMode] = useState(false);
   const [smtp, setSmtp] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -14,6 +16,8 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
       setEnabled(d.settings.alertsEnabled);
       setRecipients(d.settings.alertRecipients.join(', '));
       setOffline(d.settings.offlineMinutes);
+      setFunMode(d.settings.funMode);
+      setHealthMode(d.settings.healthMode);
       setSmtp(d.smtpConfigured);
     }).catch(() => undefined);
   }
@@ -21,7 +25,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
 
   async function save() {
     setMsg('Ukládám…');
-    await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline }).catch((e) => setMsg('Chyba: ' + e));
+    await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline, funMode, healthMode }).catch((e) => setMsg('Chyba: ' + e));
     setMsg('Uloženo.');
     load();
   }
@@ -78,11 +82,31 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
       </div>
 
       <div className="card p-5">
-        <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold"><Info size={16} className="text-blue-500" /> Plánované možnosti</h3>
-        <ul className="list-disc space-y-1 pl-5 text-sm muted">
-          <li><b>Self-service náhled pro zaměstnance</b> – každý uvidí jen svá data (posiluje transparentnost a právní obhajitelnost).</li>
-          <li>Z toho lze udělat <b>soutěž „Zaměstnanec měsíce"</b> – žebříček efektivity jako motivace, ne jen kontrola.</li>
-        </ul>
+        <h3 className="mb-3 text-sm font-semibold">Režimy reportu zaměstnance</h3>
+
+        <label className="mb-3 flex items-start gap-3 text-sm">
+          <input type="checkbox" checked={funMode} disabled={!canEdit} onChange={(e) => setFunMode(e.target.checked)} className="mt-1" />
+          <span>
+            <span className="flex items-center gap-1.5 font-medium"><Smile size={15} className="text-amber-500" /> Zábavný režim</span>
+            <span className="muted-2">Odznaky, „naťukaná" vzdálenost prstů, kalorie spálené psaním, hravé srovnání s kolegy. Motivuje k výkonu.</span>
+          </span>
+        </label>
+
+        <label className="flex items-start gap-3 text-sm">
+          <input type="checkbox" checked={healthMode} disabled={!canEdit} onChange={(e) => setHealthMode(e.target.checked)} className="mt-1" />
+          <span>
+            <span className="flex items-center gap-1.5 font-medium"><HeartPulse size={15} className="text-rose-500" /> Zdravotní režim</span>
+            <span className="muted-2">Mikropřestávky (postav se, protáhni), pitný režim, pravidlo 20-20-20 pro oči, doporučení ke kávě. Péče o pohodu.</span>
+          </span>
+        </label>
+
+        {canEdit && (
+          <button onClick={save} className="btn-primary mt-4"><Save size={15} /> Uložit režimy</button>
+        )}
+
+        <p className="mt-4 text-xs muted-2">
+          Plánováno: self-service přístup pro zaměstnance (každý jen svá data) a soutěž „Zaměstnanec měsíce".
+        </p>
       </div>
     </div>
   );

@@ -434,6 +434,10 @@ export type SelfReport = {
   nonWorkPct: number;
   monitorTypical: number;
   multiMonitorPct: number;
+  appSwitchesPerHour: number;
+  keystrokeTotal: number;
+  caloriesTyping: number; // orientační kcal spálené psaním
+  distanceMeters: number; // orientační „naťukaná" vzdálenost prstů
 };
 
 export async function selfReport(userId: string, from: Date, to: Date): Promise<SelfReport> {
@@ -464,6 +468,11 @@ export async function selfReport(userId: string, from: Date, to: Date): Promise<
     nonWorkPct: me.expectedMinutes ? Math.round((me.nonWorkMinutes / Math.max(me.workMinutes + me.nonWorkMinutes, 1)) * 100) : 0,
     monitorTypical: me.monitorTypical,
     multiMonitorPct: me.multiMonitorPct,
+    appSwitchesPerHour: me.appSwitchesPerHour,
+    keystrokeTotal: me.keystrokeTotal,
+    // Orientační (zábavné) odhady – ne lékařské hodnoty.
+    caloriesTyping: Math.round(me.keystrokeTotal * 0.0014),
+    distanceMeters: Math.round(me.keystrokeTotal * 0.02),
   };
 }
 

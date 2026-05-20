@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Keyboard, Clock, AlertTriangle, AppWindow, Monitor } from 'lucide-react';
+import { Keyboard, Clock, AlertTriangle, AppWindow, Monitor, Shuffle } from 'lucide-react';
 import { api, type UserScore, type User } from './api.js';
 import { Donut } from './Donut.js';
 import { minutesToHm, chipClass, typeLabel, TYPE_COLORS } from './util.js';
@@ -68,7 +68,7 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card title="Tempo psaní" icon={<Keyboard size={13} />}>
           {s.avgKpm} úhozů/min
           <div className="mt-1 text-xs font-normal text-emerald-500">lepší než {s.kpmPercentile} % firmy {s.kpmPercentile >= 50 ? '🎉' : ''}</div>
@@ -79,6 +79,10 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
         <Card title="Monitory" icon={<Monitor size={13} />}>
           {s.monitorTypical || '—'}
           <div className="mt-1 text-xs font-normal muted-2">{s.multiMonitorPct}% času na 2+ obraz.</div>
+        </Card>
+        <Card title="Fragmentace pozornosti" icon={<Shuffle size={13} />}>
+          {s.appSwitchesPerHour}/h
+          <div className="mt-1 text-xs font-normal muted-2">přepnutí aplikace · nižší = soustředěnější</div>
         </Card>
       </div>
 

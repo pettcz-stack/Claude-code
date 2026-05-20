@@ -30,6 +30,8 @@ export type UserScore = ScoreBreakdown & {
   topApp: string | null;
   monitorTypical: number; // nejčastější počet monitorů
   multiMonitorPct: number; // podíl času na 2+ monitorech
+  keystrokeTotal: number; // úhozy celkem za období
+  appSwitchesPerHour: number; // přepínání aplikací za hodinu (fragmentace pozornosti)
 };
 
 function countWorkdays(from: Date, to: Date): number {
@@ -60,6 +62,7 @@ export async function computeUserScore(userId: string, from: Date, to: Date): Pr
   // a rozliší práci/zábavu i uvnitř prohlížeče.
   const intervals = await prisma.activityInterval.findMany({
     where: { userId, intervalStart: { gte: from, lt: to } },
+    orderBy: { intervalStart: 'asc' },
     select: { activeSeconds: true, idleSeconds: true, foregroundApp: true, windowTitle: true, keystrokeCount: true, monitorCount: true },
   });
 
@@ -70,6 +73,8 @@ export async function computeUserScore(userId: string, from: Date, to: Date): Pr
   const catMinutes = new Map<string, { type: CatType; minutes: number }>();
   const appActive = new Map<string, number>();
   const monitorMinutes = new Map<number, number>(); // počet monitorů → aktivní minuty
+  let appSwitches = 0;
+  let prevApp: string | null = null;
 
   for (const it of intervals) {
     const activeMin = it.activeSeconds / 60;
@@ -78,6 +83,10 @@ export async function computeUserScore(userId: string, from: Date, to: Date): Pr
     if (activeMin <= 0) continue;
     if (it.monitorCount && it.monitorCount > 0) {
       monitorMinutes.set(it.monitorCount, (monitorMinutes.get(it.monitorCount) ?? 0) + activeMin);
+    }
+    if (it.foregroundApp) {
+      if (prevApp !== null && prevApp !== it.foregroundApp) appSwitches++;
+      prevApp = it.foregroundApp;
     }
 
     const info = classifyActivity(catMap, webRules, it.foregroundApp, it.windowTitle);
@@ -118,6 +127,8 @@ export async function computeUserScore(userId: string, from: Date, to: Date): Pr
     if (min > monitorBest) ((monitorBest = min), (monitorTypical = count));
   }
   const multiMonitorPct = monitorTotal > 0 ? Math.round((multiMinutes / monitorTotal) * 100) : 0;
+  const activeAll = workMinutes + nonWorkMinutes;
+  const appSwitchesPerHour = activeAll > 0 ? Math.round((appSwitches / (activeAll / 60)) * 10) / 10 : 0;
 
   return {
     userId,
@@ -140,6 +151,8 @@ export async function computeUserScore(userId: string, from: Date, to: Date): Pr
     topApp,
     monitorTypical,
     multiMonitorPct,
+    keystrokeTotal: totalKeystrokes,
+    appSwitchesPerHour,
   };
 }
 
