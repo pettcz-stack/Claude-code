@@ -94,3 +94,46 @@ export function shortDay(isoDate: string): string {
   const d = new Date(isoDate + 'T00:00:00');
   return `${d.getDate()}.${d.getMonth() + 1}.`;
 }
+
+/** Zkratka dne v týdnu (Po–Ne) z YYYY-MM-DD (UTC). */
+export function dowShort(isoDate: string): string {
+  const d = new Date(isoDate + 'T00:00:00Z');
+  return ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So'][d.getUTCDay()];
+}
+export function isWeekend(isoDate: string): boolean {
+  const dow = new Date(isoDate + 'T00:00:00Z').getUTCDay();
+  return dow === 0 || dow === 6;
+}
+
+/** Velikonoční neděle (záp. církev) pro daný rok – Meeus/Jones/Butcher. */
+function easterSunday(y: number): Date {
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100;
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(Date.UTC(y, month - 1, day));
+}
+
+/** Český státní svátek pro YYYY-MM-DD → název, jinak null. */
+export function czHoliday(isoDate: string): string | null {
+  const d = new Date(isoDate + 'T00:00:00Z');
+  const y = d.getUTCFullYear();
+  const md = `${d.getUTCMonth() + 1}-${d.getUTCDate()}`;
+  const fixed: Record<string, string> = {
+    '1-1': 'Nový rok', '5-1': 'Svátek práce', '5-8': 'Den vítězství',
+    '7-5': 'Cyril a Metoděj', '7-6': 'Jan Hus', '9-28': 'Sv. Václav',
+    '10-28': 'Vznik ČSR', '11-17': 'Den boje za svobodu',
+    '12-24': 'Štědrý den', '12-25': '1. svátek vánoční', '12-26': '2. svátek vánoční',
+  };
+  if (fixed[md]) return fixed[md];
+  const easter = easterSunday(y);
+  const goodFri = new Date(easter.getTime() - 2 * 86400000);
+  const easterMon = new Date(easter.getTime() + 86400000);
+  const sameDay = (a: Date) => a.getUTCMonth() === d.getUTCMonth() && a.getUTCDate() === d.getUTCDate();
+  if (sameDay(goodFri)) return 'Velký pátek';
+  if (sameDay(easterMon)) return 'Velikonoční pondělí';
+  return null;
+}

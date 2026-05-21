@@ -149,11 +149,21 @@ async function main() {
       day.setDate(day.getDate() - dayBack);
       const dow = day.getDay();
       if (dow === 0 || dow === 6) continue;
+      const date = new Date(Date.UTC(day.getFullYear(), day.getMonth(), day.getDate()));
+
+      // HR absence (OKbase): nemoc/dovolená → ten den bez PC aktivity (mimo podvodníky).
+      if (!c.behavior.startsWith('cheater')) {
+        const r = Math.random();
+        const leave = r < 0.03 ? 'NEMOC' : r < 0.09 ? 'DOVOLENA' : null;
+        if (leave) {
+          absences.push({ userId: c.id, date, type: leave, source: 'OKBASE' });
+          continue; // absence = žádné intervaly
+        }
+      }
 
       // Home office den (z OKbase by to byl fakt). Podvodníci jezdí do kanceláře.
       const isHO = c.behavior.startsWith('cheater') ? false : Math.random() < 0.25;
       if (isHO) {
-        const date = new Date(Date.UTC(day.getFullYear(), day.getMonth(), day.getDate()));
         absences.push({ userId: c.id, date, type: 'HOME_OFFICE', source: 'OKBASE' });
       }
 

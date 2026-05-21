@@ -197,13 +197,19 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
         <div className="card relative border-emerald-300 p-5 dark:border-emerald-500/40">
           <button onClick={() => setShowPrivacy(false)} className="absolute right-3 top-3 muted-2 hover:text-gray-600" title="Skrýt"><X size={16} /></button>
           <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300"><ShieldCheck size={18} /> Tvé soukromí je v bezpečí</h3>
+          <p className="mb-2 text-sm muted">
+            Tahle aplikace slouží <b>výhradně k měření efektivity práce</b> na firemním zařízení – ne ke sledování tebe jako člověka.
+            Je <b>plně v souladu s GDPR a zákony ČR</b> (zejm. §316 zákoníku práce o monitoringu firemních prostředků).
+          </p>
           <ul className="list-disc space-y-1 pl-5 text-sm muted">
-            <li><b>Nečteme, co píšeš</b> – sledujeme jen tempo (počet úhozů), ne text.</li>
+            <li><b>Nesbíráme osobní ani citlivé údaje</b> – jen pracovní metriky (aktivní/nečinný čas, tempo psaní, aplikace).</li>
+            <li><b>Nečteme, co píšeš</b> – známe jen počet úhozů, nikdy obsah textu.</li>
             <li><b>Nečteme soukromé konverzace</b>, e-maily ani zprávy.</li>
-            <li><b>Žádné screenshoty</b>, žádný mikrofon, žádná kamera.</li>
-            <li>Vidíme jen <b>souhrnnou aktivitu</b> a v jaké aplikaci pracuješ – kvůli férovému hodnocení práce.</li>
+            <li><b>Žádné screenshoty</b>, žádný mikrofon, žádná kamera, žádné sledování polohy.</li>
+            <li>Vidíme jen <b>souhrnnou aktivitu</b> a v jaké aplikaci se pracuje – kvůli férovému hodnocení práce.</li>
+            <li><b>Přístup je řízený a každé nahlédnutí do dat je zaznamenané</b> (auditní log), data jdou <b>šifrovaně</b> a drží se jen nezbytně dlouho.</li>
           </ul>
-          <p className="mt-2 text-xs muted-2">Toto ujištění je volitelné a lze ho v reportu vypnout.</p>
+          <p className="mt-2 text-xs muted-2">Cílem je lepší organizace práce a spravedlivé hodnocení – ne kontrola každého kliknutí. Toto ujištění je volitelné a lze ho v reportu vypnout.</p>
         </div>
       )}
     </div>

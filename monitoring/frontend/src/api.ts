@@ -122,7 +122,7 @@ export type ScoreboardRow = {
   avgKpm: number;
 };
 
-export type TrendPoint = { date: string; score: number; workMinutes: number; nonWorkMinutes: number; idleMinutes: number };
+export type TrendPoint = { date: string; score: number; workMinutes: number; nonWorkMinutes: number; idleMinutes: number; absence?: string | null };
 export type ActivityItem = { label: string; category: string; type: 'WORK' | 'NON_WORK' | 'NEUTRAL'; minutes: number };
 export type AppCategoryRow = { id: string; appName: string; category: string; type: string };
 export type WebRuleRow = { id: string; keyword: string; category: string; type: string };

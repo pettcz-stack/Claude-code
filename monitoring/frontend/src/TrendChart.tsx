@@ -4,7 +4,13 @@ import {
 } from 'recharts';
 import { AreaChart as AreaIcon, LineChart as LineIcon, BarChart3 } from 'lucide-react';
 import { api, type TrendPoint } from './api.js';
-import { shortDay } from './util.js';
+import { shortDay, dowShort, isWeekend, czHoliday } from './util.js';
+
+const ABS_TAG: Record<string, { short: string; full: string; color: string }> = {
+  DOVOLENA: { short: 'dovolená', full: 'dovolená', color: '#0ea5e9' },
+  NEMOC: { short: 'nemoc', full: 'nemoc', color: '#e11d48' },
+  HOME_OFFICE: { short: 'HO', full: 'home office', color: '#6366f1' },
+};
 
 type ChartType = 'area' | 'line' | 'bar';
 
@@ -27,13 +33,42 @@ export function TrendChart({ from, to, userId, department, dark }: {
     localStorage.setItem('workview_chart', t);
   }
 
-  const data = points.map((p) => ({ ...p, label: shortDay(p.date) }));
   const grid = dark ? '#334155' : '#e5e7eb';
   const axis = dark ? '#94a3b8' : '#6b7280';
+
+  const data = points.map((p) => {
+    const hol = czHoliday(p.date);
+    const abs = p.absence ? ABS_TAG[p.absence] : undefined;
+    // priorita: státní svátek > absence (dovolená/nemoc/HO)
+    const tag = hol ? 'svátek' : abs?.short ?? null;
+    const tagFull = hol ?? abs?.full ?? null;
+    const tagColor = hol ? '#d97706' : abs?.color ?? '';
+    return { ...p, label: shortDay(p.date), dow: dowShort(p.date), weekend: isWeekend(p.date), tag, tagFull, tagColor };
+  });
+  const byLabel = new Map(data.map((d) => [d.label, d]));
+
+  // Vlastní popisek osy X: datum + den v týdnu + případně svátek/dovolená.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const DayTick = ({ x, y, payload }: any) => {
+    const e = byLabel.get(payload.value);
+    if (!e) return null;
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text x={0} y={0} dy={11} textAnchor="middle" fontSize={10} fill={axis}>{e.label}</text>
+        <text x={0} y={0} dy={23} textAnchor="middle" fontSize={10} fontWeight={600} fill={e.weekend ? '#94a3b8' : axis}>{e.dow}</text>
+        {e.tag && <text x={0} y={0} dy={34} textAnchor="middle" fontSize={8.5} fill={e.tagColor}>{e.tag}</text>}
+      </g>
+    );
+  };
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tooltip: any = {
     contentStyle: { background: dark ? '#1e293b' : '#fff', border: `1px solid ${grid}`, borderRadius: 8, fontSize: 12, color: dark ? '#e2e8f0' : '#111' },
     formatter: (v: number | string) => [`${v} %`, 'Skóre'],
+    labelFormatter: (label: string) => {
+      const e = byLabel.get(label);
+      return e ? `${e.label} (${e.dow})${e.tagFull ? ` · ${e.tagFull}` : ''}` : label;
+    },
   };
 
   return (
@@ -54,7 +89,7 @@ export function TrendChart({ from, to, userId, department, dark }: {
           {type === 'bar' ? (
             <BarChart data={data} margin={{ top: 6, right: 12, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={grid} />
-              <XAxis dataKey="label" tick={{ fontSize: 11, fill: axis }} stroke={grid} />
+              <XAxis dataKey="label" tick={DayTick} interval={0} height={48} stroke={grid} />
               <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: axis }} stroke={grid} unit="%" />
               <Tooltip {...tooltip} />
               <Bar dataKey="score" fill="#10b981" radius={[3, 3, 0, 0]} isAnimationActive={false} />
@@ -62,7 +97,7 @@ export function TrendChart({ from, to, userId, department, dark }: {
           ) : type === 'line' ? (
             <LineChart data={data} margin={{ top: 6, right: 12, left: -16, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={grid} />
-              <XAxis dataKey="label" tick={{ fontSize: 11, fill: axis }} stroke={grid} />
+              <XAxis dataKey="label" tick={DayTick} interval={0} height={48} stroke={grid} />
               <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: axis }} stroke={grid} unit="%" />
               <Tooltip {...tooltip} />
               <Line type="monotone" dataKey="score" stroke="#10b981" strokeWidth={2} dot={false} isAnimationActive={false} />
@@ -76,7 +111,7 @@ export function TrendChart({ from, to, userId, department, dark }: {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={grid} />
-              <XAxis dataKey="label" tick={{ fontSize: 11, fill: axis }} stroke={grid} />
+              <XAxis dataKey="label" tick={DayTick} interval={0} height={48} stroke={grid} />
               <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: axis }} stroke={grid} unit="%" />
               <Tooltip {...tooltip} />
               <Area type="monotone" dataKey="score" stroke="#10b981" strokeWidth={2} fill="url(#g)" isAnimationActive={false} />

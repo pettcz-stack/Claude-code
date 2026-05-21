@@ -11,7 +11,7 @@ function dayKey(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-export type TrendPoint = { date: string; score: number; workMinutes: number; nonWorkMinutes: number; idleMinutes: number };
+export type TrendPoint = { date: string; score: number; workMinutes: number; nonWorkMinutes: number; idleMinutes: number; absence?: string | null };
 
 /** Denní trend skóre pro uživatele (nebo průměr firmy, když userId chybí). */
 export async function trend(from: Date, to: Date, userId?: string, department?: string): Promise<TrendPoint[]> {
@@ -41,12 +41,23 @@ export async function trend(from: Date, to: Date, userId?: string, department?: 
     users.set(r.userId, { work: r.workMin, nonwork: r.nonWorkMin, idle: r.idleMin });
   }
 
+  // Absence (HR/OKbase) – jen u jednoho člověka má smysl značit dovolenou/nemoc.
+  const absByDay = new Map<string, string>();
+  if (userId) {
+    const abs = await prisma.absence.findMany({
+      where: { userId, date: { gte: from, lt: to } },
+      select: { date: true, type: true },
+    });
+    for (const a of abs) absByDay.set(dayKey(a.date), a.type);
+  }
+
   const points: TrendPoint[] = [];
   for (let t = from.getTime(); t < to.getTime(); t += DAY_MS) {
     const dk = dayKey(new Date(t));
+    const absence = absByDay.get(dk) ?? null;
     const users = perDay.get(dk);
     if (!users || users.size === 0) {
-      points.push({ date: dk, score: 0, workMinutes: 0, nonWorkMinutes: 0, idleMinutes: 0 });
+      points.push({ date: dk, score: 0, workMinutes: 0, nonWorkMinutes: 0, idleMinutes: 0, absence });
       continue;
     }
     let work = 0;
@@ -65,6 +76,7 @@ export async function trend(from: Date, to: Date, userId?: string, department?: 
       workMinutes: Math.round(work),
       nonWorkMinutes: Math.round(nonwork),
       idleMinutes: Math.round(idle),
+      absence,
     });
   }
   return points;
