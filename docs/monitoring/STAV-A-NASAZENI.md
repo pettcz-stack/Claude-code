@@ -63,8 +63,10 @@ je potřeba **dokončit body, které nelze udělat z mé strany**:
    nutný build + pilotní test (viz 3A). Toto je hlavní bod před ostrým nasazením.
 2. **OKbase a Outlook** zatím nejsou napojené – HO čísla jsou z demo dat.
 3. **Kalorie / „naťukaná vzdálenost"** v zábavném režimu jsou orientační odhady.
-4. **Časová pásma**: trendy/heatmapa počítají den v UTC; pro ČR doladit na Europe/Prague.
-5. **ESLint** nemá flat config (eslint v9+) – kosmetické, doplnit.
+4. ~~Časová pásma~~ **HOTOVO**: dny a heatmapa se počítají v `Europe/Prague`
+   (SEČ/SELČ vč. letního času), ne v UTC.
+5. ~~ESLint flat config~~ **HOTOVO**: backend i frontend mají ESLint 9 flat config,
+   lint běží v CI (`monitoring-ci.yml`).
 6. **Per-device tokeny, 2FA, manažerské role** – doporučená vylepšení (zatím sdílený ingest token + jeden admin).
 7. **Verzované DB migrace pro PostgreSQL** – v Dockeru se nyní používá `db push`.
 
