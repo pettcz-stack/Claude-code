@@ -65,6 +65,18 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
 ];
 const NAV: NavItem[] = NAV_SECTIONS.flatMap((s) => s.items);
 
+function WarmingScreen() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-50 dark:bg-slate-900">
+      <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-gray-200 border-t-emerald-500 dark:border-slate-700 dark:border-t-emerald-400" />
+      <div className="text-center">
+        <div className="text-sm font-semibold">Připravuji přehledy…</div>
+        <div className="mt-1 text-xs muted-2">Načítám a předpočítávám data, ať je vše svižné.</div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [theme, toggleTheme] = useTheme();
   const [me, setMe] = useState<Me | null>(null);
@@ -79,6 +91,7 @@ export default function App() {
   const [department, setDepartment] = useState<string>('');
   const [cmdOpen, setCmdOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [warmed, setWarmed] = useState(false);
 
   useEffect(() => {
     if (auth.isLoggedIn()) auth.me().then(setMe).catch(() => auth.logout()).finally(() => setAuthChecked(true));
@@ -100,6 +113,24 @@ export default function App() {
   useEffect(() => {
     if (!me) return;
     api.users().then((u) => { setUsers(u); if (u.length) setUserId(u[0].id); });
+  }, [me]);
+
+  // Po přihlášení předehřej nejčastější přehledy (výchozí měsíc) → rozhraní je
+  // pak okamžité. Pojistka časovým limitem, ať se nikdy nezasekne.
+  useEffect(() => {
+    if (!me) { setWarmed(false); return; }
+    const todayStart = startOfLocalDay(new Date());
+    const tomorrow = new Date(todayStart); tomorrow.setDate(tomorrow.getDate() + 1);
+    const f = new Date(todayStart); f.setDate(f.getDate() - 29);
+    const wf = f.toISOString(); const wt = tomorrow.toISOString();
+    let done = false;
+    const finish = () => { if (!done) { done = true; setWarmed(true); } };
+    const timer = setTimeout(finish, 12000);
+    Promise.allSettled([
+      api.overview(wf, wt), api.scoreboard(wf, wt), api.monitors(wf, wt),
+      api.trend(wf, wt, {}), api.software(wf, wt), api.homeOffice(wf, wt),
+    ]).finally(() => { clearTimeout(timer); finish(); });
+    return () => clearTimeout(timer);
   }, [me]);
 
   const departments = useMemo(() => Array.from(new Set(users.map((u) => u.department).filter(Boolean))) as string[], [users]);
@@ -131,6 +162,7 @@ export default function App() {
 
   if (!authChecked) return <div className="p-6 muted-2">Načítám…</div>;
   if (!me) return <Login onLogin={setMe} />;
+  if (!warmed) return <WarmingScreen />;
 
   const needsUser = tab === 'detail' || tab === 'calendar' || tab === 'selfreport';
   const needsPeriod = tab === 'overview' || tab === 'homeoffice' || tab === 'detail' || tab === 'selfreport' || tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'software' || tab === 'trends' || tab === 'alerts';

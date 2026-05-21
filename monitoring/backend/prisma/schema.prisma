@@ -203,6 +203,27 @@ model Tip {
   @@index([kind, active])
 }
 
+/// Předpočítaný denní souhrn na uživatele (klasifikovaný čas). Plní se při
+/// agregaci. Dashboard z něj počítá skóre za libovolné období v milisekundách
+/// i nad roky dat (místo klasifikace milionů surových intervalů za běhu).
+model DailyStat {
+  id            String   @id @default(cuid())
+  userId        String
+  date          DateTime // den (UTC půlnoc)
+  workMin       Float    @default(0) // WORK + NEUTRAL
+  nonWorkMin    Float    @default(0)
+  idleMin       Float    @default(0)
+  unknownMin    Float    @default(0) // nezařazeno (vyjmuto ze skóre)
+  keystroke     Int      @default(0)
+  monitorTop    Int      @default(0) // nejčastější počet monitorů toho dne
+  multiMonitorMin Float  @default(0) // minuty na 2+ monitorech
+  domWorkCat    String? // dominantní pracovní kategorie dne (pro doporučení monitorů)
+  suspicious    Boolean  @default(false) // detekce nepovolených praktik v daný den
+
+  @@unique([userId, date])
+  @@index([date])
+}
+
 /// Účet pro přístup do dashboardu (role ADMIN | VIEWER).
 model AdminUser {
   id           String   @id @default(cuid())

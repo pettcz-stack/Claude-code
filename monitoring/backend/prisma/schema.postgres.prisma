@@ -184,6 +184,24 @@ model Tip {
   @@index([kind, active])
 }
 
+model DailyStat {
+  id            String   @id @default(cuid())
+  userId        String
+  date          DateTime
+  workMin       Float    @default(0)
+  nonWorkMin    Float    @default(0)
+  idleMin       Float    @default(0)
+  unknownMin    Float    @default(0)
+  keystroke     Int      @default(0)
+  monitorTop    Int      @default(0)
+  multiMonitorMin Float  @default(0)
+  domWorkCat    String?
+  suspicious    Boolean  @default(false)
+
+  @@unique([userId, date])
+  @@index([date])
+}
+
 model AdminUser {
   id           String   @id @default(cuid())
   username     String   @unique

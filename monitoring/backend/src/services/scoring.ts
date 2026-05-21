@@ -107,21 +107,50 @@ export type ScoreboardRow = {
   workPct: number; nonWorkPct: number; idlePct: number; pcOffPct: number; avgKpm: number;
 };
 
-/** Žebříček skóre všech aktivních uživatelů (kpm-cohort se spočítá jen jednou). */
+/** Žebříček skóre všech aktivních uživatelů – čte z denních souhrnů (rychlé nad roky dat). */
 export async function scoreboardRows(from: Date, to: Date, department?: string): Promise<ScoreboardRow[]> {
   const users = await prisma.monitoredUser.findMany({
     where: { active: true, ...(department ? { department } : {}) },
-    select: { id: true },
+    select: { id: true, displayName: true, department: true },
   });
+  const ids = users.map((u) => u.id);
   const { interpretMonitors } = await getSettings();
-  const cohort = await kpmCohort(from, to);
+  const expected = countWorkdays(from, to) * config.expectedWorkHoursPerDay * 60;
+
+  const daily = await prisma.dailyStat.findMany({
+    where: { userId: { in: ids }, date: { gte: from, lt: to } },
+    select: { userId: true, workMin: true, nonWorkMin: true, idleMin: true, unknownMin: true, keystroke: true, monitorTop: true, domWorkCat: true },
+  });
+  type Agg = { work: number; nonwork: number; idle: number; unknown: number; ks: number; monDays: Map<number, number>; catMin: Map<string, number> };
+  const byUser = new Map<string, Agg>();
+  for (const d of daily) {
+    let a = byUser.get(d.userId);
+    if (!a) { a = { work: 0, nonwork: 0, idle: 0, unknown: 0, ks: 0, monDays: new Map(), catMin: new Map() }; byUser.set(d.userId, a); }
+    a.work += d.workMin; a.nonwork += d.nonWorkMin; a.idle += d.idleMin; a.unknown += d.unknownMin; a.ks += d.keystroke;
+    if (d.monitorTop > 0) a.monDays.set(d.monitorTop, (a.monDays.get(d.monitorTop) ?? 0) + 1);
+    if (d.domWorkCat) a.catMin.set(d.domWorkCat, (a.catMin.get(d.domWorkCat) ?? 0) + d.workMin);
+  }
+  const clampPct = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
+
   const out: ScoreboardRow[] = [];
   for (const u of users) {
-    const s = await computeUserScore(u.id, from, to, { interpretMonitors, kpmCohort: cohort });
+    const a = byUser.get(u.id) ?? { work: 0, nonwork: 0, idle: 0, unknown: 0, ks: 0, monDays: new Map(), catMin: new Map() };
+    const adjExpected = Math.max(expected - a.unknown, 1);
+    const scoreRaw = clampPct((a.work / adjExpected) * 100);
+    // typický počet monitorů (nejčastější den) + dominantní pracovní kategorie
+    let typical = 0, bd = -1; for (const [c, n] of a.monDays) if (n > bd) { bd = n; typical = c; }
+    let domCat = '', bc = -1; for (const [c, m] of a.catMin) if (m > bc) { bc = m; domCat = c; }
+    const adjust = interpretMonitors && typical >= 1 && typical < 3 && MULTI_MONITOR_BENEFIT_CATS.has(domCat);
+    const score = adjust ? Math.min(100, Math.round(scoreRaw * monitorHandicapFactor(typical))) : scoreRaw;
+    const pcOff = Math.max(adjExpected - (a.work + a.nonwork + a.idle), 0);
     out.push({
-      userId: s.userId, displayName: s.displayName, department: s.department,
-      score: s.score, scoreRaw: s.scoreRaw, monitorAdjusted: s.monitorAdjusted,
-      workPct: s.workPct, nonWorkPct: s.nonWorkPct, idlePct: s.idlePct, pcOffPct: s.pcOffPct, avgKpm: s.avgKpm,
+      userId: u.id, displayName: u.displayName, department: u.department,
+      score, scoreRaw, monitorAdjusted: adjust,
+      workPct: clampPct((a.work / adjExpected) * 100),
+      nonWorkPct: clampPct((a.nonwork / adjExpected) * 100),
+      idlePct: clampPct((a.idle / adjExpected) * 100),
+      pcOffPct: clampPct((pcOff / adjExpected) * 100),
+      avgKpm: a.work + a.nonwork > 0 ? Math.round(a.ks / (a.work + a.nonwork)) : 0,
     });
   }
   out.sort((a, b) => b.score - a.score);

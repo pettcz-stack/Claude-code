@@ -2,7 +2,6 @@ import { prisma } from '../db.js';
 import { config } from '../config.js';
 import { getCategoryMap, type CatType } from './categories.js';
 import { classifyActivity, getWebRules } from './classify.js';
-import { computeIntegrity } from './integrity.js';
 import { computeUserScore, monitorHandicapFactor, MULTI_MONITOR_BENEFIT_CATS } from './scoring.js';
 import { getSettings } from './settings.js';
 
@@ -16,8 +15,6 @@ export type TrendPoint = { date: string; score: number; workMinutes: number; non
 
 /** Denní trend skóre pro uživatele (nebo průměr firmy, když userId chybí). */
 export async function trend(from: Date, to: Date, userId?: string, department?: string): Promise<TrendPoint[]> {
-  const catMap = await getCategoryMap();
-  const webRules = await getWebRules();
   const expectedPerDay = config.expectedWorkHoursPerDay * 60;
 
   const userIds = userId
@@ -29,27 +26,19 @@ export async function trend(from: Date, to: Date, userId?: string, department?: 
         })
       ).map((u) => u.id);
 
-  const intervals = await prisma.activityInterval.findMany({
-    where: { userId: { in: userIds }, intervalStart: { gte: from, lt: to } },
-    select: { userId: true, intervalStart: true, activeSeconds: true, idleSeconds: true, foregroundApp: true, windowTitle: true },
+  // Čteme z předpočítaných denních souhrnů (rychlé i nad roky dat).
+  const rows = await prisma.dailyStat.findMany({
+    where: { userId: { in: userIds }, date: { gte: from, lt: to } },
+    select: { userId: true, date: true, workMin: true, nonWorkMin: true, idleMin: true },
   });
 
   // den -> uživatel -> {work, nonwork, idle}
   const perDay = new Map<string, Map<string, { work: number; nonwork: number; idle: number }>>();
-  for (const it of intervals) {
-    const dk = dayKey(it.intervalStart);
+  for (const r of rows) {
+    const dk = dayKey(r.date);
     let users = perDay.get(dk);
     if (!users) (users = new Map()), perDay.set(dk, users);
-    let acc = users.get(it.userId);
-    if (!acc) (acc = { work: 0, nonwork: 0, idle: 0 }), users.set(it.userId, acc);
-    acc.idle += it.idleSeconds / 60;
-    const m = it.activeSeconds / 60;
-    if (m > 0) {
-      const info = classifyActivity(catMap, webRules, it.foregroundApp, it.windowTitle);
-      if (info.type === 'NON_WORK') acc.nonwork += m;
-      else if (info.type === 'UNKNOWN') { /* nezařazeno – vyjmuto */ }
-      else acc.work += m;
-    }
+    users.set(r.userId, { work: r.workMin, nonwork: r.nonWorkMin, idle: r.idleMin });
   }
 
   const points: TrendPoint[] = [];
@@ -149,26 +138,21 @@ function countWorkdays(from: Date, to: Date): number {
 
 type Acc = { work: number; nonwork: number; idle: number; unknown: number };
 
-/** Agregace aktivních minut na uživatele z intervalů (jeden průchod). */
+/** Agregace klasifikovaných minut na uživatele z denních souhrnů (rychlé i nad roky dat). */
 async function perUser(userIds: string[], from: Date, to: Date): Promise<Map<string, Acc>> {
-  const catMap = await getCategoryMap();
-  const webRules = await getWebRules();
-  const rows = await prisma.activityInterval.findMany({
-    where: { userId: { in: userIds }, intervalStart: { gte: from, lt: to } },
-    select: { userId: true, activeSeconds: true, idleSeconds: true, foregroundApp: true, windowTitle: true },
+  const rows = await prisma.dailyStat.groupBy({
+    by: ['userId'],
+    where: { userId: { in: userIds }, date: { gte: from, lt: to } },
+    _sum: { workMin: true, nonWorkMin: true, idleMin: true, unknownMin: true },
   });
   const map = new Map<string, Acc>();
   for (const r of rows) {
-    let a = map.get(r.userId);
-    if (!a) (a = { work: 0, nonwork: 0, idle: 0, unknown: 0 }), map.set(r.userId, a);
-    a.idle += r.idleSeconds / 60;
-    const m = r.activeSeconds / 60;
-    if (m > 0) {
-      const info = classifyActivity(catMap, webRules, r.foregroundApp, r.windowTitle);
-      if (info.type === 'NON_WORK') a.nonwork += m;
-      else if (info.type === 'UNKNOWN') a.unknown += m; // vyjmuto ze statistik
-      else a.work += m;
-    }
+    map.set(r.userId, {
+      work: r._sum.workMin ?? 0,
+      nonwork: r._sum.nonWorkMin ?? 0,
+      idle: r._sum.idleMin ?? 0,
+      unknown: r._sum.unknownMin ?? 0,
+    });
   }
   return map;
 }
@@ -188,41 +172,40 @@ async function monitorFactorMap(userIds: string[], from: Date, to: Date): Promis
   if (userIds.length === 0) return out;
   const { interpretMonitors } = await getSettings();
   if (!interpretMonitors) return out;
-  const catMap = await getCategoryMap();
-  const webRules = await getWebRules();
-  const rows = await prisma.activityInterval.findMany({
-    where: { userId: { in: userIds }, intervalStart: { gte: from, lt: to } },
-    select: { userId: true, foregroundApp: true, windowTitle: true, activeSeconds: true, monitorCount: true },
+  // Z denních souhrnů: typický počet monitorů (nejčastější den) + dominantní
+  // pracovní kategorie (dle pracovních minut). Žádné čtení surových intervalů.
+  const rows = await prisma.dailyStat.findMany({
+    where: { userId: { in: userIds }, date: { gte: from, lt: to } },
+    select: { userId: true, workMin: true, monitorTop: true, domWorkCat: true },
   });
-  const workCat = new Map<string, Map<string, number>>(); // user → kategorie WORK → sekundy
-  const monSec = new Map<string, Map<number, number>>(); // user → počet monitorů → sekundy
+  const monDays = new Map<string, Map<number, number>>();
+  const workCat = new Map<string, Map<string, number>>();
   for (const r of rows) {
-    if (r.activeSeconds <= 0) continue;
-    if (r.monitorCount && r.monitorCount > 0) {
-      let mm = monSec.get(r.userId);
-      if (!mm) (mm = new Map()), monSec.set(r.userId, mm);
-      mm.set(r.monitorCount, (mm.get(r.monitorCount) ?? 0) + r.activeSeconds);
+    if (r.monitorTop > 0) {
+      let mm = monDays.get(r.userId);
+      if (!mm) (mm = new Map()), monDays.set(r.userId, mm);
+      mm.set(r.monitorTop, (mm.get(r.monitorTop) ?? 0) + 1);
     }
-    const { category, type } = classifyActivity(catMap, webRules, r.foregroundApp, r.windowTitle);
-    if (type !== 'WORK' && type !== 'NEUTRAL') continue;
-    let cm = workCat.get(r.userId);
-    if (!cm) (cm = new Map()), workCat.set(r.userId, cm);
-    cm.set(category, (cm.get(category) ?? 0) + r.activeSeconds);
+    if (r.domWorkCat) {
+      let cm = workCat.get(r.userId);
+      if (!cm) (cm = new Map()), workCat.set(r.userId, cm);
+      cm.set(r.domWorkCat, (cm.get(r.domWorkCat) ?? 0) + r.workMin);
+    }
   }
   const dominantOf = (m?: Map<string, number>) => {
     if (!m) return '';
-    let best = '', sec = 0;
-    for (const [c, s] of m) if (s > sec) ((sec = s), (best = c));
+    let best = '', v = -1;
+    for (const [c, s] of m) if (s > v) ((v = s), (best = c));
     return best;
   };
   const typicalOf = (m?: Map<number, number>) => {
     if (!m) return 0;
-    let best = 0, sec = -1;
-    for (const [c, s] of m) if (s > sec) ((sec = s), (best = c));
+    let best = 0, v = -1;
+    for (const [c, s] of m) if (s > v) ((v = s), (best = c));
     return best;
   };
   for (const id of userIds) {
-    const typical = typicalOf(monSec.get(id));
+    const typical = typicalOf(monDays.get(id));
     const dom = dominantOf(workCat.get(id));
     if (typical >= 1 && typical < 3 && MULTI_MONITOR_BENEFIT_CATS.has(dom)) {
       out.set(id, monitorHandicapFactor(typical));
@@ -293,12 +276,12 @@ export async function overview(from: Date, to: Date, department?: string): Promi
   const prevAvg = Math.round(users.reduce((s, u) => s + prevScore(u.id), 0) / n);
   const avgScoreDelta = prev.size > 0 ? avgScore - prevAvg : null;
 
-  // počet podezřelých (integrita)
-  let flagged = 0;
-  for (const u of users) {
-    const r = await computeIntegrity(u.id, from, to);
-    if (r.suspicious) flagged++;
-  }
+  // počet podezřelých (z předpočítaného denního příznaku integrity)
+  const susp = await prisma.dailyStat.findMany({
+    where: { userId: { in: ids }, date: { gte: from, lt: to }, suspicious: true },
+    select: { userId: true }, distinct: ['userId'],
+  });
+  const flagged = susp.length;
 
   const now = Date.now();
   const devices = await prisma.device.findMany({ where: { active: true }, select: { lastSeen: true } });

@@ -1,10 +1,74 @@
 import { prisma } from '../db.js';
+import { getCategoryMap } from './categories.js';
+import { classifyActivity, getWebRules } from './classify.js';
+import { computeIntegrity } from './integrity.js';
 
 /** Zarovná čas na začátek hodiny (UTC). */
 export function floorToHour(d: Date): Date {
   const x = new Date(d);
   x.setUTCMinutes(0, 0, 0);
   return x;
+}
+
+/** Zarovná čas na začátek dne (UTC). */
+export function floorToDay(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
+/**
+ * Přepočítá denní souhrny (DailyStat) pro zadané dvojice (uživatel, den).
+ * Klasifikuje intervaly stejnou logikou jako dashboard → čísla sedí, ale
+ * dashboard pak čte jen pár řádků místo statisíců intervalů.
+ */
+export async function aggregateDays(pairs: { userId: string; day: Date }[]): Promise<number> {
+  const unique = new Map<string, { userId: string; day: Date }>();
+  for (const p of pairs) unique.set(`${p.userId}@${p.day.toISOString()}`, p);
+  if (unique.size === 0) return 0;
+
+  const catMap = await getCategoryMap();
+  const webRules = await getWebRules();
+  let written = 0;
+  for (const { userId, day } of unique.values()) {
+    const dayEnd = new Date(day.getTime() + 24 * 60 * 60 * 1000);
+    const intervals = await prisma.activityInterval.findMany({
+      where: { userId, intervalStart: { gte: day, lt: dayEnd } },
+      select: { activeSeconds: true, idleSeconds: true, foregroundApp: true, windowTitle: true, keystrokeCount: true, monitorCount: true },
+    });
+    if (intervals.length === 0) {
+      await prisma.dailyStat.deleteMany({ where: { userId, date: day } });
+      continue;
+    }
+
+    let work = 0, nonwork = 0, idle = 0, unknown = 0, keystroke = 0, multiMon = 0;
+    const catMin = new Map<string, number>();
+    const monMin = new Map<number, number>();
+    for (const it of intervals) {
+      const aMin = it.activeSeconds / 60;
+      idle += it.idleSeconds / 60;
+      keystroke += it.keystrokeCount;
+      if (aMin <= 0) continue;
+      if (it.monitorCount && it.monitorCount > 0) {
+        monMin.set(it.monitorCount, (monMin.get(it.monitorCount) ?? 0) + aMin);
+        if (it.monitorCount >= 2) multiMon += aMin;
+      }
+      const info = classifyActivity(catMap, webRules, it.foregroundApp, it.windowTitle);
+      if (info.type === 'NON_WORK') nonwork += aMin;
+      else if (info.type === 'UNKNOWN') unknown += aMin;
+      else { work += aMin; catMin.set(info.category, (catMin.get(info.category) ?? 0) + aMin); }
+    }
+    let monitorTop = 0, mb = -1; for (const [c, m] of monMin) if (m > mb) { mb = m; monitorTop = c; }
+    let domWorkCat: string | null = null, db = -1; for (const [c, m] of catMin) if (m > db) { db = m; domWorkCat = c; }
+    const integ = await computeIntegrity(userId, day, dayEnd);
+
+    const data = { workMin: work, nonWorkMin: nonwork, idleMin: idle, unknownMin: unknown, keystroke, monitorTop, multiMonitorMin: multiMon, domWorkCat, suspicious: integ.suspicious };
+    await prisma.dailyStat.upsert({
+      where: { userId_date: { userId, date: day } },
+      create: { userId, date: day, ...data },
+      update: data,
+    });
+    written++;
+  }
+  return written;
 }
 
 type UserHour = { userId: string; hourStart: Date };
@@ -98,7 +162,9 @@ export async function aggregateForIntervals(
   intervals: { userId: string; intervalStart: Date }[],
 ): Promise<number> {
   const pairs = intervals.map((i) => ({ userId: i.userId, hourStart: floorToHour(i.intervalStart) }));
-  return aggregateHours(pairs);
+  const n = await aggregateHours(pairs);
+  await aggregateDays(intervals.map((i) => ({ userId: i.userId, day: floorToDay(i.intervalStart) })));
+  return n;
 }
 
 /**
