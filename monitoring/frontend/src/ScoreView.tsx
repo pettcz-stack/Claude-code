@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Keyboard, Clock, AlertTriangle, AppWindow, Monitor, Shuffle } from 'lucide-react';
+import { Keyboard, Clock, AlertTriangle, AppWindow, Monitor, Shuffle, CalendarOff } from 'lucide-react';
 import { api, type UserScore, type User } from './api.js';
 import { Donut } from './Donut.js';
 import { ScoreScaleLegend } from './Legend.js';
@@ -41,10 +41,25 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
   if (!s) return null;
 
   const maxCat = Math.max(1, ...s.categories.map((c) => c.minutes));
+  const absences = [
+    s.vacationDays ? { label: 'dovolená', n: s.vacationDays, cls: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300' } : null,
+    s.sickDays ? { label: 'nemoc', n: s.sickDays, cls: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300' } : null,
+    s.holidayDays ? { label: 'státní svátek', n: s.holidayDays, cls: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300' } : null,
+  ].filter(Boolean) as { label: string; n: number; cls: string }[];
 
   return (
     <div className="space-y-4">
       <ScoreScaleLegend />
+      {absences.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-sky-200 bg-sky-50/60 p-3 text-sm dark:border-sky-500/30 dark:bg-sky-500/10">
+          <CalendarOff size={16} className="shrink-0 text-sky-600 dark:text-sky-300" />
+          <span className="font-medium">Volno v období:</span>
+          {absences.map((a) => (
+            <span key={a.label} className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${a.cls}`}>{a.label}: {a.n} {a.n === 1 ? 'den' : a.n >= 2 && a.n <= 4 ? 'dny' : 'dní'}</span>
+          ))}
+          <span className="muted-2">– tyto dny se nezapočítávají do skóre (nepracoval, protože měl volno).</span>
+        </div>
+      )}
       <div className="grid gap-6 card p-6 md:grid-cols-2">
         <div className="flex items-center justify-center">
           <Donut

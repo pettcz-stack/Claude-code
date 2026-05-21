@@ -3,6 +3,7 @@ import { config } from '../config.js';
 import { getCategoryMap, type CatType } from './categories.js';
 import { classifyActivity, getWebRules } from './classify.js';
 import { getSettings } from './settings.js';
+import { holidayWeekdaySet, absenceByUser, effectiveWorkdays } from './workcal.js';
 
 export type ScoreBreakdown = {
   expectedMinutes: number;
@@ -36,6 +37,9 @@ export type UserScore = ScoreBreakdown & {
   appSwitchesPerHour: number; // přepínání aplikací za hodinu (fragmentace pozornosti)
   scoreRaw: number; // skóre bez interpretace (vždy z plných dat)
   monitorAdjusted: boolean; // bylo skóre upraveno o handicap monitorů?
+  vacationDays: number; // dny dovolené v období (z HR) – nezapočítané do fondu
+  sickDays: number; // dny nemoci v období (z HR) – nezapočítané do fondu
+  holidayDays: number; // státní svátky (Po–Pá) v období – nezapočítané do fondu
 };
 
 // Kategorie práce, kde druhý monitor prokazatelně pomáhá (porovnávání/přepínání oken).
@@ -60,17 +64,6 @@ function monitorCapacity(monitors: number): number {
 export function monitorHandicapFactor(monitors: number): number {
   const capMax = 1.35;
   return capMax / monitorCapacity(monitors);
-}
-
-function countWorkdays(from: Date, to: Date): number {
-  let days = 0;
-  const d = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()));
-  while (d < to) {
-    const dow = d.getUTCDay();
-    if (dow >= 1 && dow <= 5) days++;
-    d.setUTCDate(d.getUTCDate() + 1);
-  }
-  return Math.max(days, 1);
 }
 
 function pct(part: number, whole: number): number {
@@ -115,7 +108,10 @@ export async function scoreboardRows(from: Date, to: Date, department?: string):
   });
   const ids = users.map((u) => u.id);
   const { interpretMonitors } = await getSettings();
-  const expected = countWorkdays(from, to) * config.expectedWorkHoursPerDay * 60;
+  // Fond očekávaného času na uživatele bez svátků a jeho dovolené/nemoci.
+  const holidays = holidayWeekdaySet(from, to);
+  const absMap = await absenceByUser(ids, from, to, holidays);
+  const expectedOf = (uid: string) => effectiveWorkdays(from, to, holidays, absMap.get(uid)?.days) * config.expectedWorkHoursPerDay * 60;
 
   const daily = await prisma.dailyStat.findMany({
     where: { userId: { in: ids }, date: { gte: from, lt: to } },
@@ -135,7 +131,7 @@ export async function scoreboardRows(from: Date, to: Date, department?: string):
   const out: ScoreboardRow[] = [];
   for (const u of users) {
     const a = byUser.get(u.id) ?? { work: 0, nonwork: 0, idle: 0, unknown: 0, ks: 0, monDays: new Map(), catMin: new Map() };
-    const adjExpected = Math.max(expected - a.unknown, 1);
+    const adjExpected = Math.max(expectedOf(u.id) - a.unknown, 1);
     const scoreRaw = clampPct((a.work / adjExpected) * 100);
     // typický počet monitorů (nejčastější den) + dominantní pracovní kategorie
     let typical = 0, bd = -1; for (const [c, n] of a.monDays) if (n > bd) { bd = n; typical = c; }
@@ -209,7 +205,14 @@ export async function computeUserScore(userId: string, from: Date, to: Date, opt
     if (it.foregroundApp) appActive.set(it.foregroundApp, (appActive.get(it.foregroundApp) ?? 0) + activeMin);
   }
 
-  const expectedMinutesRaw = countWorkdays(from, to) * config.expectedWorkHoursPerDay * 60;
+  // Volno (svátek/dovolená/nemoc) se NEpočítá do fondu – nepracoval, protože měl volno.
+  const holidays = holidayWeekdaySet(from, to);
+  const absInfo = (await absenceByUser([userId], from, to, holidays)).get(userId);
+  const vacationDays = absInfo?.vacation ?? 0;
+  const sickDays = absInfo?.sick ?? 0;
+  const holidayDays = holidays.size;
+  const effDays = effectiveWorkdays(from, to, holidays, absInfo?.days);
+  const expectedMinutesRaw = effDays * config.expectedWorkHoursPerDay * 60;
   // Nezařazený čas se vyjme z fondu → nejde do + ani −.
   const expectedMinutes = Math.max(expectedMinutesRaw - unknownMinutes, 1);
   const trackedOnMinutes = workMinutes + nonWorkMinutes + idleOnMinutes;
@@ -279,6 +282,9 @@ export async function computeUserScore(userId: string, from: Date, to: Date, opt
     appSwitchesPerHour,
     scoreRaw,
     monitorAdjusted: adjust,
+    vacationDays,
+    sickDays,
+    holidayDays,
   };
 }
 

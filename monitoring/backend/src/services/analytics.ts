@@ -4,6 +4,7 @@ import { getCategoryMap, type CatType } from './categories.js';
 import { classifyActivity, getWebRules } from './classify.js';
 import { computeUserScore, monitorHandicapFactor, MULTI_MONITOR_BENEFIT_CATS } from './scoring.js';
 import { getSettings } from './settings.js';
+import { holidayWeekdaySet, absenceByUser, effectiveWorkdays } from './workcal.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -235,7 +236,10 @@ export async function overview(from: Date, to: Date, department?: string): Promi
     select: { id: true, displayName: true, department: true },
   });
   const ids = users.map((u) => u.id);
-  const expected = countWorkdays(from, to) * config.expectedWorkHoursPerDay * 60;
+  // Fond na uživatele bez svátků a jeho dovolené/nemoci → volno nesnižuje skóre.
+  const holidays = holidayWeekdaySet(from, to);
+  const absMap = await absenceByUser(ids, from, to, holidays);
+  const expOf = (id: string) => effectiveWorkdays(from, to, holidays, absMap.get(id)?.days) * config.expectedWorkHoursPerDay * 60;
 
   const cur = await perUser(ids, from, to);
 
@@ -246,10 +250,12 @@ export async function overview(from: Date, to: Date, department?: string): Promi
     return f ? clampPct(raw * f) : raw;
   };
 
-  // předchozí stejně dlouhé období (pro deltu skóre)
+  // předchozí stejně dlouhé období (pro deltu skóre) – orientačně bez per-user absencí
   const span = to.getTime() - from.getTime();
-  const prev = await perUser(ids, new Date(from.getTime() - span), from);
-  const prevScore = (id: string) => adjScore(id, userScorePct(prev.get(id) ?? EMPTY_ACC, expected));
+  const prevFrom = new Date(from.getTime() - span);
+  const prevExp = effectiveWorkdays(prevFrom, from, holidayWeekdaySet(prevFrom, from)) * config.expectedWorkHoursPerDay * 60;
+  const prev = await perUser(ids, prevFrom, from);
+  const prevScore = (id: string) => adjScore(id, userScorePct(prev.get(id) ?? EMPTY_ACC, prevExp));
 
   let workSum = 0, nonworkSum = 0, idleSum = 0, pcoffSum = 0, scoreSum = 0;
   const perUserScore = new Map<string, number>();
@@ -257,6 +263,7 @@ export async function overview(from: Date, to: Date, department?: string): Promi
 
   for (const u of users) {
     const a = cur.get(u.id) ?? EMPTY_ACC;
+    const expected = expOf(u.id);
     const score = adjScore(u.id, userScorePct(a, expected));
     const adjExpected = Math.max(expected - a.unknown, 1);
     pcoffSum += Math.max(adjExpected - (a.work + a.nonwork + a.idle), 0);
@@ -387,7 +394,9 @@ export async function homeOffice(from: Date, to: Date, department?: string): Pro
   });
   const ids = users.map((u) => u.id);
   const expectedPerDay = config.expectedWorkHoursPerDay * 60;
-  const totalWorkdays = countWorkdays(from, to);
+  // Pracovní dny bez svátků a bez dovolené/nemoci (na uživatele).
+  const holidays = holidayWeekdaySet(from, to);
+  const absMap = await absenceByUser(ids, from, to, holidays);
 
   // HO dny z OKbase (Absence type HOME_OFFICE)
   const abs = await prisma.absence.findMany({
@@ -427,7 +436,8 @@ export async function homeOffice(from: Date, to: Date, department?: string): Pro
   for (const u of users) {
     const a = acc.get(u.id)!;
     const hoDays = hoDaysByUser.get(u.id)?.size ?? 0;
-    const officeDays = Math.max(totalWorkdays - hoDays, 0);
+    const workdays = effectiveWorkdays(from, to, holidays, absMap.get(u.id)?.days);
+    const officeDays = Math.max(workdays - hoDays, 0);
     if (hoDays > 0) usersWithHo++;
     cHoWork += a.ho.work; cOfficeWork += a.office.work; cHoNon += a.ho.nonwork; cOfficeNon += a.office.nonwork;
     cHoDays += hoDays; cOfficeDays += officeDays;
@@ -743,13 +753,16 @@ export async function costAudit(from: Date, to: Date, department?: string): Prom
     select: { id: true, displayName: true, department: true, hourlyRate: true },
   });
   const ids = users.map((u) => u.id);
-  const expected = countWorkdays(from, to) * config.expectedWorkHoursPerDay * 60;
+  // Fond bez svátků a dovolené/nemoci → volno se nepočítá jako „mimo PC" náklad.
+  const holidays = holidayWeekdaySet(from, to);
+  const absMap = await absenceByUser(ids, from, to, holidays);
   const cur = await perUser(ids, from, to);
 
   let tNon = 0, tIdle = 0, tPcoff = 0, withRate = 0;
   const perUserOut: CostResult['perUser'] = [];
   for (const u of users) {
     const a = cur.get(u.id) ?? EMPTY_ACC;
+    const expected = effectiveWorkdays(from, to, holidays, absMap.get(u.id)?.days) * config.expectedWorkHoursPerDay * 60;
     const adjExpected = Math.max(expected - a.unknown, 1);
     const pcoff = Math.max(adjExpected - (a.work + a.nonwork + a.idle), 0);
     const rate = u.hourlyRate ?? null;

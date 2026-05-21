@@ -83,6 +83,9 @@ export type UserScore = {
   appSwitchesPerHour: number;
   scoreRaw: number;
   monitorAdjusted: boolean;
+  vacationDays: number;
+  sickDays: number;
+  holidayDays: number;
 };
 export type SoftwareItem = {
   app: string; category: string | null; type: string; activeHours: number; users: number; usersPct: number;
