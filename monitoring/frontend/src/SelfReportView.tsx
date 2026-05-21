@@ -66,16 +66,27 @@ const QUOTES: { text: string; author: string }[] = [
   { text: 'Spojit se je začátek, zůstat spolu je pokrok, spolupracovat je úspěch.', author: 'Henry Ford' },
 ];
 
+const DAY = () => Math.floor(Date.now() / 86400000);
+
 function quoteOfDay(): { text: string; author: string } {
-  return QUOTES[Math.floor(Date.now() / 86400000) % QUOTES.length];
+  return QUOTES[DAY() % QUOTES.length];
 }
 
-/** Deterministicky vybere N tipů „pro dnešek" (mění se den ode dne). */
-function pickTips(n: number): { cat: Cat; text: string }[] {
-  const seed = Math.floor(Date.now() / 86400000); // den
-  const out: { cat: Cat; text: string }[] = [];
-  for (let i = 0; i < n; i++) out.push(TIPS[(seed * 7 + i * 5) % TIPS.length]);
-  return out;
+/** Jeden zdravotní tip „pro dnešek" (mění se den ode dne, ať se to neokouká). */
+function tipOfDay(): { cat: Cat; text: string } {
+  return TIPS[(DAY() * 7) % TIPS.length];
+}
+
+// Zábavné „věděl jsi" – jedno na den.
+const FUN_FACTS: string[] = [
+  'Tvé prsty po klávesnici „ujedou" týdně klidně i pár set metrů – patříš mezi tahouny!',
+  'Soustředěný blok bez přepínání oken zvládne víc než hodina ve skocích.',
+  'Dvě obrazovky ušetří desítky přepnutí denně – ruka i hlava si oddychnou.',
+  'Plynulé tempo psaní dělá míň překlepů než zběsilé bušení.',
+  'Doušek vody každou hodinu drží pozornost výš než další káva.',
+];
+function funFactOfDay(): string {
+  return FUN_FACTS[DAY() % FUN_FACTS.length];
 }
 
 function badges(r: SelfReportData): string[] {
@@ -114,7 +125,7 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
   if (!r) return <p className="muted-2">Načítám…</p>;
 
   const distance = r.distanceMeters >= 1000 ? `${(r.distanceMeters / 1000).toFixed(1)} km` : `${r.distanceMeters} m`;
-  const tips = pickTips(6);
+  const tip = tipOfDay();
   const quote = quoteOfDay();
 
   const grade = r.score >= 70 ? { t: 'Skvělá práce!', e: '🏆' } : r.score >= 45 ? { t: 'Dobrá práce', e: '👍' } : { t: 'Je co zlepšovat', e: '💪' };
@@ -156,10 +167,10 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
       <div className="card p-5">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Sparkles size={16} className="text-emerald-500" /> Tvoje čísla za období</h3>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Stat label="Skóre efektivity" value={`${r.score}%`} />
+          <Stat label="Skóre efektivity" value={`${r.score} %`} />
           <Stat label="Aktivní práce" value={`${r.activeHours} h`} />
-          <Stat label="Tempo psaní" value={`${r.avgKpm}/min`} />
-          <Stat label="Monitory" value={`${r.monitorTypical || '—'}`} />
+          <Stat label="Tempo psaní" value={`${r.avgKpm} úhozů/min`} />
+          <Stat label="Monitory" value={r.monitorTypical ? `${r.monitorTypical} ${r.monitorTypical === 1 ? 'obrazovka' : 'obrazovky'}` : '—'} />
         </div>
         <p className="mt-4 flex items-center gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
           <Trophy size={16} /> V psaní na klávesnici jsi rychlejší než <b>{r.kpmPercentile} %</b> zaměstnanců a celkově lepší než <b>{r.companyPercentile} %</b> firmy. Skvělé!
@@ -174,6 +185,9 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
             {badges(r).map((b) => (
               <span key={b} className="rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">{b}</span>
             ))}
+          </div>
+          <div className="mb-4 flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+            <Sparkles size={16} className="mt-0.5 shrink-0" /> <span><b>Věděl jsi?</b> {funFactOfDay()}</span>
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="rounded-lg border border-gray-200 p-4 dark:border-slate-700">
@@ -198,17 +212,12 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
       {/* Zdravotní režim – mikro-doporučení BEZ ztráty pozornosti (žádné přestávky) */}
       {healthMode && (
         <div className="card border-rose-200 p-5 dark:border-rose-500/30">
-          <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-rose-600 dark:text-rose-300"><HeartPulse size={16} /> Zdravotní mikro-tipy</h3>
-          <p className="mb-3 text-xs muted-2">Drobnosti, které zvládnete při práci a neberou pozornost déle než pár vteřin.</p>
-          <div className="mb-3 flex items-center gap-3 rounded-lg bg-rose-50 p-3 text-sm dark:bg-rose-500/10">
-            {CAT_ICON[tips[0].cat]} <span><b>Tip teď:</b> {tips[0].text}</span>
+          <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-rose-600 dark:text-rose-300"><HeartPulse size={16} /> Zdravotní mikro-tip</h3>
+          <p className="mb-3 text-xs muted-2">Drobnost, kterou zvládnete při práci a nezabere pozornost déle než pár vteřin.</p>
+          <div className="flex items-center gap-3 rounded-lg bg-rose-50 p-3 text-sm dark:bg-rose-500/10">
+            {CAT_ICON[tip.cat]} <span><b>Tip dne:</b> {tip.text}</span>
           </div>
-          <ul className="grid gap-2 text-sm sm:grid-cols-2">
-            {tips.slice(1).map((t, i) => (
-              <li key={i} className="flex items-start gap-2 muted">{CAT_ICON[t.cat]} {t.text}</li>
-            ))}
-          </ul>
-          <p className="mt-3 text-xs muted-2">Tipy se každý den obměňují. Orientační, nejde o lékařskou radu.</p>
+          <p className="mt-3 text-xs muted-2">Tip se každý den mění. Orientační, nejde o lékařskou radu.</p>
         </div>
       )}
 

@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react';
 import { House, Building2, ArrowDown, ArrowUp } from 'lucide-react';
 import { api, type HomeOffice } from './api.js';
 import { ScoreScaleLegend } from './Legend.js';
-import { scoreTextClass as scoreColor } from './util.js';
+import { scoreColor } from './util.js';
 
 function BigScore({ icon, label, score, sub }: { icon: React.ReactNode; label: string; score: number; sub: string }) {
   return (
     <div className="card flex flex-col items-center justify-center p-6">
       <div className="mb-1 flex items-center gap-2 text-sm muted">{icon} {label}</div>
-      <div className={`text-5xl font-bold ${scoreColor(score)}`}>{score}%</div>
+      <div className="text-5xl font-bold" style={{ color: scoreColor(score) }}>{score}%</div>
       <div className="mt-1 text-xs muted-2">{sub}</div>
     </div>
   );
@@ -100,7 +100,7 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
                 <td className="td"><button onClick={() => onOpenUser(u.userId)} className="font-medium hover:underline">{u.displayName}</button></td>
                 <td className="td muted">{u.department}</td>
                 <td className="td text-right tabular-nums">{unit === 'hours' ? u.hoDays * 8 : u.hoDays}</td>
-                <td className={`td text-right tabular-nums font-semibold ${scoreColor(u.hoScore)}`}>{u.hoScore}%</td>
+                <td className="td text-right tabular-nums font-semibold" style={{ color: scoreColor(u.hoScore) }}>{u.hoScore}%</td>
                 <td className="td text-right tabular-nums muted">{u.officeScore}%</td>
                 <td className={`td text-right tabular-nums font-semibold ${u.diff < 0 ? 'text-red-500' : 'text-emerald-500'}`}>{u.diff > 0 ? '+' : ''}{u.diff}</td>
               </tr>

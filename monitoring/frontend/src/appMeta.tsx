@@ -1,0 +1,65 @@
+import {
+  Globe, FileSpreadsheet, FileText, Presentation, Mail, Users, Database,
+  Calculator, Contact, Box, Code2, CalendarClock, Gamepad2, Music, Folder,
+  MessageCircle, Send, Hash, AppWindow, type LucideIcon,
+} from 'lucide-react';
+
+type Meta = { name: string; Icon: LucideIcon; color: string };
+
+// Mapování procesů na čitelný název + ikonu + firemní barvu.
+const MAP: Record<string, Meta> = {
+  'chrome.exe': { name: 'Google Chrome', Icon: Globe, color: '#4285F4' },
+  'msedge.exe': { name: 'Microsoft Edge', Icon: Globe, color: '#0EA5E9' },
+  'firefox.exe': { name: 'Mozilla Firefox', Icon: Globe, color: '#E66000' },
+  'excel.exe': { name: 'Microsoft Excel', Icon: FileSpreadsheet, color: '#16A34A' },
+  'winword.exe': { name: 'Microsoft Word', Icon: FileText, color: '#2563EB' },
+  'powerpnt.exe': { name: 'PowerPoint', Icon: Presentation, color: '#EA580C' },
+  'outlook.exe': { name: 'Outlook', Icon: Mail, color: '#2563EB' },
+  'teams.exe': { name: 'Microsoft Teams', Icon: Users, color: '#6366F1' },
+  'slack.exe': { name: 'Slack', Icon: Hash, color: '#7C3AED' },
+  'navision.exe': { name: 'Microsoft Navision', Icon: Database, color: '#6366F1' },
+  'sap.exe': { name: 'SAP', Icon: Database, color: '#0EA5E9' },
+  'econ.exe': { name: 'E-CON', Icon: Calculator, color: '#0891B2' },
+  'crm.exe': { name: 'Dynamics CRM', Icon: Contact, color: '#7C3AED' },
+  'sldworks.exe': { name: 'SolidWorks', Icon: Box, color: '#DC2626' },
+  'code.exe': { name: 'VS Code', Icon: Code2, color: '#2563EB' },
+  'devenv.exe': { name: 'Visual Studio', Icon: Code2, color: '#7C3AED' },
+  'okbase.exe': { name: 'OKbase', Icon: CalendarClock, color: '#0891B2' },
+  'acrobat.exe': { name: 'Adobe Acrobat', Icon: FileText, color: '#DC2626' },
+  'acrord32.exe': { name: 'Adobe Acrobat', Icon: FileText, color: '#DC2626' },
+  'steam.exe': { name: 'Steam', Icon: Gamepad2, color: '#334155' },
+  'spotify.exe': { name: 'Spotify', Icon: Music, color: '#16A34A' },
+  'whatsapp.exe': { name: 'WhatsApp', Icon: MessageCircle, color: '#16A34A' },
+  'telegram.exe': { name: 'Telegram', Icon: Send, color: '#0EA5E9' },
+  'notepad.exe': { name: 'Poznámkový blok', Icon: FileText, color: '#64748B' },
+  'explorer.exe': { name: 'Průzkumník', Icon: Folder, color: '#F59E0B' },
+};
+
+function metaFor(app: string): Meta {
+  return MAP[app.toLowerCase()] ?? { name: prettyFallback(app), Icon: AppWindow, color: '#64748B' };
+}
+
+// Neznámý proces: "interni-nastroj.exe" → "Interni nastroj".
+function prettyFallback(app: string): string {
+  const base = app.replace(/\.exe$/i, '').replace(/[-_]/g, ' ').trim();
+  return base ? base.charAt(0).toUpperCase() + base.slice(1) : app;
+}
+
+/** Čitelný název aplikace (bez .exe). */
+export function appName(app: string): string {
+  return metaFor(app).name;
+}
+
+/** Ikonka aplikace ve formě barevného čtverečku (jako v reálném OS). */
+export function AppIcon({ app, size = 18 }: { app: string; size?: number }) {
+  const m = metaFor(app);
+  const box = size + 10;
+  return (
+    <span
+      className="inline-flex shrink-0 items-center justify-center rounded-md"
+      style={{ width: box, height: box, background: `${m.color}1f` }}
+    >
+      <m.Icon size={size} style={{ color: m.color }} />
+    </span>
+  );
+}

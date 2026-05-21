@@ -3,6 +3,7 @@ import { Boxes, KeyRound, Wallet, Save, Coins, AlertTriangle } from 'lucide-reac
 import { api, type SoftwareAudit, type SoftwareItem, type CostResult } from './api.js';
 import { PageSkeleton } from './Skeleton.js';
 import { useToast } from './Toast.js';
+import { AppIcon, appName } from './appMeta.js';
 
 export function SoftwareView({ from, to, department, canEdit }: { from: string; to: string; department?: string; canEdit: boolean }) {
   const [data, setData] = useState<SoftwareAudit | null>(null);
@@ -118,7 +119,7 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
                 const utilColor = util == null ? '' : util >= 80 ? 'text-emerald-500' : util >= 40 ? 'text-amber-500' : 'text-red-500';
                 return (
                   <tr key={i.app} className="divide-row">
-                    <td className="td font-mono text-xs">{i.app}</td>
+                    <td className="td"><span className="flex items-center gap-2"><AppIcon app={i.app} size={15} /> <span className="font-medium">{appName(i.app)}</span></span></td>
                     <td className="td muted">{i.category ?? '—'}</td>
                     <td className="td text-right tabular-nums">{i.activeHours}</td>
                     <td className="td text-right tabular-nums">{i.users} <span className="muted-2">({i.usersPct}%)</span></td>

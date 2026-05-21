@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { AppWindow, Globe } from 'lucide-react';
 import { api, type ActivityItem } from './api.js';
 import { chipClass, typeLabel, minutesToHm, TYPE_COLORS } from './util.js';
+import { AppIcon, appName } from './appMeta.js';
 
 function barColor(type: string) {
   return type === 'NON_WORK' ? TYPE_COLORS.nonwork : type === 'WORK' ? TYPE_COLORS.work : TYPE_COLORS.idle;
 }
 
-function List({ title, icon, items }: { title: string; icon: React.ReactNode; items: ActivityItem[] }) {
+function List({ title, icon, items, kind }: { title: string; icon: React.ReactNode; items: ActivityItem[]; kind: 'app' | 'site' }) {
   const max = Math.max(1, ...items.map((i) => i.minutes));
   return (
     <div className="card p-5">
@@ -15,7 +16,10 @@ function List({ title, icon, items }: { title: string; icon: React.ReactNode; it
       <div className="space-y-2">
         {items.map((it) => (
           <div key={it.label} className="flex items-center gap-3">
-            <div className="w-44 shrink-0 truncate text-sm" title={it.label}>{it.label}</div>
+            {kind === 'app'
+              ? <AppIcon app={it.label} size={16} />
+              : <span className="inline-flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-md bg-sky-500/10"><Globe size={16} className="text-sky-500" /></span>}
+            <div className="w-40 shrink-0 truncate text-sm" title={it.label}>{kind === 'app' ? appName(it.label) : it.label}</div>
             <span className={chipClass(it.type)}>{typeLabel(it.type)}</span>
             <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
               <div className="h-full rounded-full" style={{ width: `${(it.minutes / max) * 100}%`, background: barColor(it.type) }} />
@@ -39,8 +43,8 @@ export function TopActivities({ from, to, userId, department }: { from: string; 
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <List title="Top aplikace" icon={<AppWindow size={16} className="text-emerald-600" />} items={apps} />
-      <List title="Top weby (z titulků oken)" icon={<Globe size={16} className="text-emerald-600" />} items={sites} />
+      <List title="Top aplikace" icon={<AppWindow size={16} className="text-emerald-600" />} items={apps} kind="app" />
+      <List title="Top weby (z titulků oken)" icon={<Globe size={16} className="text-emerald-600" />} items={sites} kind="site" />
     </div>
   );
 }

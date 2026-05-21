@@ -3,7 +3,8 @@ import { Keyboard, Clock, AlertTriangle, AppWindow, Monitor, Shuffle } from 'luc
 import { api, type UserScore, type User } from './api.js';
 import { Donut } from './Donut.js';
 import { ScoreScaleLegend } from './Legend.js';
-import { minutesToHm, chipClass, typeLabel, TYPE_COLORS, scoreTextClass } from './util.js';
+import { AppIcon, appName } from './appMeta.js';
+import { minutesToHm, chipClass, typeLabel, TYPE_COLORS, scoreColor } from './util.js';
 
 function Card({ title, icon, children, accent }: { title: string; icon: React.ReactNode; children: React.ReactNode; accent?: string }) {
   return (
@@ -39,7 +40,6 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
   if (error) return <p className="text-red-500">Chyba: {error}</p>;
   if (!s) return null;
 
-  const scoreColor = scoreTextClass(s.score);
   const maxCat = Math.max(1, ...s.categories.map((c) => c.minutes));
 
   return (
@@ -56,7 +56,7 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
               { value: s.pcOffPct, color: TYPE_COLORS.off },
             ]}
             center={<>
-              <div className={`text-5xl font-bold ${scoreColor}`}>{s.score}%</div>
+              <div className="text-5xl font-bold" style={{ color: scoreColor(s.score) }}>{s.score}%</div>
               <div className="text-xs muted-2">odpracováno z fondu</div>
               {s.monitorAdjusted && (
                 <div className="mt-1 text-[10px] font-medium text-sky-500">upraveno o monitory (surové {s.scoreRaw}%)</div>
@@ -75,19 +75,23 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card title="Tempo psaní" icon={<Keyboard size={13} />}>
-          {s.avgKpm} úhozů/min
-          <div className="mt-1 text-xs font-normal text-emerald-500">lepší než {s.kpmPercentile} % firmy {s.kpmPercentile >= 50 ? '🎉' : ''}</div>
+          {s.avgKpm} <span className="text-sm font-normal muted">úhozů/min</span>
+          <div className="mt-1 text-xs font-normal text-emerald-500">rychlejší než {s.kpmPercentile} % firmy {s.kpmPercentile >= 50 ? '🎉' : ''}</div>
         </Card>
         <Card title="Aktivní práce" icon={<Clock size={13} />} accent="text-emerald-500">{minutesToHm(s.workMinutes)}</Card>
         <Card title="Mimopracovní" icon={<AlertTriangle size={13} />} accent="text-red-500">{minutesToHm(s.nonWorkMinutes)}</Card>
-        <Card title="Nejčastější aplikace" icon={<AppWindow size={13} />}>{s.topApp ?? '—'}</Card>
+        <Card title="Nejčastější aplikace" icon={<AppWindow size={13} />}>
+          {s.topApp
+            ? <span className="flex items-center gap-2"><AppIcon app={s.topApp} size={16} /> {appName(s.topApp)}</span>
+            : '—'}
+        </Card>
         <Card title="Monitory" icon={<Monitor size={13} />}>
-          {s.monitorTypical || '—'}
-          <div className="mt-1 text-xs font-normal muted-2">{s.multiMonitorPct}% času na 2+ obraz.</div>
+          {s.monitorTypical ? `${s.monitorTypical} ` : '— '}<span className="text-sm font-normal muted">{s.monitorTypical === 1 ? 'obrazovka' : s.monitorTypical >= 2 && s.monitorTypical <= 4 ? 'obrazovky' : 'obrazovek'}</span>
+          <div className="mt-1 text-xs font-normal muted-2">{s.multiMonitorPct} % času na 2+ obrazovkách</div>
         </Card>
         <Card title="Fragmentace pozornosti" icon={<Shuffle size={13} />}>
-          {s.appSwitchesPerHour}/h
-          <div className="mt-1 text-xs font-normal muted-2">přepnutí aplikace · nižší = soustředěnější</div>
+          {s.appSwitchesPerHour} <span className="text-sm font-normal muted">přepnutí/h</span>
+          <div className="mt-1 text-xs font-normal muted-2">nižší = soustředěnější práce</div>
         </Card>
       </div>
 

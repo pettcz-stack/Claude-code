@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type ScoreboardRow } from './api.js';
 import { ScoreScaleLegend, ActivityLegend } from './Legend.js';
-import { TYPE_COLORS, scoreTextClass } from './util.js';
+import { TYPE_COLORS, scoreColor } from './util.js';
 
 export function Scoreboard({ from, to, department }: { from: string; to: string; department?: string }) {
   const [rows, setRows] = useState<ScoreboardRow[]>([]);
@@ -31,7 +31,7 @@ export function Scoreboard({ from, to, department }: { from: string; to: string;
               <div style={{ width: `${r.idlePct}%`, background: TYPE_COLORS.idle }} />
               <div style={{ width: `${r.pcOffPct}%`, background: TYPE_COLORS.off }} />
             </div>
-            <div className={`w-14 shrink-0 text-right text-lg font-bold tabular-nums ${scoreTextClass(r.score)}`}>{r.score}%</div>
+            <div className="w-14 shrink-0 text-right text-lg font-bold tabular-nums" style={{ color: scoreColor(r.score) }}>{r.score}%</div>
           </div>
         ))}
         {rows.length === 0 && !error && <p className="text-sm muted-2">Žádná data.</p>}

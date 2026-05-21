@@ -6,13 +6,13 @@ import { TrendChart } from './TrendChart.js';
 import { HeatmapView } from './HeatmapView.js';
 import { PageSkeleton } from './Skeleton.js';
 import { ScoreScaleLegend } from './Legend.js';
-import { TYPE_COLORS, scoreHex, scoreTextClass } from './util.js';
+import { TYPE_COLORS, scoreHex, scoreColor } from './util.js';
 
-function Kpi({ icon, label, value, sub, accent }: { icon: React.ReactNode; label: string; value: string; sub?: React.ReactNode; accent?: string }) {
+function Kpi({ icon, label, value, sub, accent, color }: { icon: React.ReactNode; label: string; value: string; sub?: React.ReactNode; accent?: string; color?: string }) {
   return (
     <div className="card p-4">
       <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide muted-2">{icon} {label}</div>
-      <div className={`text-2xl font-bold ${accent ?? ''}`}>{value}</div>
+      <div className={`text-2xl font-bold ${accent ?? ''}`} style={color ? { color } : undefined}>{value}</div>
       {sub && <div className="mt-0.5 text-xs">{sub}</div>}
     </div>
   );
@@ -38,15 +38,13 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
   useEffect(() => { api.monitors(from, to, department).then(setMon).catch(() => setMon(null)); }, [from, to, department]);
   if (!o) return <PageSkeleton />;
 
-  const scoreColor = scoreTextClass(o.kpi.avgScore);
-
   return (
     <div className="space-y-4">
       <ScoreScaleLegend />
 
       {/* KPI strip */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi icon={<Gauge size={13} />} label="Průměrné skóre" value={`${o.kpi.avgScore} %`} accent={scoreColor} sub={<Delta d={o.kpi.avgScoreDelta} />} />
+        <Kpi icon={<Gauge size={13} />} label="Průměrné skóre" value={`${o.kpi.avgScore} %`} color={scoreColor(o.kpi.avgScore)} sub={<Delta d={o.kpi.avgScoreDelta} />} />
         <Kpi icon={<Clock size={13} />} label="Aktivní práce" value={`${o.kpi.activeHours} h`} sub={<span className="muted-2">{o.kpi.userCount} sledovaných</span>} />
         <Kpi icon={<Wifi size={13} />} label="Online teď" value={`${o.kpi.onlineCount}`} sub={<span className="muted-2">z {o.kpi.userCount} zařízení</span>} />
         <Kpi icon={<ShieldAlert size={13} />} label="Upozornění" value={`${o.kpi.flaggedCount}`} accent={o.kpi.flaggedCount ? 'text-red-500' : ''} sub={<span className="muted-2">podezřelé chování</span>} />
@@ -85,7 +83,7 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
                 <div className="h-4 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
                   <div className="h-full rounded-full transition-all" style={{ width: `${d.avgScore}%`, background: scoreHex(d.avgScore) }} />
                 </div>
-                <div className={`w-12 text-right text-sm font-bold tabular-nums ${scoreTextClass(d.avgScore)}`}>{d.avgScore}%</div>
+                <div className="w-12 text-right text-sm font-bold tabular-nums" style={{ color: scoreColor(d.avgScore) }}>{d.avgScore}%</div>
               </div>
             ))}
           </div>
@@ -157,13 +155,12 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
 }
 
 function MonitorBox({ label, data }: { label: string; data: { users: number; avgScore: number; avgActiveHours: number } }) {
-  const c = scoreTextClass(data.avgScore);
   return (
     <div className="rounded-lg border border-gray-200 p-4 dark:border-slate-700">
       <div className="text-sm font-medium">{label}</div>
       <div className="text-xs muted-2">{data.users} {data.users === 1 ? 'zaměstnanec' : 'zaměstnanců'}</div>
       <div className="mt-2 flex items-end gap-3">
-        <span className={`text-3xl font-bold ${c}`}>{data.avgScore}%</span>
+        <span className="text-3xl font-bold" style={{ color: scoreColor(data.avgScore) }}>{data.avgScore}%</span>
         <span className="text-xs muted-2">prům. skóre · {data.avgActiveHours} h práce</span>
       </div>
     </div>
@@ -187,7 +184,7 @@ function RankCard({ title, rows, good, onOpenUser }: {
             <span className="w-5 shrink-0 text-right text-sm muted-2">{i + 1}.</span>
             <button onClick={() => onOpenUser(r.userId)} className="min-w-0 flex-1 truncate text-left text-sm hover:underline">{r.displayName}</button>
             <span className="shrink-0 text-xs muted-2">{r.department}</span>
-            <span className={`w-12 shrink-0 text-right text-sm font-bold tabular-nums ${scoreTextClass(r.score)}`}>{r.score}%</span>
+            <span className="w-12 shrink-0 text-right text-sm font-bold tabular-nums" style={{ color: scoreColor(r.score) }}>{r.score}%</span>
           </div>
         ))}
       </div>
