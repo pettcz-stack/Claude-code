@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, Save, Play, AlertTriangle, Smile, HeartPulse, Quote, Monitor, Sparkles } from 'lucide-react';
+import { Bell, Save, Play, AlertTriangle, Smile, HeartPulse, Quote, Monitor, Sparkles, BadgeCheck } from 'lucide-react';
 import { api } from './api.js';
 import { useToast } from './Toast.js';
 import { SitesAdmin } from './SitesAdmin.js';
@@ -12,6 +12,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
   const [healthMode, setHealthMode] = useState(false);
   const [growthMode, setGrowthMode] = useState(false);
   const [interpretMonitors, setInterpretMonitors] = useState(false);
+  const [employeeReportEnabled, setEmployeeReportEnabled] = useState(false);
   const [smtp, setSmtp] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
   const toast = useToast();
@@ -25,6 +26,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
       setHealthMode(d.settings.healthMode);
       setGrowthMode(d.settings.growthMode);
       setInterpretMonitors(d.settings.interpretMonitors);
+      setEmployeeReportEnabled(d.settings.employeeReportEnabled);
       setSmtp(d.smtpConfigured);
     }).catch(() => undefined);
   }
@@ -33,7 +35,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
   async function save() {
     setMsg('Ukládám…');
     try {
-      await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline, funMode, healthMode, growthMode, interpretMonitors });
+      await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline, funMode, healthMode, growthMode, interpretMonitors, employeeReportEnabled });
       setMsg(null); toast('Nastavení uloženo');
     } catch (e) { toast('Uložení selhalo: ' + e, 'error'); }
     load();
@@ -92,7 +94,17 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
       </div>
 
       <div className="card p-5">
-        <h3 className="mb-3 text-sm font-semibold">Režimy reportu zaměstnance</h3>
+        <h3 className="mb-3 text-sm font-semibold">Report zaměstnance</h3>
+
+        <label className="mb-4 flex items-start gap-3 rounded-lg bg-emerald-50 p-3 text-sm dark:bg-emerald-500/10">
+          <input type="checkbox" checked={employeeReportEnabled} disabled={!canEdit} onChange={(e) => setEmployeeReportEnabled(e.target.checked)} className="mt-1" />
+          <span>
+            <span className="flex items-center gap-1.5 font-medium"><BadgeCheck size={15} className="text-emerald-600" /> Zpřístupnit report přímo zaměstnancům</span>
+            <span className="muted-2">Výchozí stav je vypnuto. Po zapnutí uvidí každý zaměstnanec svůj vlastní report (ikonka v liště PC) – svůj dnešní rozpad: kolik % času pracoval, kolik % dělal mimopracovní aktivity na PC a kolik % byly neměřitelné aktivity. Vidí jen sám sebe, ne kolegy.</span>
+          </span>
+        </label>
+
+        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide muted-2">Volitelné režimy reportu</h4>
 
         <label className="mb-3 flex items-start gap-3 text-sm">
           <input type="checkbox" checked={funMode} disabled={!canEdit} onChange={(e) => setFunMode(e.target.checked)} className="mt-1" />

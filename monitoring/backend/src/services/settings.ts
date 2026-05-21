@@ -9,9 +9,10 @@ export type AppSettings = {
   healthMode: boolean; // zdravotní režim (přestávky, pití, kalorie)
   growthMode: boolean; // rozvojový režim (moudra/citáty velikánů)
   interpretMonitors: boolean; // interpretace: doporučení druhého monitoru (nezasahuje do dat)
+  employeeReportEnabled: boolean; // zpřístupnit report přímo zaměstnancům (ikonka v liště); default vyp.
 };
 
-const KEYS = { enabled: 'alertsEnabled', recipients: 'alertRecipients', offline: 'offlineMinutes', fun: 'funMode', health: 'healthMode', growth: 'growthMode', interpretMon: 'interpretMonitors' };
+const KEYS = { enabled: 'alertsEnabled', recipients: 'alertRecipients', offline: 'offlineMinutes', fun: 'funMode', health: 'healthMode', growth: 'growthMode', interpretMon: 'interpretMonitors', empReport: 'employeeReportEnabled' };
 
 export async function getSettings(): Promise<AppSettings> {
   const rows = await prisma.setting.findMany();
@@ -31,10 +32,11 @@ export async function getSettings(): Promise<AppSettings> {
     healthMode: (map.get(KEYS.health) ?? 'false') === 'true',
     growthMode: (map.get(KEYS.growth) ?? 'false') === 'true',
     interpretMonitors: (map.get(KEYS.interpretMon) ?? 'false') === 'true',
+    employeeReportEnabled: (map.get(KEYS.empReport) ?? 'false') === 'true',
   };
 }
 
-export async function saveSettings(s: Partial<{ alertsEnabled: boolean; alertRecipients: string; offlineMinutes: number; funMode: boolean; healthMode: boolean; growthMode: boolean; interpretMonitors: boolean }>): Promise<void> {
+export async function saveSettings(s: Partial<{ alertsEnabled: boolean; alertRecipients: string; offlineMinutes: number; funMode: boolean; healthMode: boolean; growthMode: boolean; interpretMonitors: boolean; employeeReportEnabled: boolean }>): Promise<void> {
   const ups: { key: string; value: string }[] = [];
   if (s.alertsEnabled !== undefined) ups.push({ key: KEYS.enabled, value: String(s.alertsEnabled) });
   if (s.alertRecipients !== undefined) ups.push({ key: KEYS.recipients, value: s.alertRecipients });
@@ -43,6 +45,7 @@ export async function saveSettings(s: Partial<{ alertsEnabled: boolean; alertRec
   if (s.healthMode !== undefined) ups.push({ key: KEYS.health, value: String(s.healthMode) });
   if (s.growthMode !== undefined) ups.push({ key: KEYS.growth, value: String(s.growthMode) });
   if (s.interpretMonitors !== undefined) ups.push({ key: KEYS.interpretMon, value: String(s.interpretMonitors) });
+  if (s.employeeReportEnabled !== undefined) ups.push({ key: KEYS.empReport, value: String(s.employeeReportEnabled) });
   for (const u of ups) {
     await prisma.setting.upsert({ where: { key: u.key }, create: u, update: { value: u.value } });
   }

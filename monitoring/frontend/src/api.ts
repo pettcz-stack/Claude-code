@@ -157,7 +157,7 @@ export type HomeOffice = {
   byDept: { department: string; hoScore: number; officeScore: number; hoDays: number }[];
   perUser: { userId: string; displayName: string | null; department: string | null; hoDays: number; hoScore: number; officeScore: number; diff: number }[];
 };
-export type SelfReportData = { displayName: string | null; department: string | null; score: number; companyPercentile: number; deptPercentile: number; kpmPercentile: number; avgKpm: number; activeHours: number; nonWorkPct: number; monitorTypical: number; multiMonitorPct: number; appSwitchesPerHour: number; keystrokeTotal: number; caloriesTyping: number; distanceMeters: number; currentSite: string };
+export type SelfReportData = { displayName: string | null; department: string | null; score: number; companyPercentile: number; deptPercentile: number; kpmPercentile: number; avgKpm: number; activeHours: number; nonWorkPct: number; monitorTypical: number; multiMonitorPct: number; appSwitchesPerHour: number; keystrokeTotal: number; caloriesTyping: number; distanceMeters: number; currentSite: string; pcWorkPct: number; pcNonWorkPct: number; pcUnknownPct: number };
 
 export type TipsData = {
   health: { category: string | null; text: string }[];
@@ -165,7 +165,7 @@ export type TipsData = {
   fun: { text: string }[];
 };
 
-export type AppSettings = { alertsEnabled: boolean; alertRecipients: string[]; offlineMinutes: number; funMode: boolean; healthMode: boolean; growthMode: boolean; interpretMonitors: boolean };
+export type AppSettings = { alertsEnabled: boolean; alertRecipients: string[]; offlineMinutes: number; funMode: boolean; healthMode: boolean; growthMode: boolean; interpretMonitors: boolean; employeeReportEnabled: boolean };
 
 export type Me = { username: string; role: string };
 
@@ -321,7 +321,7 @@ export const api = {
   deleteWebRule: (keyword: string) =>
     fetch(`/api/v1/admin/webrules/${encodeURIComponent(keyword)}`, { method: 'DELETE', headers: authHeader() }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   getSettings: () => getJson<{ settings: AppSettings; smtpConfigured: boolean }>('/api/v1/admin/settings'),
-  saveSettings: (data: { alertsEnabled?: boolean; alertRecipients?: string; offlineMinutes?: number; funMode?: boolean; healthMode?: boolean; growthMode?: boolean; interpretMonitors?: boolean }) =>
+  saveSettings: (data: { alertsEnabled?: boolean; alertRecipients?: string; offlineMinutes?: number; funMode?: boolean; healthMode?: boolean; growthMode?: boolean; interpretMonitors?: boolean; employeeReportEnabled?: boolean }) =>
     fetch('/api/v1/admin/settings', { method: 'PUT', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   runAlerts: () =>
     fetch('/api/v1/admin/alerts/run', { method: 'POST', headers: authHeader() }).then((r) => r.json()),
@@ -330,7 +330,7 @@ export const api = {
       `/api/v1/dashboard/hourly?userId=${encodeURIComponent(userId)}&from=${from}&to=${to}`,
     ).then((d) => d.rows),
   hourlyApps: (userId: string, from: string, to: string) =>
-    getJson<{ hours: { hourStart: string; apps: { app: string; minutes: number }[] }[] }>(
+    getJson<{ hours: { hourStart: string; work: number; nonwork: number; unknown: number; idle: number; locked: number; apps: { app: string; minutes: number }[] }[] }>(
       `/api/v1/dashboard/hourly-apps?userId=${encodeURIComponent(userId)}&from=${from}&to=${to}`,
     ).then((d) => d.hours),
   summary: (from: string, to: string, department?: string) =>

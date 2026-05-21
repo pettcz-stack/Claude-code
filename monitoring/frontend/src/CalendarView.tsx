@@ -7,7 +7,8 @@ type Props = { user: User; day: Date };
 
 export function CalendarView({ user, day }: Props) {
   const [rows, setRows] = useState<HourlyRow[]>([]);
-  const [appsByHour, setAppsByHour] = useState<Map<number, { app: string; minutes: number }[]>>(new Map());
+  type HourDetail = { work: number; nonwork: number; unknown: number; idle: number; locked: number; apps: { app: string; minutes: number }[] };
+  const [detailByHour, setDetailByHour] = useState<Map<number, HourDetail>>(new Map());
   const [categories, setCategories] = useState<Record<string, { category: string; type: string }>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,10 +24,10 @@ export function CalendarView({ user, day }: Props) {
     setError(null);
     api.hourly(user.id, from.toISOString(), to.toISOString()).then(setRows).catch((e) => setError(String(e))).finally(() => setLoading(false));
     api.hourlyApps(user.id, from.toISOString(), to.toISOString()).then((hours) => {
-      const m = new Map<number, { app: string; minutes: number }[]>();
-      for (const h of hours) m.set(localHourOf(h.hourStart), h.apps);
-      setAppsByHour(m);
-    }).catch(() => setAppsByHour(new Map()));
+      const m = new Map<number, HourDetail>();
+      for (const h of hours) m.set(localHourOf(h.hourStart), { work: h.work, nonwork: h.nonwork, unknown: h.unknown, idle: h.idle, locked: h.locked, apps: h.apps });
+      setDetailByHour(m);
+    }).catch(() => setDetailByHour(new Map()));
   }, [user.id, day]);
 
   const byHour = new Map<number, HourlyRow>();
@@ -55,20 +56,25 @@ export function CalendarView({ user, day }: Props) {
         <tbody>
           {Array.from({ length: 24 }, (_, h) => {
             const r = byHour.get(h);
-            const active = r?.activeMinutes ?? 0;
-            const idle = r?.idleMinutes ?? 0;
-            const locked = r?.lockedMinutes ?? 0;
-            const denom = Math.max(active + idle + locked, 60);
+            const d = detailByHour.get(h);
+            const work = d?.work ?? 0;
+            const nonwork = d?.nonwork ?? 0;
+            const unknown = d?.unknown ?? 0;
+            const idle = d?.idle ?? r?.idleMinutes ?? 0;
+            const locked = d?.locked ?? r?.lockedMinutes ?? 0;
+            const denom = Math.max(work + nonwork + unknown + idle + locked, 60);
             const pct = (v: number) => `${(v / denom) * 100}%`;
             const cat = r?.topApp ? categories[r.topApp] : undefined;
-            const apps = appsByHour.get(h) ?? [];
+            const apps = d?.apps ?? [];
             return (
               <tr key={h} className="divide-row">
                 <td className="td font-mono muted-2">{String(h).padStart(2, '0')}:00</td>
                 <td className="td">
                   <div className="flex h-4 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700"
-                    title={r ? `Aktivní ${minutesToHm(active)} · Nečinnost ${minutesToHm(idle)} · Zamčeno ${minutesToHm(locked)}` : 'Bez dat'}>
-                    <div style={{ width: pct(active), background: TYPE_COLORS.work }} />
+                    title={(work + nonwork + unknown + idle + locked) > 0 ? `Práce ${minutesToHm(work)} · Mimopráce ${minutesToHm(nonwork)} · Neměřitelné ${minutesToHm(unknown)} · Nečinnost ${minutesToHm(idle)} · Zamčeno ${minutesToHm(locked)}` : 'Bez dat'}>
+                    <div style={{ width: pct(work), background: TYPE_COLORS.work }} />
+                    <div style={{ width: pct(nonwork), background: TYPE_COLORS.nonwork }} />
+                    <div style={{ width: pct(unknown), background: '#f59e0b' }} />
                     <div style={{ width: pct(idle), background: TYPE_COLORS.idle }} />
                     <div style={{ width: pct(locked), background: TYPE_COLORS.off }} />
                   </div>
@@ -101,8 +107,10 @@ export function CalendarView({ user, day }: Props) {
           })}
         </tbody>
       </table>
-      <div className="mt-3 flex gap-4 text-xs muted">
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: TYPE_COLORS.work }} /> Aktivní práce</span>
+      <div className="mt-3 flex flex-wrap gap-4 text-xs muted">
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: TYPE_COLORS.work }} /> Práce</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: TYPE_COLORS.nonwork }} /> Mimopracovní</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: '#f59e0b' }} /> Neměřitelné</span>
         <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: TYPE_COLORS.idle }} /> Nečinnost</span>
         <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: TYPE_COLORS.off }} /> Zamčeno</span>
         <span className="ml-auto muted-2">Místní čas ({Intl.DateTimeFormat().resolvedOptions().timeZone})</span>

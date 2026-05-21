@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../db.js';
 import { logAccess, requireRole } from '../auth.js';
 import { getCategoryMap } from '../services/categories.js';
+import { classifyActivity, getWebRules } from '../services/classify.js';
 import { computeUserScore } from '../services/scoring.js';
 import { getSettings } from '../services/settings.js';
 import { heatmap, exportClassification } from '../services/analytics.js';
@@ -214,29 +215,40 @@ dashboardRouter.get('/hourly', async (req, res) => {
   res.json({ rows });
 });
 
-/** Rozpad aplikací po hodinách (pro detailní tooltip v kalendáři). */
+/** Rozpad po hodinách: klasifikovaný čas (práce/mimopráce/neměřitelné) + aplikace (tooltip). */
 dashboardRouter.get('/hourly-apps', async (req, res) => {
   const parsed = rangeSchema.safeParse(req.query);
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
   const { from, to, userId } = parsed.data;
   if (!userId) return void res.status(400).json({ error: 'userId_required' });
+  const [catMap, webRules] = await Promise.all([getCategoryMap(), getWebRules()]);
   const intervals = await prisma.activityInterval.findMany({
-    where: { userId, intervalStart: { gte: new Date(from), lt: new Date(to) }, foregroundApp: { not: null } },
-    select: { intervalStart: true, foregroundApp: true, activeSeconds: true },
+    where: { userId, intervalStart: { gte: new Date(from), lt: new Date(to) } },
+    select: { intervalStart: true, foregroundApp: true, windowTitle: true, activeSeconds: true, idleSeconds: true, sessionLocked: true, intervalSeconds: true },
   });
-  // hodina (UTC, zarovnaná) → app → minuty
-  const byHour = new Map<string, Map<string, number>>();
+  type Bucket = { apps: Map<string, number>; work: number; nonwork: number; unknown: number; idle: number; locked: number };
+  const byHour = new Map<string, Bucket>();
   for (const it of intervals) {
-    if (it.activeSeconds <= 0 || !it.foregroundApp) continue;
     const h = new Date(it.intervalStart); h.setUTCMinutes(0, 0, 0);
     const key = h.toISOString();
-    let m = byHour.get(key);
-    if (!m) (m = new Map()), byHour.set(key, m);
-    m.set(it.foregroundApp, (m.get(it.foregroundApp) ?? 0) + it.activeSeconds / 60);
+    let b = byHour.get(key);
+    if (!b) { b = { apps: new Map(), work: 0, nonwork: 0, unknown: 0, idle: 0, locked: 0 }; byHour.set(key, b); }
+    const aMin = it.activeSeconds / 60;
+    b.idle += it.idleSeconds / 60;
+    if (it.sessionLocked) b.locked += it.intervalSeconds / 60;
+    if (aMin > 0) {
+      const info = classifyActivity(catMap, webRules, it.foregroundApp, it.windowTitle);
+      if (info.type === 'NON_WORK') b.nonwork += aMin;
+      else if (info.type === 'UNKNOWN') b.unknown += aMin;
+      else b.work += aMin;
+      if (it.foregroundApp) b.apps.set(it.foregroundApp, (b.apps.get(it.foregroundApp) ?? 0) + aMin);
+    }
   }
-  const hours = Array.from(byHour.entries()).map(([hourStart, m]) => ({
+  const hours = Array.from(byHour.entries()).map(([hourStart, b]) => ({
     hourStart,
-    apps: Array.from(m.entries()).map(([app, minutes]) => ({ app, minutes: Math.round(minutes) })).sort((a, b) => b.minutes - a.minutes),
+    work: Math.round(b.work), nonwork: Math.round(b.nonwork), unknown: Math.round(b.unknown),
+    idle: Math.round(b.idle), locked: Math.round(b.locked),
+    apps: Array.from(b.apps.entries()).map(([app, minutes]) => ({ app, minutes: Math.round(minutes) })).sort((a, b2) => b2.minutes - a.minutes),
   }));
   res.json({ hours });
 });

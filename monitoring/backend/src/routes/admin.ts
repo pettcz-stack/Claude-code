@@ -59,6 +59,7 @@ const settingsSchema = z.object({
   healthMode: z.boolean().optional(),
   growthMode: z.boolean().optional(),
   interpretMonitors: z.boolean().optional(),
+  employeeReportEnabled: z.boolean().optional(),
 });
 adminRouter.put('/settings', requireRole('ADMIN'), async (req, res) => {
   const p = settingsSchema.safeParse(req.body);

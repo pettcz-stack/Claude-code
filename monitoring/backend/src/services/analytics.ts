@@ -513,6 +513,10 @@ export type SelfReport = {
   caloriesTyping: number; // orientační kcal spálené psaním
   distanceMeters: number; // orientační „naťukaná" vzdálenost prstů
   currentSite: string; // aktuální pracoviště (poslední den s daty; „Mimo firmu")
+  // Rozpad času u PC za období (% z naměřeného času na počítači).
+  pcWorkPct: number; // pracoval
+  pcNonWorkPct: number; // mimopracovní aktivity na PC
+  pcUnknownPct: number; // neměřitelné / nezařazené aktivity
 };
 
 export async function selfReport(userId: string, from: Date, to: Date): Promise<SelfReport> {
@@ -543,6 +547,12 @@ export async function selfReport(userId: string, from: Date, to: Date): Promise<
   });
   const currentSite = lastDay?.site ?? 'Mimo firmu';
 
+  // Rozpad času na PC: práce / mimopráce / neměřitelné (% z naměřeného času).
+  const measured = me.workMinutes + me.nonWorkMinutes + me.unknownMinutes;
+  const pcWorkPct = measured > 0 ? Math.round((me.workMinutes / measured) * 100) : 0;
+  const pcNonWorkPct = measured > 0 ? Math.round((me.nonWorkMinutes / measured) * 100) : 0;
+  const pcUnknownPct = measured > 0 ? Math.max(0, 100 - pcWorkPct - pcNonWorkPct) : 0;
+
   return {
     displayName: me.displayName,
     department: me.department,
@@ -561,6 +571,9 @@ export async function selfReport(userId: string, from: Date, to: Date): Promise<
     caloriesTyping: Math.round(me.keystrokeTotal * 0.0014),
     distanceMeters: Math.round(me.keystrokeTotal * 0.02),
     currentSite,
+    pcWorkPct,
+    pcNonWorkPct,
+    pcUnknownPct,
   };
 }
 

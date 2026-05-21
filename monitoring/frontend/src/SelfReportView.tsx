@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ShieldCheck, X, Keyboard, Trophy, Users, Building2, Sparkles, Award, Footprints, Flame, HeartPulse, PersonStanding, GlassWater, Eye, Coffee, Wind, Target, Armchair, Activity, Quote, MapPin } from 'lucide-react';
 import { api, type SelfReportData, type TipsData, type User } from './api.js';
+import { TYPE_COLORS } from './util.js';
 
 // Ikona pro kategorii zdravotního tipu (tipy samotné přicházejí z DB).
 const CAT_ICON: Record<string, React.ReactNode> = {
@@ -132,6 +133,21 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
         <div className="mt-4 flex items-start gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
           <Trophy size={16} className="mt-0.5 shrink-0" />
           <span>V psaní na klávesnici píšeš rychleji než <b>{r.kpmPercentile}&nbsp;%</b> kolegů a celkově jsi efektivnější než <b>{r.companyPercentile}&nbsp;%</b> firmy. Skvělé!</span>
+        </div>
+      </div>
+
+      <div className="card p-5">
+        <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Sparkles size={16} className="text-emerald-500" /> Rozpad času u počítače</h3>
+        <p className="mb-3 text-xs muted-2">Z naměřeného času na PC za zvolené období.</p>
+        <div className="mb-3 flex h-5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700" title="Práce / Mimopracovní / Neměřitelné">
+          <div style={{ width: `${r.pcWorkPct}%`, background: TYPE_COLORS.work }} />
+          <div style={{ width: `${r.pcNonWorkPct}%`, background: TYPE_COLORS.nonwork }} />
+          <div style={{ width: `${r.pcUnknownPct}%`, background: '#f59e0b' }} />
+        </div>
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <div><div className="text-2xl font-bold" style={{ color: TYPE_COLORS.work }}>{r.pcWorkPct} %</div><div className="text-xs muted-2">Pracoval</div></div>
+          <div><div className="text-2xl font-bold" style={{ color: TYPE_COLORS.nonwork }}>{r.pcNonWorkPct} %</div><div className="text-xs muted-2">Mimopracovní aktivity na PC</div></div>
+          <div><div className="text-2xl font-bold" style={{ color: '#f59e0b' }}>{r.pcUnknownPct} %</div><div className="text-xs muted-2">Neměřitelné aktivity</div></div>
         </div>
       </div>
 

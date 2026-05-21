@@ -4,6 +4,7 @@ import { prisma } from '../db.js';
 import { requireIngestToken } from '../middleware/auth.js';
 import { aggregateForIntervals } from '../services/aggregate.js';
 import { clearCache } from '../services/cache.js';
+import { getSettings } from '../services/settings.js';
 
 export const ingestRouter = Router();
 
@@ -111,5 +112,7 @@ ingestRouter.post('/', requireIngestToken, async (req, res) => {
   const hoursUpdated = await aggregateForIntervals(touched);
   clearCache(); // nová data → dashboard přepočítá
 
-  res.json({ accepted, hoursUpdated, deviceId: device.id, userId: user.id });
+  // Agent podle toho zobrazí/skryje ikonku reportu zaměstnance v liště.
+  const { employeeReportEnabled } = await getSettings();
+  res.json({ accepted, hoursUpdated, deviceId: device.id, userId: user.id, employeeReportEnabled });
 });
