@@ -39,11 +39,9 @@ function badges(r: SelfReportData): string[] {
 function Compare({ icon, label, pct, color, note }: { icon: React.ReactNode; label: string; pct: number; color: string; note: string }) {
   return (
     <div className="card p-4">
-      <div className="mb-2 flex items-center gap-2 text-sm">{icon} {label}</div>
-      <div className="mb-1 flex items-end justify-between">
-        <span className="text-3xl font-bold" style={{ color }}>{pct}%</span>
-        <span className="text-xs muted-2">{note}</span>
-      </div>
+      <div className="mb-2 flex items-center gap-2 text-sm font-medium">{icon} {label}</div>
+      <div className="text-3xl font-bold leading-none" style={{ color }}>{pct}%</div>
+      <div className="mb-2 mt-1 text-xs muted-2">{note}</div>
       <div className="h-2.5 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
         <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
       </div>
@@ -113,9 +111,10 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
           <Stat label="Tempo psaní" value={`${r.avgKpm} úhozů/min`} />
           <Stat label="Monitory" value={r.monitorTypical ? `${r.monitorTypical} ${r.monitorTypical === 1 ? 'obrazovka' : 'obrazovky'}` : '—'} />
         </div>
-        <p className="mt-4 flex items-center gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
-          <Trophy size={16} /> V psaní na klávesnici píšeš rychleji než <b>{r.kpmPercentile} %</b> kolegů a celkově jsi efektivnější než <b>{r.companyPercentile} %</b> firmy. Skvělé!
-        </p>
+        <div className="mt-4 flex items-start gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
+          <Trophy size={16} className="mt-0.5 shrink-0" />
+          <span>V psaní na klávesnici píšeš rychleji než <b>{r.kpmPercentile}&nbsp;%</b> kolegů a celkově jsi efektivnější než <b>{r.companyPercentile}&nbsp;%</b> firmy. Skvělé!</span>
+        </div>
       </div>
 
       {/* Zábavný režim */}
