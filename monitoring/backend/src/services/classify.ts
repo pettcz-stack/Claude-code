@@ -24,8 +24,13 @@ export const DEFAULT_WEB_RULES: { keyword: string; category: string; type: CatTy
   { keyword: 'gitlab', category: 'Vývoj', type: 'WORK' },
   { keyword: 'github', category: 'Vývoj', type: 'WORK' },
   { keyword: 'sharepoint', category: 'Práce – nástroje', type: 'WORK' },
-  { keyword: 'crm', category: 'Práce – nástroje', type: 'WORK' },
+  { keyword: 'crm', category: 'CRM', type: 'WORK' },
+  { keyword: 'dynamics', category: 'CRM', type: 'WORK' },
   { keyword: 'erp', category: 'Podnikový systém', type: 'WORK' },
+  { keyword: 'navision', category: 'Podnikový systém', type: 'WORK' },
+  { keyword: 'intranet', category: 'Intranet', type: 'WORK' },
+  { keyword: 'okbase', category: 'Docházka / HR', type: 'WORK' },
+  { keyword: 'power bi', category: 'Reporty', type: 'WORK' },
 ];
 
 export type WebRule = { keyword: string; category: string; type: CatType };

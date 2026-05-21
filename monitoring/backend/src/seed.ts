@@ -5,6 +5,8 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from './db.js';
 import { aggregateAll } from './services/aggregate.js';
+import { ensureDefaultCategories } from './services/categories.js';
+import { DEFAULT_WEB_RULES } from './services/classify.js';
 
 type Behavior = 'normal' | 'slacker' | 'cheater_mouse' | 'cheater_keyboard';
 
@@ -27,22 +29,44 @@ const PEOPLE: { name: string; dept: string; behavior: Behavior; diligence: numbe
   { name: 'Filip Doležal', dept: 'IT', behavior: 'normal', diligence: 0.87 },
 ];
 
-const WORK_APPS = ['winword.exe', 'excel.exe', 'outlook.exe', 'teams.exe', 'code.exe', 'sap.exe'];
 const NONWORK_APPS = ['steam.exe', 'spotify.exe'];
 // Nezařazené (interní) aplikace – nejsou ve výchozích kategoriích → UNKNOWN.
 const UNKNOWN_APPS = ['interni-nastroj.exe', 'utilitka.exe', 'firemni-app.exe'];
+// Aplikace, kde se reálně píše (kvůli realistickému tempu úhozů). CAD/PDF = myš.
+const TYPING_APPS = new Set(['winword.exe', 'excel.exe', 'outlook.exe', 'teams.exe', 'code.exe', 'navision.exe', 'crm.exe', 'econ.exe', 'powerpnt.exe']);
 
 function rateFor(dept: string): number {
   const map: Record<string, number> = { 'Vedení': 750, 'IT': 560, 'Ekonomika': 460, 'Konstrukce': 500, 'Obchod Export': 520, 'Marketing': 420, 'Obchod ČR': 410 };
   return map[dept] ?? 360;
 }
-const BROWSER_WORK_TITLES = ['Jira – úkoly', 'Confluence – dokumentace', 'GitLab – merge request', 'Firemní CRM', 'SharePoint'];
+
+// Reálné aplikace ALBIXON podle útvaru. [proces, titulek okna|null].
+type Pick = [string, string | null];
+const T = (app: string, title: string | null = null): Pick => [app, title];
+const POOL_COMMON: Pick[] = [T('outlook.exe'), T('teams.exe'), T('excel.exe'), T('chrome.exe', 'Intranet ALBIXON'), T('chrome.exe', 'OKbase – docházka')];
+const POOLS: Record<string, Pick[]> = {
+  'Vedení': [T('navision.exe'), T('excel.exe'), T('powerpnt.exe'), T('outlook.exe'), T('teams.exe'), T('chrome.exe', 'Power BI – reporty')],
+  'Obchod ČR': [T('crm.exe'), T('crm.exe'), T('navision.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe'), T('chrome.exe', 'Microsoft Dynamics CRM')],
+  'Obchod Export': [T('crm.exe'), T('crm.exe'), T('navision.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe')],
+  'Marketing': [T('powerpnt.exe'), T('crm.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe'), T('chrome.exe', 'SharePoint – dokumenty')],
+  'Konstrukce': [T('sldworks.exe'), T('sldworks.exe'), T('sldworks.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe'), T('acrobat.exe')],
+  'Výroba': [T('navision.exe'), T('navision.exe'), T('excel.exe'), T('teams.exe'), T('chrome.exe', 'Intranet ALBIXON')],
+  'Logistika': [T('navision.exe'), T('navision.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe')],
+  'Montáže a servis': [T('crm.exe'), T('outlook.exe'), T('teams.exe'), T('chrome.exe', 'Intranet ALBIXON')],
+  'Ekonomika': [T('econ.exe'), T('econ.exe'), T('navision.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe')],
+  'Personalistika': [T('okbase.exe'), T('okbase.exe'), T('excel.exe'), T('winword.exe'), T('outlook.exe'), T('teams.exe')],
+  'IT': [T('code.exe'), T('code.exe'), T('teams.exe'), T('outlook.exe'), T('navision.exe'), T('chrome.exe', 'Intranet ALBIXON')],
+};
+function buildPool(dept: string): Pick[] {
+  return [...(POOLS[dept] ?? []), ...POOL_COMMON];
+}
+const BROWSER_WORK_TITLES = ['Intranet ALBIXON', 'OKbase – docházka', 'SharePoint – dokumenty', 'Microsoft Dynamics CRM', 'Power BI – reporty'];
 const BROWSER_NONWORK_TITLES = ['YouTube', 'Facebook', 'Instagram', 'Novinky.cz', 'Seznam.cz - Email', 'Alza.cz'];
 
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 const rnd = (n: number) => Math.floor(Math.random() * n);
 
-type Person = { id: string; deviceId: string; behavior: Behavior; diligence: number; hoDip: number; monitors: number };
+type Person = { id: string; deviceId: string; behavior: Behavior; diligence: number; hoDip: number; monitors: number; workPool: Pick[] };
 
 // Kolik monitorů kdo má (z HW). Část lidí 2, IT i 3.
 function monitorsFor(dept: string): number {
@@ -58,6 +82,16 @@ function hoDipFor(b: Behavior): number {
 }
 
 async function main() {
+  // Zajisti výchozí kategorie aplikací a pravidla webů (i pro reálné ALBIXON aplikace).
+  await ensureDefaultCategories();
+  for (const r of DEFAULT_WEB_RULES) {
+    await prisma.webRule.upsert({
+      where: { keyword: r.keyword },
+      create: { keyword: r.keyword, category: r.category, type: r.type },
+      update: { category: r.category, type: r.type },
+    });
+  }
+
   const created: Person[] = [];
   for (let i = 0; i < PEOPLE.length; i++) {
     const p = PEOPLE[i];
@@ -73,7 +107,7 @@ async function main() {
       update: { lastSeen: new Date(), agentVersion: '0.1.0', os: 'Windows 11' },
       create: { machineId, hostname: `ALB-PC-${i + 1}`, os: 'Windows 11', agentVersion: '0.1.0', lastSeen: new Date() },
     });
-    created.push({ id: user.id, deviceId: device.id, behavior: p.behavior, diligence: p.diligence, hoDip: hoDipFor(p.behavior), monitors: monitorsFor(p.dept) });
+    created.push({ id: user.id, deviceId: device.id, behavior: p.behavior, diligence: p.diligence, hoDip: hoDipFor(p.behavior), monitors: monitorsFor(p.dept), workPool: buildPool(p.dept) });
   }
 
   const userIds = created.map((c) => c.id);
@@ -115,20 +149,26 @@ async function main() {
   }
   if (absences.length) await prisma.absence.createMany({ data: absences });
 
-  // Demo licence: placené aplikace + jejich seaty/cena (CZK/měsíc).
-  // projectpro.exe a designstudio.exe nikdo nepoužívá → demonstrace plýtvání.
+  // Demo licence: reálné placené aplikace ALBIXON + seaty/cena (CZK/měsíc/licence).
+  // Část je dobře využitá (zelená), část leží ladem (červená = úspora).
+  // projectpro.exe nikdo nepoužívá → 100% plýtvání pro ukázku.
   const LICENSES = [
-    { appName: 'sap.exe', category: 'Podnikový systém', type: 'WORK', seats: 16, costPerSeat: 1200 },
-    { appName: 'excel.exe', category: 'Kancelář', type: 'WORK', seats: 16, costPerSeat: 350 },
-    { appName: 'code.exe', category: 'Vývoj', type: 'WORK', seats: 8, costPerSeat: 250 },
-    { appName: 'projectpro.exe', category: 'Projektové řízení', type: 'WORK', seats: 10, costPerSeat: 900 },
-    { appName: 'designstudio.exe', category: 'Grafika', type: 'WORK', seats: 5, costPerSeat: 1500 },
+    { appName: 'sldworks.exe', category: 'CAD / Konstrukce', type: 'WORK', seats: 6, costPerSeat: 4500 }, // SolidWorks – drahé, málo využité
+    { appName: 'navision.exe', category: 'Podnikový systém', type: 'WORK', seats: 16, costPerSeat: 1500 }, // Microsoft Navision
+    { appName: 'crm.exe', category: 'CRM', type: 'WORK', seats: 12, costPerSeat: 1200 }, // Microsoft Dynamics CRM
+    { appName: 'econ.exe', category: 'Podnikový systém', type: 'WORK', seats: 6, costPerSeat: 800 }, // E-CON
+    { appName: 'excel.exe', category: 'Kancelář', type: 'WORK', seats: 16, costPerSeat: 350 }, // Office – dobře využité
+    { appName: 'code.exe', category: 'Vývoj', type: 'WORK', seats: 5, costPerSeat: 250 },
+    { appName: 'okbase.exe', category: 'Docházka / HR', type: 'WORK', seats: 16, costPerSeat: 120 },
+    { appName: 'projectpro.exe', category: 'Projektové řízení', type: 'WORK', seats: 10, costPerSeat: 900 }, // nikdo nepoužívá
   ];
+  // Vyčisti staré licence (ať audit ukazuje jen aktuální sadu).
+  await prisma.appCategory.updateMany({ data: { licensed: false, seats: null, costPerSeat: null } });
   for (const l of LICENSES) {
     await prisma.appCategory.upsert({
       where: { appName: l.appName },
       create: { appName: l.appName, category: l.category, type: l.type, licensed: true, seats: l.seats, costPerSeat: l.costPerSeat },
-      update: { licensed: true, seats: l.seats, costPerSeat: l.costPerSeat },
+      update: { category: l.category, type: l.type, licensed: true, seats: l.seats, costPerSeat: l.costPerSeat },
     });
   }
 
@@ -145,7 +185,7 @@ function makeRow(c: Person, intervalStart: Date, isHO: boolean): Prisma.Activity
     return { ...base, activeSeconds: 295, idleSeconds: 5, foregroundApp: 'excel.exe', windowTitle: null, keystrokeCount: 0, mouseEvents: 5 + rnd(2), sessionLocked: false };
   }
   if (c.behavior === 'cheater_keyboard') {
-    return { ...base, activeSeconds: 300, idleSeconds: 0, foregroundApp: 'notepad.exe', windowTitle: null, keystrokeCount: 585 + rnd(8), mouseEvents: 0, sessionLocked: false };
+    return { ...base, activeSeconds: 300, idleSeconds: 0, foregroundApp: 'winword.exe', windowTitle: null, keystrokeCount: 585 + rnd(8), mouseEvents: 0, sessionLocked: false };
   }
 
   // Běžní lidé: občas PC off, mix práce/neutrál/mimopráce dle píle.
@@ -162,18 +202,20 @@ function makeRow(c: Person, intervalStart: Date, isHO: boolean): Prisma.Activity
   if (r < nonWorkProb) {
     if (Math.random() < 0.5) { app = 'chrome.exe'; title = pick(BROWSER_NONWORK_TITLES); } else { app = pick(NONWORK_APPS); }
     active = 240 + rnd(60);
-  } else if (r < nonWorkProb + 0.18) {
+  } else if (r < nonWorkProb + 0.14) {
     app = 'chrome.exe'; title = pick(BROWSER_WORK_TITLES); active = 200 + rnd(90);
-  } else if (Math.random() < 0.06) {
+  } else if (Math.random() < 0.05) {
     // nezařazená interní aplikace → UNKNOWN (vyjmuto, dokud admin nezařadí)
     app = pick(UNKNOWN_APPS); active = 200 + rnd(90);
-  } else if (Math.random() > 0.85) {
-    app = pick(WORK_APPS); active = rnd(60);
   } else {
-    app = pick(WORK_APPS); active = 240 + rnd(60);
+    const w = pick(c.workPool);
+    app = w[0]; title = w[1];
+    active = Math.random() > 0.85 ? rnd(60) : 240 + rnd(60);
   }
-  const ks = active > 120 && WORK_APPS.includes(app) ? rnd(900) : rnd(150);
-  return { ...base, activeSeconds: active, idleSeconds: 300 - active, foregroundApp: app, windowTitle: title, keystrokeCount: ks, mouseEvents: active > 60 ? rnd(300) : rnd(30), sessionLocked: active < 30 && Math.random() > 0.6 };
+  // CAD/PDF jsou ovládané hlavně myší → málo úhozů; psací aplikace hodně.
+  const ks = active > 120 && TYPING_APPS.has(app) ? rnd(900) : rnd(120);
+  const mouse = app === 'sldworks.exe' ? 200 + rnd(400) : active > 60 ? rnd(300) : rnd(30);
+  return { ...base, activeSeconds: active, idleSeconds: 300 - active, foregroundApp: app, windowTitle: title, keystrokeCount: ks, mouseEvents: mouse, sessionLocked: active < 30 && Math.random() > 0.6 };
 }
 
 main()

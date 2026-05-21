@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import { House, Building2, ArrowDown, ArrowUp } from 'lucide-react';
 import { api, type HomeOffice } from './api.js';
-
-function scoreColor(s: number) {
-  return s >= 70 ? 'text-emerald-500' : s >= 45 ? 'text-amber-500' : 'text-red-500';
-}
+import { ScoreScaleLegend } from './Legend.js';
+import { scoreTextClass as scoreColor } from './util.js';
 
 function BigScore({ icon, label, score, sub }: { icon: React.ReactNode; label: string; score: number; sub: string }) {
   return (
@@ -25,11 +23,12 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
   if (!d) return <p className="muted-2">Načítám…</p>;
 
   const diff = d.company.hoScore - d.company.officeScore;
-  const maxDept = Math.max(1, ...d.byDept.flatMap((x) => [x.hoScore, x.officeScore]));
   const amt = (days: number) => (unit === 'hours' ? `${days * 8} h` : `${days} dní`);
 
   return (
     <div className="space-y-4">
+      <ScoreScaleLegend />
+
       {/* Rychlý přehled HO množství + přepínač jednotek */}
       <div className="card flex flex-wrap items-center gap-4 p-4">
         <div>
@@ -75,16 +74,17 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
                 <span className="ml-1 text-xs muted-2">({amt(x.hoDays)} HO)</span>
               </div>
               <div className="flex-1 space-y-1">
-                <Bar label="HO" value={x.hoScore} max={maxDept} color="#10b981" />
-                <Bar label="Kancelář" value={x.officeScore} max={maxDept} color="#64748b" />
+                <Bar label="HO" value={x.hoScore} color="#6366f1" />
+                <Bar label="Kancelář" value={x.officeScore} color="#64748b" />
               </div>
             </div>
           ))}
           {d.byDept.length === 0 && <p className="text-sm muted-2">Žádné HO dny v období.</p>}
         </div>
         <div className="mt-3 flex gap-4 text-xs muted">
-          <span className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-sm" style={{ background: '#10b981' }} /> Home office</span>
+          <span className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-sm" style={{ background: '#6366f1' }} /> Home office</span>
           <span className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-sm" style={{ background: '#64748b' }} /> Kancelář</span>
+          <span className="muted-2">· delší pruh = vyšší skóre (0–100 %)</span>
         </div>
       </div>
 
@@ -112,12 +112,12 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
   );
 }
 
-function Bar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+function Bar({ label, value, color }: { label: string; value: number; max?: number; color: string }) {
   return (
     <div className="flex items-center gap-2">
       <span className="w-16 shrink-0 text-xs muted-2">{label}</span>
       <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
-        <div className="h-full rounded-full" style={{ width: `${(value / max) * 100}%`, background: color }} />
+        <div className="h-full rounded-full" style={{ width: `${value}%`, background: color }} />
       </div>
       <span className="w-10 text-right text-xs font-semibold tabular-nums">{value}%</span>
     </div>

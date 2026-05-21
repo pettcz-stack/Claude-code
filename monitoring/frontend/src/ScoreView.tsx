@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Keyboard, Clock, AlertTriangle, AppWindow, Monitor, Shuffle } from 'lucide-react';
 import { api, type UserScore, type User } from './api.js';
 import { Donut } from './Donut.js';
-import { minutesToHm, chipClass, typeLabel, TYPE_COLORS } from './util.js';
+import { ScoreScaleLegend } from './Legend.js';
+import { minutesToHm, chipClass, typeLabel, TYPE_COLORS, scoreTextClass } from './util.js';
 
 function Card({ title, icon, children, accent }: { title: string; icon: React.ReactNode; children: React.ReactNode; accent?: string }) {
   return (
@@ -38,11 +39,12 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
   if (error) return <p className="text-red-500">Chyba: {error}</p>;
   if (!s) return null;
 
-  const scoreColor = s.score >= 70 ? 'text-emerald-500' : s.score >= 45 ? 'text-amber-500' : 'text-red-500';
+  const scoreColor = scoreTextClass(s.score);
   const maxCat = Math.max(1, ...s.categories.map((c) => c.minutes));
 
   return (
     <div className="space-y-4">
+      <ScoreScaleLegend />
       <div className="grid gap-6 card p-6 md:grid-cols-2">
         <div className="flex items-center justify-center">
           <Donut

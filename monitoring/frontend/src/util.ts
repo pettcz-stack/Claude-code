@@ -27,13 +27,39 @@ export function localHourOf(iso: string): number {
   return new Date(iso).getHours();
 }
 
-/** Barvy pro typy aktivity. */
+/** Barvy pro typy aktivity (kategorie času). */
 export const TYPE_COLORS = {
   work: '#10b981',
   nonwork: '#ef4444',
   idle: '#cbd5e1',
   off: '#94a3b8',
 };
+
+/**
+ * Jednotná škála hodnocení výsledků v celé aplikaci:
+ * zelená = nejlepší, žlutá = střední, červená = nejhorší.
+ * Pásma jsou stejná všude (KPI, žebříček, oddělení, detail…).
+ */
+export const SCORE_GOOD = '#10b981'; // zelená
+export const SCORE_MID = '#f59e0b';  // žlutá / oranžová
+export const SCORE_BAD = '#ef4444';  // červená
+export const SCORE_GOOD_MIN = 75;
+export const SCORE_MID_MIN = 50;
+
+/** HEX barva pro výsledek dle pásma (na výplně pruhů, teček apod.). */
+export function scoreHex(score: number): string {
+  return score >= SCORE_GOOD_MIN ? SCORE_GOOD : score >= SCORE_MID_MIN ? SCORE_MID : SCORE_BAD;
+}
+
+/** Tailwind třída barvy textu pro výsledek dle pásma. */
+export function scoreTextClass(score: number): string {
+  return score >= SCORE_GOOD_MIN ? 'text-emerald-500' : score >= SCORE_MID_MIN ? 'text-amber-500' : 'text-red-500';
+}
+
+/** Slovní hodnocení výsledku (pro popisky). */
+export function scoreWord(score: number): string {
+  return score >= SCORE_GOOD_MIN ? 'výborné' : score >= SCORE_MID_MIN ? 'průměrné' : 'slabé';
+}
 
 export function chipClass(type: string): string {
   return type === 'NON_WORK' ? 'chip-nonwork' : type === 'WORK' ? 'chip-work' : 'chip-neutral';

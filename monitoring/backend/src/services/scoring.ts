@@ -40,6 +40,7 @@ export type UserScore = ScoreBreakdown & {
 // Kategorie práce, kde druhý monitor prokazatelně pomáhá (porovnávání/přepínání oken).
 export const MULTI_MONITOR_BENEFIT_CATS = new Set<string>([
   'Kancelář', 'Vývoj', 'Podnikový systém', 'Projektové řízení', 'Grafika', 'Práce – nástroje',
+  'CRM', 'CAD / Konstrukce', 'Reporty',
 ]);
 
 // Relativní pracovní kapacita podle počtu monitorů u práce, která z nich těží

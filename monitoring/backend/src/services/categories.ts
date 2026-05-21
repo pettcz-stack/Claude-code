@@ -26,7 +26,13 @@ export const DEFAULT_CATEGORIES: CatDef[] = [
   { appName: 'teams.exe', category: 'Komunikace', type: 'WORK' },
   { appName: 'slack.exe', category: 'Komunikace', type: 'WORK' },
   { appName: 'sap.exe', category: 'Podnikový systém', type: 'WORK' },
-  { appName: 'okbase.exe', category: 'Podnikový systém', type: 'WORK' },
+  { appName: 'navision.exe', category: 'Podnikový systém', type: 'WORK' }, // Microsoft Navision (Dynamics NAV)
+  { appName: 'econ.exe', category: 'Podnikový systém', type: 'WORK' }, // E-CON ekonomický systém
+  { appName: 'crm.exe', category: 'CRM', type: 'WORK' }, // Microsoft Dynamics CRM
+  { appName: 'sldworks.exe', category: 'CAD / Konstrukce', type: 'WORK' }, // SolidWorks
+  { appName: 'okbase.exe', category: 'Docházka / HR', type: 'WORK' }, // OKbase
+  { appName: 'acrobat.exe', category: 'Dokumenty', type: 'NEUTRAL' },
+  { appName: 'acrord32.exe', category: 'Dokumenty', type: 'NEUTRAL' },
   // Neutrální
   { appName: 'chrome.exe', category: 'Prohlížeč', type: 'NEUTRAL' },
   { appName: 'msedge.exe', category: 'Prohlížeč', type: 'NEUTRAL' },

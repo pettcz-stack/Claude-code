@@ -93,7 +93,13 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
 
       <div className="card p-5">
         <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><KeyRound size={16} className="text-emerald-600" /> Audit softwaru a licencí</h3>
-        <p className="mb-3 text-xs muted-2">Reálné využití aplikací. U placených aplikací vidíte, kolik licencí leží ladem.</p>
+        <p className="mb-2 text-xs muted-2">Reálné využití aplikací. U placených aplikací vidíte, kolik licencí leží ladem.</p>
+        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-slate-800/60 dark:text-slate-300">
+          <span className="font-semibold">Sloupec „Využití":</span>
+          <span className="flex items-center gap-1.5"><i className="inline-block h-3 w-3 rounded-sm bg-emerald-500" /> 80–100 % dobře využité</span>
+          <span className="flex items-center gap-1.5"><i className="inline-block h-3 w-3 rounded-sm bg-amber-500" /> 40–79 % částečně</span>
+          <span className="flex items-center gap-1.5"><i className="inline-block h-3 w-3 rounded-sm bg-red-500" /> 0–39 % plýtvání</span>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>

@@ -5,7 +5,8 @@ import { Donut } from './Donut.js';
 import { TrendChart } from './TrendChart.js';
 import { HeatmapView } from './HeatmapView.js';
 import { PageSkeleton } from './Skeleton.js';
-import { TYPE_COLORS } from './util.js';
+import { ScoreScaleLegend } from './Legend.js';
+import { TYPE_COLORS, scoreHex, scoreTextClass } from './util.js';
 
 function Kpi({ icon, label, value, sub, accent }: { icon: React.ReactNode; label: string; value: string; sub?: React.ReactNode; accent?: string }) {
   return (
@@ -37,11 +38,12 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
   useEffect(() => { api.monitors(from, to, department).then(setMon).catch(() => setMon(null)); }, [from, to, department]);
   if (!o) return <PageSkeleton />;
 
-  const scoreColor = o.kpi.avgScore >= 70 ? 'text-emerald-500' : o.kpi.avgScore >= 45 ? 'text-amber-500' : 'text-red-500';
-  const maxDept = Math.max(1, ...o.departments.map((d) => d.avgScore));
+  const scoreColor = scoreTextClass(o.kpi.avgScore);
 
   return (
     <div className="space-y-4">
+      <ScoreScaleLegend />
+
       {/* KPI strip */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi icon={<Gauge size={13} />} label="Průměrné skóre" value={`${o.kpi.avgScore} %`} accent={scoreColor} sub={<Delta d={o.kpi.avgScoreDelta} />} />
@@ -74,20 +76,18 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
 
         {/* Srovnání oddělení */}
         <div className="card p-5 lg:col-span-2">
-          <h3 className="mb-3 text-sm font-semibold">Skóre podle oddělení</h3>
-          <div className="space-y-2">
-            {o.departments.map((d) => {
-              const c = d.avgScore >= 70 ? TYPE_COLORS.work : d.avgScore >= 45 ? '#f59e0b' : TYPE_COLORS.nonwork;
-              return (
-                <div key={d.department} className="flex items-center gap-3">
-                  <div className="w-40 shrink-0 truncate text-sm">{d.department} <span className="muted-2">({d.users})</span></div>
-                  <div className="h-3 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
-                    <div className="h-full rounded-full" style={{ width: `${(d.avgScore / maxDept) * 100}%`, background: c }} />
-                  </div>
-                  <div className="w-12 text-right text-sm font-semibold tabular-nums">{d.avgScore}%</div>
+          <h3 className="mb-1 text-sm font-semibold">Skóre podle oddělení</h3>
+          <p className="mb-3 text-xs muted-2">Délka i barva pruhu odpovídají skóre (0–100 %). Číslo v závorce = počet lidí.</p>
+          <div className="space-y-2.5">
+            {o.departments.map((d) => (
+              <div key={d.department} className="flex items-center gap-3">
+                <div className="w-44 shrink-0 truncate text-sm" title={d.department}>{d.department} <span className="muted-2">({d.users})</span></div>
+                <div className="h-4 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${d.avgScore}%`, background: scoreHex(d.avgScore) }} />
                 </div>
-              );
-            })}
+                <div className={`w-12 text-right text-sm font-bold tabular-nums ${scoreTextClass(d.avgScore)}`}>{d.avgScore}%</div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -157,7 +157,7 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
 }
 
 function MonitorBox({ label, data }: { label: string; data: { users: number; avgScore: number; avgActiveHours: number } }) {
-  const c = data.avgScore >= 70 ? 'text-emerald-500' : data.avgScore >= 45 ? 'text-amber-500' : 'text-red-500';
+  const c = scoreTextClass(data.avgScore);
   return (
     <div className="rounded-lg border border-gray-200 p-4 dark:border-slate-700">
       <div className="text-sm font-medium">{label}</div>
@@ -182,17 +182,14 @@ function RankCard({ title, rows, good, onOpenUser }: {
         {good ? <span className="text-emerald-500">▲</span> : <AlertTriangle size={14} className="text-amber-500" />} {title}
       </h3>
       <div className="space-y-1.5">
-        {rows.map((r, i) => {
-          const c = r.score >= 70 ? 'text-emerald-500' : r.score >= 45 ? 'text-amber-500' : 'text-red-500';
-          return (
-            <div key={r.userId} className="flex items-center gap-3">
-              <span className="w-5 text-right text-sm muted-2">{i + 1}.</span>
-              <button onClick={() => onOpenUser(r.userId)} className="flex-1 text-left text-sm hover:underline">{r.displayName}</button>
-              <span className="text-xs muted-2">{r.department}</span>
-              <span className={`w-12 text-right text-sm font-semibold tabular-nums ${c}`}>{r.score}%</span>
-            </div>
-          );
-        })}
+        {rows.map((r, i) => (
+          <div key={r.userId} className="flex items-center gap-3">
+            <span className="w-5 shrink-0 text-right text-sm muted-2">{i + 1}.</span>
+            <button onClick={() => onOpenUser(r.userId)} className="min-w-0 flex-1 truncate text-left text-sm hover:underline">{r.displayName}</button>
+            <span className="shrink-0 text-xs muted-2">{r.department}</span>
+            <span className={`w-12 shrink-0 text-right text-sm font-bold tabular-nums ${scoreTextClass(r.score)}`}>{r.score}%</span>
+          </div>
+        ))}
       </div>
     </div>
   );
