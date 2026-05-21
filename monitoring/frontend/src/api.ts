@@ -153,6 +153,12 @@ export type HomeOffice = {
 };
 export type SelfReportData = { displayName: string | null; department: string | null; score: number; companyPercentile: number; deptPercentile: number; kpmPercentile: number; avgKpm: number; activeHours: number; nonWorkPct: number; monitorTypical: number; multiMonitorPct: number; appSwitchesPerHour: number; keystrokeTotal: number; caloriesTyping: number; distanceMeters: number };
 
+export type TipsData = {
+  health: { category: string | null; text: string }[];
+  growth: { text: string; author: string | null }[];
+  fun: { text: string }[];
+};
+
 export type AppSettings = { alertsEnabled: boolean; alertRecipients: string[]; offlineMinutes: number; funMode: boolean; healthMode: boolean; growthMode: boolean; interpretMonitors: boolean };
 
 export type Me = { username: string; role: string };
@@ -251,6 +257,7 @@ export const api = {
   },
   selfReport: (userId: string, from: string, to: string) =>
     getJson<{ report: SelfReportData }>(`/api/v1/dashboard/selfreport?userId=${encodeURIComponent(userId)}&from=${from}&to=${to}`).then((d) => d.report),
+  tips: () => getJson<TipsData>('/api/v1/dashboard/tips'),
   trend: (from: string, to: string, opts: { userId?: string; department?: string } = {}) => {
     const q = new URLSearchParams({ from, to });
     if (opts.userId) q.set('userId', opts.userId);

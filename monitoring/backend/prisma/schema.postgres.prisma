@@ -172,6 +172,18 @@ model SentAlert {
   lastSentAt DateTime @default(now())
 }
 
+model Tip {
+  id        String   @id @default(cuid())
+  kind      String
+  category  String?
+  text      String
+  author    String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([kind, active])
+}
+
 model AdminUser {
   id           String   @id @default(cuid())
   username     String   @unique

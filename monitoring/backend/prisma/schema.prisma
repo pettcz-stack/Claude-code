@@ -189,6 +189,20 @@ model SentAlert {
   lastSentAt DateTime @default(now())
 }
 
+/// Tipy do reportu zaměstnance (zdravotní mikro-tipy, moudra, „věděl jsi").
+/// Spravované v DB → lze doplňovat/upravovat bez zásahu do kódu.
+model Tip {
+  id        String   @id @default(cuid())
+  kind      String // HEALTH | GROWTH | FUN
+  category  String? // u HEALTH: stand|move|eyes|breath|water|coffee|ergo|focus|mood|air
+  text      String
+  author    String? // u GROWTH (autor citátu)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([kind, active])
+}
+
 /// Účet pro přístup do dashboardu (role ADMIN | VIEWER).
 model AdminUser {
   id           String   @id @default(cuid())

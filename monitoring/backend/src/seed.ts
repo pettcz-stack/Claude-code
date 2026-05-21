@@ -7,27 +7,48 @@ import { prisma } from './db.js';
 import { aggregateAll } from './services/aggregate.js';
 import { ensureDefaultCategories } from './services/categories.js';
 import { DEFAULT_WEB_RULES } from './services/classify.js';
+import { ensureDefaultTips } from './services/tips.js';
 
 type Behavior = 'normal' | 'slacker' | 'cheater_mouse' | 'cheater_keyboard';
 
-const PEOPLE: { name: string; dept: string; behavior: Behavior; diligence: number }[] = [
-  { name: 'Jan Procházka', dept: 'Vedení', behavior: 'normal', diligence: 0.9 },
-  { name: 'Eva Dvořáková', dept: 'Obchod ČR', behavior: 'normal', diligence: 0.85 },
-  { name: 'Petr Novák', dept: 'Obchod ČR', behavior: 'slacker', diligence: 0.5 },
-  { name: 'Lucie Svobodová', dept: 'Obchod Export', behavior: 'normal', diligence: 0.82 },
-  { name: 'Martin Kučera', dept: 'Obchod Export', behavior: 'cheater_mouse', diligence: 0.9 },
-  { name: 'Tereza Veselá', dept: 'Marketing', behavior: 'normal', diligence: 0.78 },
-  { name: 'Ondřej Černý', dept: 'Marketing', behavior: 'slacker', diligence: 0.42 },
-  { name: 'Jakub Horák', dept: 'Konstrukce', behavior: 'normal', diligence: 0.88 },
-  { name: 'Veronika Marková', dept: 'Konstrukce', behavior: 'normal', diligence: 0.8 },
-  { name: 'Tomáš Pospíšil', dept: 'Výroba', behavior: 'normal', diligence: 0.72 },
-  { name: 'Kateřina Němcová', dept: 'Logistika', behavior: 'slacker', diligence: 0.55 },
-  { name: 'David Beneš', dept: 'Montáže a servis', behavior: 'normal', diligence: 0.83 },
-  { name: 'Hana Kratochvílová', dept: 'Ekonomika', behavior: 'normal', diligence: 0.86 },
-  { name: 'Roman Fiala', dept: 'Ekonomika', behavior: 'cheater_keyboard', diligence: 0.9 },
-  { name: 'Markéta Urbanová', dept: 'Personalistika', behavior: 'normal', diligence: 0.8 },
-  { name: 'Filip Doležal', dept: 'IT', behavior: 'normal', diligence: 0.87 },
+// 100 zaměstnanců – realistické rozložení po útvarech výrobní firmy (ALBIXON-styl).
+const DEPT_PLAN: [string, number][] = [
+  ['Výroba', 28], ['Montáže a servis', 16], ['Konstrukce', 10],
+  ['Obchod ČR', 8], ['Obchod Export', 7], ['Logistika', 7],
+  ['Ekonomika', 6], ['Marketing', 5], ['IT', 5], ['Vedení', 4], ['Personalistika', 4],
 ];
+const FIRST_M = ['Jan', 'Petr', 'Martin', 'Tomáš', 'Jakub', 'Lukáš', 'Jiří', 'Pavel', 'Josef', 'David', 'Ondřej', 'Filip', 'Michal', 'Marek', 'Vojtěch', 'Adam', 'Roman', 'Aleš', 'Zdeněk', 'Karel', 'Miroslav', 'Daniel', 'Václav', 'Radek', 'Štěpán', 'Patrik', 'Matěj', 'Dominik', 'Libor', 'Stanislav'];
+const FIRST_F = ['Eva', 'Lucie', 'Tereza', 'Veronika', 'Kateřina', 'Hana', 'Markéta', 'Jana', 'Petra', 'Lenka', 'Alena', 'Barbora', 'Kristýna', 'Michaela', 'Martina', 'Klára', 'Nikola', 'Simona', 'Monika', 'Denisa', 'Iveta', 'Zuzana', 'Gabriela', 'Adéla', 'Pavla'];
+const LAST_M = ['Novák', 'Svoboda', 'Novotný', 'Dvořák', 'Černý', 'Procházka', 'Kučera', 'Veselý', 'Horák', 'Němec', 'Pospíšil', 'Marek', 'Pokorný', 'Beneš', 'Doležal', 'Zeman', 'Sedláček', 'Kratochvíl', 'Urban', 'Fiala', 'Říha', 'Kříž', 'Bartoš', 'Vaněk', 'Polák', 'Moravec', 'Holub', 'Štěpánek', 'Soukup', 'Konečný'];
+const LAST_F = ['Nováková', 'Svobodová', 'Novotná', 'Dvořáková', 'Černá', 'Procházková', 'Kučerová', 'Veselá', 'Horáková', 'Němcová', 'Pospíšilová', 'Marková', 'Pokorná', 'Benešová', 'Doležalová', 'Zemanová', 'Sedláčková', 'Kratochvílová', 'Urbanová', 'Fialová', 'Říhová', 'Křížová', 'Bartošová', 'Vaňková', 'Poláková', 'Moravcová', 'Holubová', 'Štěpánková', 'Soukupová', 'Konečná'];
+
+function genPeople(): { name: string; dept: string; behavior: Behavior; diligence: number }[] {
+  let s = 987654321; // deterministický generátor (stejní lidé při každém seedu)
+  const rng = () => (s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  const pickFrom = <T,>(a: T[]) => a[Math.floor(rng() * a.length)];
+  const used = new Set<string>();
+  const depts: string[] = [];
+  for (const [d, n] of DEPT_PLAN) for (let i = 0; i < n; i++) depts.push(d);
+
+  const people: { name: string; dept: string; behavior: Behavior; diligence: number }[] = [];
+  for (const dept of depts) {
+    let name = '';
+    for (let tries = 0; tries < 80; tries++) {
+      const male = rng() < 0.62;
+      name = male ? `${pickFrom(FIRST_M)} ${pickFrom(LAST_M)}` : `${pickFrom(FIRST_F)} ${pickFrom(LAST_F)}`;
+      if (!used.has(name)) { used.add(name); break; }
+    }
+    const behavior: Behavior = rng() < 0.14 ? 'slacker' : 'normal';
+    const diligence = behavior === 'slacker' ? 0.4 + rng() * 0.22 : 0.68 + rng() * 0.27;
+    people.push({ name, dept, behavior, diligence });
+  }
+  // Dva ukázkoví „podvodníci" na konkrétní útvary (kvůli demu detekce praktik).
+  const em = people.find((p) => p.dept === 'Obchod Export'); if (em) { em.behavior = 'cheater_mouse'; em.diligence = 0.9; }
+  const ek = people.find((p) => p.dept === 'Ekonomika'); if (ek) { ek.behavior = 'cheater_keyboard'; ek.diligence = 0.9; }
+  return people;
+}
+
+const PEOPLE = genPeople();
 
 const NONWORK_APPS = ['steam.exe', 'spotify.exe'];
 // Nezařazené (interní) aplikace – nejsou ve výchozích kategoriích → UNKNOWN.
@@ -82,8 +103,9 @@ function hoDipFor(b: Behavior): number {
 }
 
 async function main() {
-  // Zajisti výchozí kategorie aplikací a pravidla webů (i pro reálné ALBIXON aplikace).
+  // Zajisti výchozí kategorie aplikací, pravidla webů a tipy do reportu.
   await ensureDefaultCategories();
+  await ensureDefaultTips();
   for (const r of DEFAULT_WEB_RULES) {
     await prisma.webRule.upsert({
       where: { keyword: r.keyword },

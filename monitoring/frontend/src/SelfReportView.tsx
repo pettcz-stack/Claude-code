@@ -1,92 +1,29 @@
 import { useEffect, useState } from 'react';
 import { ShieldCheck, X, Keyboard, Trophy, Users, Building2, Sparkles, Award, Footprints, Flame, HeartPulse, PersonStanding, GlassWater, Eye, Coffee, Wind, Target, Armchair, Activity, Quote } from 'lucide-react';
-import { api, type SelfReportData, type User } from './api.js';
+import { api, type SelfReportData, type TipsData, type User } from './api.js';
 
-// Mikro-doporučení, která NEBEROU pozornost od práce (max pár vteřin, často
-// se dají dělat vstoje/u práce). Žádné přestávky – cílem je výkon i pohoda.
-type Cat = 'stand' | 'move' | 'eyes' | 'breath' | 'water' | 'coffee' | 'ergo' | 'focus' | 'mood';
-const TIPS: { cat: Cat; text: string }[] = [
-  { cat: 'stand', text: 'Postavte se a chvíli pracujte ve stoje – prokrví nohy, aniž přestanete pracovat.' },
-  { cat: 'stand', text: 'Při čtení e-mailu se na chvíli zvedněte – krev se rozproudí, hlava zůstane u práce.' },
-  { cat: 'move', text: 'Zakružte kotníky pod stolem – nakopne oběh v nohou (pár vteřin).' },
-  { cat: 'move', text: 'Sevřete a povolte lýtka 5× pod stolem – prevence těžkých nohou.' },
-  { cat: 'move', text: 'Otevřete a zavřete dlaně 5× – uvolní prsty unavené z psaní.' },
-  { cat: 'move', text: 'Krátce zakružte rameny – uvolní napětí z myši, trvá to 2 vteřiny.' },
-  { cat: 'move', text: 'Protáhněte prsty u nohou v botě – nenápadný mikrocvik při práci.' },
-  { cat: 'ergo', text: 'Narovnejte záda a stáhněte ramena dozadu – vydržte pár vteřin.' },
-  { cat: 'ergo', text: 'Horní okraj monitoru dejte do výšky očí – uleví krční páteři.' },
-  { cat: 'ergo', text: 'Lokty držte zhruba v úhlu 90° – méně únavy předloktí.' },
-  { cat: 'ergo', text: 'Chodidla opřete celou plochou o zem – stabilnější a zdravější sed.' },
-  { cat: 'ergo', text: 'Myš mějte blízko klávesnice – kratší pohyby šetří rameno.' },
-  { cat: 'ergo', text: 'Zápěstí nepokládejte na ostrou hranu stolu.' },
-  { cat: 'ergo', text: 'Židli nastavte tak, aby kolena byla v úhlu ~90°.' },
-  { cat: 'eyes', text: 'Na 2 vteřiny se podívejte z okna do dálky – odpočinou oči.' },
-  { cat: 'eyes', text: 'Vědomě několikrát mrkněte – obrazovka oči vysušuje.' },
-  { cat: 'eyes', text: 'Posuňte monitor zhruba na délku paže od očí.' },
-  { cat: 'breath', text: 'Jeden pomalý nádech nosem a výdech – okysličí mozek pro soustředění.' },
-  { cat: 'breath', text: 'Narovnejte se a 3× se zhluboka nadechněte – během chvilky.' },
-  { cat: 'water', text: 'Dejte si doušek vody – i mírná dehydratace snižuje výkon.' },
-  { cat: 'water', text: 'Mějte sklenici vody na dosah, ať kvůli ní nevstáváte.' },
-  { cat: 'coffee', text: 'Kávu spíš dopoledne – odpolední ruší spánek a tím i zítřejší výkon.' },
-  { cat: 'coffee', text: 'Po kávě sklenici vody – vyrovná odvodnění.' },
-  { cat: 'focus', text: 'Zavřete nepotřebné karty – méně přepínání, vyšší soustředění.' },
-  { cat: 'focus', text: 'Ztlumte notifikace a dokončete jeden úkol v kuse.' },
-  { cat: 'focus', text: 'Velký úkol rozdělte na 2–3 menší – rychlejší rozjezd.' },
-  { cat: 'mood', text: 'Krátce se usmějte – sníží stres a zlepší náladu i výkon. :)' },
-  { cat: 'mood', text: 'Pochvalte se za hotový úkol – motivace táhne výkon.' },
-];
-
-const CAT_ICON: Record<Cat, React.ReactNode> = {
+// Ikona pro kategorii zdravotního tipu (tipy samotné přicházejí z DB).
+const CAT_ICON: Record<string, React.ReactNode> = {
   stand: <PersonStanding size={16} className="text-rose-500" />,
   move: <Activity size={16} className="text-emerald-500" />,
   eyes: <Eye size={16} className="text-violet-500" />,
   breath: <Wind size={16} className="text-sky-500" />,
+  air: <Wind size={16} className="text-cyan-500" />,
   water: <GlassWater size={16} className="text-sky-500" />,
   coffee: <Coffee size={16} className="text-amber-700" />,
   ergo: <Armchair size={16} className="text-teal-500" />,
   focus: <Target size={16} className="text-indigo-500" />,
   mood: <HeartPulse size={16} className="text-rose-500" />,
 };
+function catIcon(cat: string | null): React.ReactNode {
+  return (cat && CAT_ICON[cat]) || <HeartPulse size={16} className="text-rose-500" />;
+}
 
-// Rozvojový režim – moudra velikánů, jedno na celý den.
-const QUOTES: { text: string; author: string }[] = [
-  { text: 'Náš zákazník – náš pán.', author: 'Tomáš Baťa' },
-  { text: 'Co chceš, můžeš.', author: 'Tomáš Baťa' },
-  { text: 'Lidé nestojí o lacinou věc, ale o věc dobrou.', author: 'Tomáš Baťa' },
-  { text: 'Než začneš pracovat, rozmysli si, co děláš a proč to děláš.', author: 'Tomáš Baťa' },
-  { text: 'Neříkej, že to nejde, řekni, že to zatím neumíš.', author: 'Tomáš Baťa' },
-  { text: 'Největší chybou je dělat všechno najednou a nic pořádně.', author: 'Tomáš Baťa' },
-  { text: 'Slibuj méně, než kolik můžeš splnit.', author: 'Tomáš Baťa' },
-  { text: 'Den má 86 400 vteřin – využij je.', author: 'Tomáš Baťa' },
-  { text: 'Nebát se a nekrást.', author: 'T. G. Masaryk' },
-  { text: 'Kdo chvíli stál, již stojí opodál.', author: 'Jan Neruda' },
-  { text: 'Práce je nejlepší způsob, jak si užít život.', author: 'Immanuel Kant' },
-  { text: 'Kvalita znamená dělat věci správně, i když se nikdo nedívá.', author: 'Henry Ford' },
-  { text: 'Ať si myslíš, že to dokážeš, nebo ne – máš pravdu.', author: 'Henry Ford' },
-  { text: 'Spojit se je začátek, zůstat spolu je pokrok, spolupracovat je úspěch.', author: 'Henry Ford' },
-];
-
+const HOUR = () => Math.floor(Date.now() / 3600000);
 const DAY = () => Math.floor(Date.now() / 86400000);
-
-function quoteOfDay(): { text: string; author: string } {
-  return QUOTES[DAY() % QUOTES.length];
-}
-
-/** Jeden zdravotní tip „pro dnešek" (mění se den ode dne, ať se to neokouká). */
-function tipOfDay(): { cat: Cat; text: string } {
-  return TIPS[(DAY() * 7) % TIPS.length];
-}
-
-// Zábavné „věděl jsi" – jedno na den.
-const FUN_FACTS: string[] = [
-  'Tvé prsty po klávesnici „ujedou" týdně klidně i pár set metrů – patříš mezi tahouny!',
-  'Soustředěný blok bez přepínání oken zvládne víc než hodina ve skocích.',
-  'Dvě obrazovky ušetří desítky přepnutí denně – ruka i hlava si oddychnou.',
-  'Plynulé tempo psaní dělá míň překlepů než zběsilé bušení.',
-  'Doušek vody každou hodinu drží pozornost výš než další káva.',
-];
-function funFactOfDay(): string {
-  return FUN_FACTS[DAY() % FUN_FACTS.length];
+/** Vybere prvek dle počítadla období (deterministicky, mění se v čase). */
+function rotate<T>(arr: T[], counter: number): T | undefined {
+  return arr.length ? arr[counter % arr.length] : undefined;
 }
 
 function badges(r: SelfReportData): string[] {
@@ -116,17 +53,21 @@ function Compare({ icon, label, pct, color }: { icon: React.ReactNode; label: st
 
 export function SelfReportView({ user, from, to }: { user: User; from: string; to: string }) {
   const [r, setR] = useState<SelfReportData | null>(null);
+  const [tips, setTips] = useState<TipsData | null>(null);
   const [showPrivacy, setShowPrivacy] = useState(true);
   const [funMode, setFunMode] = useState(false);
   const [healthMode, setHealthMode] = useState(false);
   const [growthMode, setGrowthMode] = useState(false);
   useEffect(() => { api.selfReport(user.id, from, to).then(setR).catch(() => setR(null)); }, [user.id, from, to]);
+  useEffect(() => { api.tips().then(setTips).catch(() => setTips(null)); }, []);
   useEffect(() => { api.getSettings().then((d) => { setFunMode(d.settings.funMode); setHealthMode(d.settings.healthMode); setGrowthMode(d.settings.growthMode); }).catch(() => undefined); }, []);
   if (!r) return <p className="muted-2">Načítám…</p>;
 
   const distance = r.distanceMeters >= 1000 ? `${(r.distanceMeters / 1000).toFixed(1)} km` : `${r.distanceMeters} m`;
-  const tip = tipOfDay();
-  const quote = quoteOfDay();
+  // Zdravotní tip a „věděl jsi“ rotují po hodině, moudro dne jednou denně.
+  const tip = tips ? rotate(tips.health, HOUR()) : undefined;
+  const quote = tips ? rotate(tips.growth, DAY()) : undefined;
+  const funFact = tips ? rotate(tips.fun, HOUR()) : undefined;
 
   const grade = r.score >= 70 ? { t: 'Skvělá práce!', e: '🏆' } : r.score >= 45 ? { t: 'Dobrá práce', e: '👍' } : { t: 'Je co zlepšovat', e: '💪' };
 
@@ -147,7 +88,7 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
       </div>
 
       {/* Rozvojový režim – moudro dne */}
-      {growthMode && (
+      {growthMode && quote && (
         <div className="card flex items-start gap-3 border-indigo-200 p-5 dark:border-indigo-500/30">
           <Quote size={26} className="shrink-0 text-indigo-400" />
           <div>
@@ -186,9 +127,11 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
               <span key={b} className="rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">{b}</span>
             ))}
           </div>
-          <div className="mb-4 flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
-            <Sparkles size={16} className="mt-0.5 shrink-0" /> <span><b>Věděl jsi?</b> {funFactOfDay()}</span>
-          </div>
+          {funFact && (
+            <div className="mb-4 flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+              <Sparkles size={16} className="mt-0.5 shrink-0" /> <span><b>Věděl jsi?</b> {funFact.text}</span>
+            </div>
+          )}
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="rounded-lg border border-gray-200 p-4 dark:border-slate-700">
               <div className="flex items-center gap-1.5 text-xs uppercase muted-2"><Footprints size={13} /> Naťukaná vzdálenost</div>
@@ -210,14 +153,14 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
       )}
 
       {/* Zdravotní režim – mikro-doporučení BEZ ztráty pozornosti (žádné přestávky) */}
-      {healthMode && (
+      {healthMode && tip && (
         <div className="card border-rose-200 p-5 dark:border-rose-500/30">
           <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-rose-600 dark:text-rose-300"><HeartPulse size={16} /> Zdravotní mikro-tip</h3>
           <p className="mb-3 text-xs muted-2">Drobnost, kterou zvládnete při práci a nezabere pozornost déle než pár vteřin.</p>
           <div className="flex items-center gap-3 rounded-lg bg-rose-50 p-3 text-sm dark:bg-rose-500/10">
-            {CAT_ICON[tip.cat]} <span><b>Tip dne:</b> {tip.text}</span>
+            {catIcon(tip.category)} <span><b>Tip teď:</b> {tip.text}</span>
           </div>
-          <p className="mt-3 text-xs muted-2">Tip se každý den mění. Orientační, nejde o lékařskou radu.</p>
+          <p className="mt-3 text-xs muted-2">Tip se každou hodinu obměňuje. Orientační, nejde o lékařskou radu.</p>
         </div>
       )}
 

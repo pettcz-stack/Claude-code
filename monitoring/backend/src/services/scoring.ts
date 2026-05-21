@@ -76,8 +76,32 @@ function pct(part: number, whole: number): number {
   return whole > 0 ? Math.round((part / whole) * 100) : 0;
 }
 
+/** Rozdělení tempa psaní (úhozy/min) všech aktivních lidí za období – spočítá se jednou. */
+export async function kpmCohort(from: Date, to: Date): Promise<number[]> {
+  const activeUsers = await prisma.monitoredUser.findMany({ where: { active: true }, select: { id: true } });
+  const activeIds = new Set(activeUsers.map((u) => u.id));
+  const grouped = await prisma.activityHourly.groupBy({
+    by: ['userId'],
+    where: { hourStart: { gte: from, lt: to } },
+    _sum: { keystrokeTotal: true, activeMinutes: true },
+  });
+  const kpms: number[] = [];
+  for (const g of grouped) {
+    if (!activeIds.has(g.userId)) continue;
+    const mins = g._sum.activeMinutes ?? 0;
+    if (mins > 0) kpms.push((g._sum.keystrokeTotal ?? 0) / mins);
+  }
+  return kpms;
+}
+
+function percentileOf(value: number, cohort: number[]): number {
+  if (cohort.length <= 1) return 50;
+  const lower = cohort.filter((k) => k < value).length;
+  return Math.round((lower / cohort.length) * 100);
+}
+
 /** Spočítá skóre a rozpad jednoho uživatele za období. */
-export async function computeUserScore(userId: string, from: Date, to: Date, opts?: { interpretMonitors?: boolean }): Promise<UserScore> {
+export async function computeUserScore(userId: string, from: Date, to: Date, opts?: { interpretMonitors?: boolean; kpmCohort?: number[] }): Promise<UserScore> {
   const user = await prisma.monitoredUser.findUnique({
     where: { id: userId },
     select: { id: true, displayName: true, department: true },
@@ -137,7 +161,9 @@ export async function computeUserScore(userId: string, from: Date, to: Date, opt
   const meetingMinutes = Math.round(pcOffMinutes * 0.35);
 
   const avgKpm = workMinutes + nonWorkMinutes > 0 ? totalKeystrokes / (workMinutes + nonWorkMinutes) : 0;
-  const kpmPercentile = await kpmPercentileForUser(userId, from, to, avgKpm);
+  // Cohort se spočítá jednou (předaný) → u žebříčku 100 lidí jen 1 dotaz místo 100.
+  const cohort = opts?.kpmCohort ?? (await kpmCohort(from, to));
+  const kpmPercentile = percentileOf(avgKpm, cohort);
 
   let topApp: string | null = null;
   let best = -1;
@@ -199,20 +225,3 @@ export async function computeUserScore(userId: string, from: Date, to: Date, opt
   };
 }
 
-/** Percentil průměrného tempa psaní uživatele vůči ostatním („lepší než X %"). */
-async function kpmPercentileForUser(userId: string, from: Date, to: Date, userKpm: number): Promise<number> {
-  const users = await prisma.monitoredUser.findMany({ where: { active: true }, select: { id: true } });
-  const kpms: number[] = [];
-  for (const u of users) {
-    const agg = await prisma.activityHourly.aggregate({
-      where: { userId: u.id, hourStart: { gte: from, lt: to } },
-      _sum: { keystrokeTotal: true, activeMinutes: true },
-    });
-    const active = agg._sum.activeMinutes ?? 0;
-    const ks = agg._sum.keystrokeTotal ?? 0;
-    if (active > 0) kpms.push(ks / active);
-  }
-  if (kpms.length <= 1) return 50;
-  const lower = kpms.filter((k) => k < userKpm).length;
-  return Math.round((lower / kpms.length) * 100);
-}

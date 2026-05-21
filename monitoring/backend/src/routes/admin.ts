@@ -6,6 +6,7 @@ import { sendReport } from '../services/report.js';
 import { smtpEnabled } from '../config.js';
 import { getSettings, saveSettings } from '../services/settings.js';
 import { runAlertChecks } from '../services/alerts.js';
+import { clearCache } from '../services/cache.js';
 
 export const adminRouter = Router();
 
@@ -27,6 +28,7 @@ adminRouter.put('/settings', requireRole('ADMIN'), async (req, res) => {
   const p = settingsSchema.safeParse(req.body);
   if (!p.success) return void res.status(400).json({ error: 'invalid_payload' });
   await saveSettings(p.data);
+  clearCache(); // změna nastavení (např. interpretace monitorů) → přepočítat
   res.json({ settings: await getSettings() });
 });
 
