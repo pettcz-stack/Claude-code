@@ -47,9 +47,9 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
         <BigScore icon={<House size={16} className="text-emerald-600" />} label="Skóre efektivity – Home Office (%)" score={d.company.hoScore} sub={`${amt(d.company.hoDays)} na HO · ${d.company.hoActiveHours} h aktivní práce`} />
         <BigScore icon={<Building2 size={16} className="text-emerald-600" />} label="Skóre efektivity – kancelář (%)" score={d.company.officeScore} sub={`${amt(d.company.officeDays)} v kanceláři · ${d.company.officeActiveHours} h aktivní práce`} />
         <div className="card flex flex-col items-center justify-center p-6">
-          <div className="mb-1 text-center text-sm muted">Rozdíl efektivity: Home Office − kancelář (body)</div>
+          <div className="mb-1 text-center text-sm muted">Rozdíl efektivity: Home Office − kancelář (procentní body)</div>
           <div className={`flex items-center gap-1 text-4xl font-bold ${diff < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
-            {diff < 0 ? <ArrowDown size={28} /> : <ArrowUp size={28} />} {Math.abs(diff)} b.
+            {diff < 0 ? <ArrowDown size={28} /> : <ArrowUp size={28} />} {diff > 0 ? '+' : ''}{diff} p.b.
           </div>
           <div className="mt-2 text-center text-xs muted-2">
             {diff < -3 ? 'Na home office se pracuje méně efektivně.' : diff > 3 ? 'Na home office se pracuje efektivněji.' : 'Efektivita HO a kanceláře je srovnatelná.'}
@@ -99,7 +99,7 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
             <th className="th text-right">Home Office ({unit === 'hours' ? 'hodiny' : 'dny'})</th>
             <th className="th text-right">Skóre na Home Office (%)</th>
             <th className="th text-right">Skóre v kanceláři (%)</th>
-            <th className="th text-right">Rozdíl (body)</th>
+            <th className="th text-right">Rozdíl (procentní body)</th>
           </tr></thead>
           <tbody>
             {d.perUser.map((u) => (

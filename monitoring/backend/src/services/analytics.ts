@@ -512,6 +512,7 @@ export type SelfReport = {
   keystrokeTotal: number;
   caloriesTyping: number; // orientační kcal spálené psaním
   distanceMeters: number; // orientační „naťukaná" vzdálenost prstů
+  currentSite: string; // aktuální pracoviště (poslední den s daty; „Mimo firmu")
 };
 
 export async function selfReport(userId: string, from: Date, to: Date): Promise<SelfReport> {
@@ -536,6 +537,12 @@ export async function selfReport(userId: string, from: Date, to: Date): Promise<
   const dept = users.filter((u) => u.department === myDept).map((u) => scoreOf(u.id));
   const pct = (arr: number[]) => (arr.length <= 1 ? 50 : Math.round((arr.filter((v) => v < myScore).length / arr.length) * 100));
 
+  // Aktuální pracoviště = poslední den s daty.
+  const lastDay = await prisma.dailyStat.findFirst({
+    where: { userId, date: { gte: from, lt: to } }, orderBy: { date: 'desc' }, select: { site: true },
+  });
+  const currentSite = lastDay?.site ?? 'Mimo firmu';
+
   return {
     displayName: me.displayName,
     department: me.department,
@@ -553,6 +560,7 @@ export async function selfReport(userId: string, from: Date, to: Date): Promise<
     // Orientační (zábavné) odhady – ne lékařské hodnoty.
     caloriesTyping: Math.round(me.keystrokeTotal * 0.0014),
     distanceMeters: Math.round(me.keystrokeTotal * 0.02),
+    currentSite,
   };
 }
 

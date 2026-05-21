@@ -214,6 +214,33 @@ dashboardRouter.get('/hourly', async (req, res) => {
   res.json({ rows });
 });
 
+/** Rozpad aplikací po hodinách (pro detailní tooltip v kalendáři). */
+dashboardRouter.get('/hourly-apps', async (req, res) => {
+  const parsed = rangeSchema.safeParse(req.query);
+  if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
+  const { from, to, userId } = parsed.data;
+  if (!userId) return void res.status(400).json({ error: 'userId_required' });
+  const intervals = await prisma.activityInterval.findMany({
+    where: { userId, intervalStart: { gte: new Date(from), lt: new Date(to) }, foregroundApp: { not: null } },
+    select: { intervalStart: true, foregroundApp: true, activeSeconds: true },
+  });
+  // hodina (UTC, zarovnaná) → app → minuty
+  const byHour = new Map<string, Map<string, number>>();
+  for (const it of intervals) {
+    if (it.activeSeconds <= 0 || !it.foregroundApp) continue;
+    const h = new Date(it.intervalStart); h.setUTCMinutes(0, 0, 0);
+    const key = h.toISOString();
+    let m = byHour.get(key);
+    if (!m) (m = new Map()), byHour.set(key, m);
+    m.set(it.foregroundApp, (m.get(it.foregroundApp) ?? 0) + it.activeSeconds / 60);
+  }
+  const hours = Array.from(byHour.entries()).map(([hourStart, m]) => ({
+    hourStart,
+    apps: Array.from(m.entries()).map(([app, minutes]) => ({ app, minutes: Math.round(minutes) })).sort((a, b) => b.minutes - a.minutes),
+  }));
+  res.json({ hours });
+});
+
 /**
  * Firemní souhrn za období – agregace hodinových řádků na uživatele.
  * Vhodné pro přehled celé firmy / oddělení.

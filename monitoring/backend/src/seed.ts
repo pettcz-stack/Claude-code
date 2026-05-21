@@ -12,7 +12,8 @@ import { ensureDefaultSites } from './services/sites.js';
 
 // Provozovna podle útvaru (pro lokální IP v demu): 10.30=Hořovice, 10.20=Praha, 10.10=Brno.
 function siteBaseFor(dept: string): string {
-  if (['Výroba', 'Montáže a servis', 'Konstrukce'].includes(dept)) return '10.30'; // Hořovice
+  if (['Výroba', 'Montáže a servis'].includes(dept)) return '10.30'; // Hořovice
+  if (dept === 'Konstrukce') return '10.50'; // Osov
   if (dept === 'Obchod Export') return '10.10'; // Brno
   if (dept === 'Logistika') return '10.40'; // Ostrava
   return '10.20'; // Praha

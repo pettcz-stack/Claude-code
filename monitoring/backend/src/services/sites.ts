@@ -51,7 +51,8 @@ export async function getSites(): Promise<SiteDef[]> {
 /** Výchozí seznam provozoven (vlastní s rozsahy + partnerské zatím bez rozsahů). */
 export const DEFAULT_SITES: { name: string; subnets: string; kind: string }[] = [
   // Vlastní – síť ve správě IT (rozsahy demo).
-  { name: 'Areál Hořovice (výroba)', subnets: '10.30.0.0/16', kind: 'VLASTNI' },
+  { name: 'Areál Hořovice', subnets: '10.30.0.0/16', kind: 'VLASTNI' },
+  { name: 'Areál Osov', subnets: '10.50.0.0/16', kind: 'VLASTNI' },
   { name: 'Pobočka Praha', subnets: '10.20.0.0/16', kind: 'VLASTNI' },
   { name: 'Pobočka Brno', subnets: '10.10.0.0/16', kind: 'VLASTNI' },
   { name: 'Pobočka Ostrava', subnets: '10.40.0.0/16', kind: 'VLASTNI' },

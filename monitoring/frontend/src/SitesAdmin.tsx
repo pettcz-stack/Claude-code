@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MapPin, Plus, Trash2, Building2 } from 'lucide-react';
+import { MapPin, Plus, Trash2, Building2, Pencil, Check, X } from 'lucide-react';
 import { api, type Site } from './api.js';
 import { useToast } from './Toast.js';
 
@@ -8,6 +8,8 @@ export function SitesAdmin({ canEdit }: { canEdit: boolean }) {
   const [name, setName] = useState('');
   const [subnets, setSubnets] = useState('');
   const [kind, setKind] = useState('VLASTNI');
+  const [editId, setEditId] = useState<string | null>(null);
+  const [edit, setEdit] = useState<{ name: string; subnets: string; kind: string; active: boolean }>({ name: '', subnets: '', kind: 'VLASTNI', active: true });
   const toast = useToast();
 
   function load() { api.sites().then(setSites).catch(() => setSites([])); }
@@ -20,6 +22,14 @@ export function SitesAdmin({ canEdit }: { canEdit: boolean }) {
       setName(''); setSubnets(''); toast('Provozovna přidána'); load();
     } catch { toast('Uložení selhalo', 'error'); }
   }
+  function startEdit(s: Site) { setEditId(s.id); setEdit({ name: s.name, subnets: s.subnets, kind: s.kind, active: s.active }); }
+  async function saveEdit(id: string) {
+    if (!edit.name.trim()) { toast('Název nesmí být prázdný', 'error'); return; }
+    try {
+      await api.updateSite(id, { name: edit.name.trim(), subnets: edit.subnets.trim(), kind: edit.kind, active: edit.active });
+      setEditId(null); toast('Uloženo'); load();
+    } catch { toast('Uložení selhalo', 'error'); }
+  }
   async function remove(id: string) {
     try { await api.deleteSite(id); toast('Provozovna smazána'); load(); } catch { toast('Smazání selhalo', 'error'); }
   }
@@ -30,7 +40,7 @@ export function SitesAdmin({ canEdit }: { canEdit: boolean }) {
       <p className="mb-4 text-xs muted-2">
         Pracoviště se určuje podle <b>lokální (privátní) sítě</b>, do které je počítač připojený – ne podle veřejné IP.
         Díky tomu se <b>Home Office přes VPN nezobrazí jako pobočka</b> (PC má doma vlastní podsíť → „Mimo firmu").
-        Zadej u každé provozovny její IP rozsahy (CIDR), oddělené čárkou.
+        Provozovny lze přidávat, upravovat i odebírat. Zadej u každé její IP rozsahy (CIDR), oddělené čárkou.
       </p>
 
       <div className="overflow-x-auto">
@@ -40,11 +50,25 @@ export function SitesAdmin({ canEdit }: { canEdit: boolean }) {
             <th className="th">Typ</th>
             <th className="th">Síťové rozsahy (CIDR, odděl čárkou)</th>
             <th className="th text-center">Měřitelné</th>
-            {canEdit && <th className="th"></th>}
+            {canEdit && <th className="th text-right"></th>}
           </tr></thead>
           <tbody>
             {sites.map((s) => {
               const measurable = s.active && s.subnets.trim().length > 0;
+              if (editId === s.id) {
+                return (
+                  <tr key={s.id} className="divide-row bg-gray-50 dark:bg-slate-800/40">
+                    <td className="td"><input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} className="field w-48" /></td>
+                    <td className="td"><select value={edit.kind} onChange={(e) => setEdit({ ...edit, kind: e.target.value })} className="field w-28"><option value="VLASTNI">vlastní</option><option value="PARTNER">partner</option></select></td>
+                    <td className="td"><input value={edit.subnets} onChange={(e) => setEdit({ ...edit, subnets: e.target.value })} placeholder="10.30.0.0/16" className="field w-60 font-mono text-xs" /></td>
+                    <td className="td text-center"><input type="checkbox" checked={edit.active} onChange={(e) => setEdit({ ...edit, active: e.target.checked })} /></td>
+                    <td className="td text-right">
+                      <button onClick={() => saveEdit(s.id)} className="btn-ghost px-2 text-emerald-600" title="Uložit"><Check size={15} /></button>
+                      <button onClick={() => setEditId(null)} className="btn-ghost px-2" title="Zrušit"><X size={15} /></button>
+                    </td>
+                  </tr>
+                );
+              }
               return (
                 <tr key={s.id} className="divide-row">
                   <td className="td font-medium"><span className="flex items-center gap-2"><Building2 size={15} className={s.kind === 'PARTNER' ? 'text-amber-500' : 'text-sky-500'} /> {s.name}</span></td>
@@ -53,7 +77,12 @@ export function SitesAdmin({ canEdit }: { canEdit: boolean }) {
                   </td>
                   <td className="td font-mono text-xs muted">{s.subnets.trim() || <span className="not-italic text-amber-600 dark:text-amber-400">rozsah zatím nezadán</span>}</td>
                   <td className="td text-center">{measurable ? 'ano' : <span className="muted-2">zatím ne</span>}</td>
-                  {canEdit && <td className="td text-right"><button onClick={() => remove(s.id)} className="btn-ghost px-2 text-red-500" title="Smazat"><Trash2 size={14} /></button></td>}
+                  {canEdit && (
+                    <td className="td text-right whitespace-nowrap">
+                      <button onClick={() => startEdit(s)} className="btn-ghost px-2" title="Upravit"><Pencil size={14} /></button>
+                      <button onClick={() => remove(s.id)} className="btn-ghost px-2 text-red-500" title="Smazat"><Trash2 size={14} /></button>
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -66,7 +95,7 @@ export function SitesAdmin({ canEdit }: { canEdit: boolean }) {
         <div className="mt-4 flex flex-wrap items-end gap-2">
           <div>
             <label className="mb-1 block text-xs muted">Název provozovny</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="např. Areál Hořovice" className="field w-56" />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="např. Areál Osov" className="field w-56" />
           </div>
           <div>
             <label className="mb-1 block text-xs muted">Typ</label>
@@ -82,7 +111,7 @@ export function SitesAdmin({ canEdit }: { canEdit: boolean }) {
           <button onClick={add} className="btn-primary"><Plus size={15} /> Přidat provozovnu</button>
         </div>
       )}
-      <p className="mt-3 text-xs muted-2">Tip: rozsahy zjistíš u IT (podsíť dané pobočky, např. <code>10.30.0.0/16</code>). Co nesedí do žádné provozovny = „Mimo firmu". <b>Partnerské pobočky</b> bez zadaného rozsahu jsou v evidenci, ale dokud IT nepotvrdí podsíť, nejsou měřitelné (zobrazí se jako „Mimo firmu").</p>
+      <p className="mt-3 text-xs muted-2">Tip: rozsahy zjistíš u IT (podsíť dané pobočky, např. <code>10.30.0.0/16</code>). Co nesedí do žádné provozovny = „Mimo firmu". <b>Partnerské pobočky</b> bez zadaného rozsahu jsou v evidenci, ale dokud IT nepotvrdí podsíť, nejsou měřitelné.</p>
     </div>
   );
 }

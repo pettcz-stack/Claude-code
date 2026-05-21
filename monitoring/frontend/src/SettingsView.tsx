@@ -97,7 +97,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
         <label className="mb-3 flex items-start gap-3 text-sm">
           <input type="checkbox" checked={funMode} disabled={!canEdit} onChange={(e) => setFunMode(e.target.checked)} className="mt-1" />
           <span>
-            <span className="flex items-center gap-1.5 font-medium"><Smile size={15} className="text-amber-500" /> Zábavný režim</span>
+            <span className="flex items-center gap-1.5 font-medium"><Smile size={15} className="text-amber-500" /> Ocenění a zajímavosti</span>
             <span className="muted-2">Odznaky, „naťukaná" vzdálenost prstů, kalorie spálené psaním, hravé srovnání s kolegy. Motivuje k výkonu.</span>
           </span>
         </label>
@@ -105,7 +105,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
         <label className="mb-3 flex items-start gap-3 text-sm">
           <input type="checkbox" checked={healthMode} disabled={!canEdit} onChange={(e) => setHealthMode(e.target.checked)} className="mt-1" />
           <span>
-            <span className="flex items-center gap-1.5 font-medium"><HeartPulse size={15} className="text-rose-500" /> Zdravotní režim</span>
+            <span className="flex items-center gap-1.5 font-medium"><HeartPulse size={15} className="text-rose-500" /> Tipy pro pohodu při práci</span>
             <span className="muted-2">Mikro-tipy proveditelné při práci (bez přestávek): postavit se a pracovat ve stoje, narovnat záda, doušek vody, pohled do dálky.</span>
           </span>
         </label>

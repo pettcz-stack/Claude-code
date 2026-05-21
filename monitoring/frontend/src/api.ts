@@ -157,7 +157,7 @@ export type HomeOffice = {
   byDept: { department: string; hoScore: number; officeScore: number; hoDays: number }[];
   perUser: { userId: string; displayName: string | null; department: string | null; hoDays: number; hoScore: number; officeScore: number; diff: number }[];
 };
-export type SelfReportData = { displayName: string | null; department: string | null; score: number; companyPercentile: number; deptPercentile: number; kpmPercentile: number; avgKpm: number; activeHours: number; nonWorkPct: number; monitorTypical: number; multiMonitorPct: number; appSwitchesPerHour: number; keystrokeTotal: number; caloriesTyping: number; distanceMeters: number };
+export type SelfReportData = { displayName: string | null; department: string | null; score: number; companyPercentile: number; deptPercentile: number; kpmPercentile: number; avgKpm: number; activeHours: number; nonWorkPct: number; monitorTypical: number; multiMonitorPct: number; appSwitchesPerHour: number; keystrokeTotal: number; caloriesTyping: number; distanceMeters: number; currentSite: string };
 
 export type TipsData = {
   health: { category: string | null; text: string }[];
@@ -302,6 +302,8 @@ export const api = {
   sites: () => getJson<{ sites: Site[] }>('/api/v1/admin/sites').then((d) => d.sites),
   saveSite: (data: { name: string; subnets: string; kind?: string; active?: boolean }) =>
     fetch('/api/v1/admin/sites', { method: 'POST', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
+  updateSite: (id: string, data: { name?: string; subnets?: string; kind?: string; active?: boolean }) =>
+    fetch(`/api/v1/admin/sites/${id}`, { method: 'PATCH', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   deleteSite: (id: string) =>
     fetch(`/api/v1/admin/sites/${id}`, { method: 'DELETE', headers: authHeader() }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   adminClaims: () => getJson<{ claims: ClaimRow[] }>('/api/v1/admin/claims').then((d) => d.claims),
@@ -327,6 +329,10 @@ export const api = {
     getJson<{ rows: HourlyRow[] }>(
       `/api/v1/dashboard/hourly?userId=${encodeURIComponent(userId)}&from=${from}&to=${to}`,
     ).then((d) => d.rows),
+  hourlyApps: (userId: string, from: string, to: string) =>
+    getJson<{ hours: { hourStart: string; apps: { app: string; minutes: number }[] }[] }>(
+      `/api/v1/dashboard/hourly-apps?userId=${encodeURIComponent(userId)}&from=${from}&to=${to}`,
+    ).then((d) => d.hours),
   summary: (from: string, to: string, department?: string) =>
     getJson<{ summary: SummaryRow[] }>(
       `/api/v1/dashboard/summary?from=${from}&to=${to}${department ? `&department=${encodeURIComponent(department)}` : ''}`,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ShieldCheck, X, Keyboard, Trophy, Users, Building2, Sparkles, Award, Footprints, Flame, HeartPulse, PersonStanding, GlassWater, Eye, Coffee, Wind, Target, Armchair, Activity, Quote } from 'lucide-react';
+import { ShieldCheck, X, Keyboard, Trophy, Users, Building2, Sparkles, Award, Footprints, Flame, HeartPulse, PersonStanding, GlassWater, Eye, Coffee, Wind, Target, Armchair, Activity, Quote, MapPin } from 'lucide-react';
 import { api, type SelfReportData, type TipsData, type User } from './api.js';
 
 // Ikona pro kategorii zdravotního tipu (tipy samotné přicházejí z DB).
@@ -92,6 +92,9 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
             <div className="text-sm opacity-90">Tvůj report práce</div>
             <div className="text-2xl font-bold">{r.displayName}</div>
             <div className="text-sm opacity-90">{r.department}</div>
+            <div className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-medium">
+              <MapPin size={13} /> Aktuálně pracuješ: {r.currentSite}
+            </div>
           </div>
           <div className="text-right">
             <div className="text-5xl font-extrabold">{r.score}%</div>
@@ -135,7 +138,7 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
       {/* Zábavný režim */}
       {funMode && (
         <div className="card p-5">
-          <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Sparkles size={16} className="text-amber-500" /> Zábavný režim</h3>
+          <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Sparkles size={16} className="text-amber-500" /> Tvoje ocenění a zajímavosti</h3>
           {(() => {
             const got = earnedBadges(r);
             return (
@@ -183,7 +186,7 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
       {/* Zdravotní režim – mikro-doporučení BEZ ztráty pozornosti (žádné přestávky) */}
       {healthMode && tip && (
         <div className="card border-rose-200 p-5 dark:border-rose-500/30">
-          <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-rose-600 dark:text-rose-300"><HeartPulse size={16} /> Zdravotní mikro-tip</h3>
+          <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-rose-600 dark:text-rose-300"><HeartPulse size={16} /> Tip pro pohodu při práci</h3>
           <p className="mb-3 text-xs muted-2">Drobnost, kterou zvládnete při práci a nezabere pozornost déle než pár vteřin.</p>
           <div className="flex items-center gap-3 rounded-lg bg-rose-50 p-3 text-sm dark:bg-rose-500/10">
             {catIcon(tip.category)} <span><b>Tip teď:</b> {tip.text}</span>
@@ -197,19 +200,11 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
         <div className="card relative border-emerald-300 p-5 dark:border-emerald-500/40">
           <button onClick={() => setShowPrivacy(false)} className="absolute right-3 top-3 muted-2 hover:text-gray-600" title="Skrýt"><X size={16} /></button>
           <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300"><ShieldCheck size={18} /> Tvé soukromí je v bezpečí</h3>
-          <p className="mb-2 text-sm muted">
-            Tahle aplikace slouží <b>výhradně k měření efektivity práce</b> na firemním zařízení – ne ke sledování tebe jako člověka.
-            Je <b>plně v souladu s GDPR a zákony ČR</b> (zejm. §316 zákoníku práce o monitoringu firemních prostředků).
+          <p className="text-sm muted">
+            Aplikace je <b>plně v souladu s GDPR a zákony ČR</b> (zejm. §316 zákoníku práce o monitoringu firemních
+            prostředků). Zpracovává se jen <b>nezbytné minimum</b> pro hodnocení efektivity práce na firemním zařízení,
+            <b> přístup k datům je řízený a zaznamenaný</b> (auditní log) a přenos je <b>šifrovaný</b>.
           </p>
-          <ul className="list-disc space-y-1 pl-5 text-sm muted">
-            <li><b>Nesbíráme osobní ani citlivé údaje</b> – jen pracovní metriky (aktivní/nečinný čas, tempo psaní, aplikace).</li>
-            <li><b>Nečteme, co píšeš</b> – známe jen počet úhozů, nikdy obsah textu.</li>
-            <li><b>Nečteme soukromé konverzace</b>, e-maily ani zprávy.</li>
-            <li><b>Žádné screenshoty</b>, žádný mikrofon, žádná kamera, žádné sledování polohy.</li>
-            <li>Vidíme jen <b>souhrnnou aktivitu</b> a v jaké aplikaci se pracuje – kvůli férovému hodnocení práce.</li>
-            <li><b>Přístup je řízený a každé nahlédnutí do dat je zaznamenané</b> (auditní log), data jdou <b>šifrovaně</b> a drží se jen nezbytně dlouho.</li>
-          </ul>
-          <p className="mt-2 text-xs muted-2">Cílem je lepší organizace práce a spravedlivé hodnocení – ne kontrola každého kliknutí. Toto ujištění je volitelné a lze ho v reportu vypnout.</p>
         </div>
       )}
     </div>

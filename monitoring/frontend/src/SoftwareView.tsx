@@ -9,7 +9,11 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
   const [data, setData] = useState<SoftwareAudit | null>(null);
   const [cost, setCost] = useState<CostResult | null>(null);
   const [edit, setEdit] = useState<Record<string, { licensed: boolean; seats: string; cost: string }>>({});
+  const [period, setPeriod] = useState<'month' | 'year'>('month');
   const toast = useToast();
+  const mult = period === 'year' ? 12 : 1;
+  const unit = period === 'year' ? 'rok' : 'měsíc';
+  const kc = (v: number) => `${(v * mult).toLocaleString('cs-CZ')} Kč`;
 
   function load() {
     api.software(from, to, department).then((d) => {
@@ -39,16 +43,22 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-end">
+        <div className="flex gap-1 rounded-lg bg-gray-100 p-1 text-sm dark:bg-slate-800">
+          <button onClick={() => setPeriod('month')} className={`rounded px-3 py-1 ${period === 'month' ? 'bg-white shadow-sm dark:bg-slate-700' : 'muted'}`}>Za měsíc</button>
+          <button onClick={() => setPeriod('year')} className={`rounded px-3 py-1 ${period === 'year' ? 'bg-white shadow-sm dark:bg-slate-700' : 'muted'}`}>Za rok</button>
+        </div>
+      </div>
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="card p-4">
-          <div className="mb-1 flex items-center gap-1.5 text-xs uppercase muted-2"><Wallet size={13} /> Plýtvání licencemi (Kč/měsíc)</div>
-          <div className="text-3xl font-bold text-red-500">{data.totalWasteCost.toLocaleString('cs-CZ')} Kč</div>
-          <div className="text-xs muted-2">cena nevyužitých placených licencí měsíčně</div>
+          <div className="mb-1 flex items-center gap-1.5 text-xs uppercase muted-2"><Wallet size={13} /> Plýtvání licencemi (Kč/{unit})</div>
+          <div className="text-3xl font-bold text-red-500">{kc(data.totalWasteCost)}</div>
+          <div className="text-xs muted-2">cena nevyužitých placených licencí za {unit}</div>
         </div>
         <div className="card p-4">
-          <div className="mb-1 flex items-center gap-1.5 text-xs uppercase muted-2"><Wallet size={13} /> Možná úspora (Kč/rok)</div>
-          <div className="text-3xl font-bold text-red-500">{(data.totalWasteCost * 12).toLocaleString('cs-CZ')} Kč</div>
-          <div className="text-xs muted-2">potenciální roční úspora při zrušení nevyužitých licencí</div>
+          <div className="mb-1 flex items-center gap-1.5 text-xs uppercase muted-2"><Wallet size={13} /> Možná úspora (Kč/{unit})</div>
+          <div className="text-3xl font-bold text-emerald-600">{kc(data.totalWasteCost)}</div>
+          <div className="text-xs muted-2">kolik ušetříte zrušením nevyužitých licencí za {unit}</div>
         </div>
         <div className="card p-4">
           <div className="mb-1 flex items-center gap-1.5 text-xs uppercase muted-2"><Boxes size={13} /> Sledováno zaměstnanců (počet)</div>
@@ -117,7 +127,7 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
                 <th className="th text-right">Aktivní čas (hodiny)</th><th className="th text-right">Uživatelů (počet)</th>
                 <th className="th text-center">Placená licence</th><th className="th text-right">Licencí (počet)</th>
                 <th className="th text-right">Cena za licenci (Kč/měs)</th><th className="th text-right">Využití licencí (%)</th>
-                <th className="th text-right">Plýtvání (Kč/měs)</th>{canEdit && <th className="th"></th>}
+                <th className="th text-right">Plýtvání (Kč/{unit})</th>{canEdit && <th className="th"></th>}
               </tr>
             </thead>
             <tbody>
@@ -145,7 +155,7 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
                       </>
                     )}
                     <td className={`td text-right tabular-nums font-semibold ${utilColor}`}>{util != null ? `${util}%` : '—'}</td>
-                    <td className="td text-right tabular-nums font-semibold text-red-500">{i.wasteCost ? `${i.wasteCost.toLocaleString('cs-CZ')} Kč` : '—'}</td>
+                    <td className="td text-right tabular-nums font-semibold text-red-500">{i.wasteCost ? kc(i.wasteCost) : '—'}</td>
                     {canEdit && <td className="td text-right"><button onClick={() => saveLicense(i)} className="btn-ghost px-2"><Save size={14} /></button></td>}
                   </tr>
                 );
