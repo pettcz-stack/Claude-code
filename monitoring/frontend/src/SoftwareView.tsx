@@ -14,7 +14,8 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
       for (const i of d.items) e[i.app] = { licensed: i.licensed, seats: i.seats != null ? String(i.seats) : '', cost: i.costPerSeat != null ? String(i.costPerSeat) : '' };
       setEdit(e);
     }).catch(() => setData(null));
-    api.cost(from, to, department).then(setCost).catch(() => setCost(null));
+    // Mzdy a cena času jsou citlivé → jen pro admina (šéfa).
+    if (canEdit) api.cost(from, to, department).then(setCost).catch(() => setCost(null));
   }
   useEffect(load, [from, to, department]);
   if (!data) return <p className="muted-2">Načítám…</p>;

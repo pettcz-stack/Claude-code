@@ -20,18 +20,33 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
   from: string; to: string; department?: string; onOpenUser: (id: string) => void;
 }) {
   const [d, setD] = useState<HomeOffice | null>(null);
+  const [unit, setUnit] = useState<'hours' | 'days'>('hours');
   useEffect(() => { api.homeOffice(from, to, department).then(setD).catch(() => setD(null)); }, [from, to, department]);
   if (!d) return <p className="muted-2">Načítám…</p>;
 
   const diff = d.company.hoScore - d.company.officeScore;
   const maxDept = Math.max(1, ...d.byDept.flatMap((x) => [x.hoScore, x.officeScore]));
+  const amt = (days: number) => (unit === 'hours' ? `${days * 8} h` : `${days} dní`);
 
   return (
     <div className="space-y-4">
+      {/* Rychlý přehled HO množství + přepínač jednotek */}
+      <div className="card flex flex-wrap items-center gap-4 p-4">
+        <div>
+          <div className="text-xs uppercase muted-2">Home office za období (celá firma)</div>
+          <div className="text-2xl font-bold">{amt(d.company.hoDays)}</div>
+          <div className="text-xs muted-2">{d.company.usersWithHo} lidí mělo HO</div>
+        </div>
+        <div className="ml-auto flex gap-1 rounded-lg bg-gray-100 p-1 text-sm dark:bg-slate-800">
+          <button onClick={() => setUnit('hours')} className={`rounded px-3 py-1 ${unit === 'hours' ? 'bg-white shadow-sm dark:bg-slate-700' : 'muted'}`}>Hodiny</button>
+          <button onClick={() => setUnit('days')} className={`rounded px-3 py-1 ${unit === 'days' ? 'bg-white shadow-sm dark:bg-slate-700' : 'muted'}`}>Pracovní dny</button>
+        </div>
+      </div>
+
       {/* Headline srovnání */}
       <div className="grid gap-4 md:grid-cols-3">
-        <BigScore icon={<House size={16} className="text-emerald-600" />} label="Home office" score={d.company.hoScore} sub={`${d.company.hoDays} HO dnů · ${d.company.hoActiveHours} h práce`} />
-        <BigScore icon={<Building2 size={16} className="text-emerald-600" />} label="V kanceláři" score={d.company.officeScore} sub={`${d.company.officeDays} dnů · ${d.company.officeActiveHours} h práce`} />
+        <BigScore icon={<House size={16} className="text-emerald-600" />} label="Home office" score={d.company.hoScore} sub={`${amt(d.company.hoDays)} HO · ${d.company.hoActiveHours} h práce`} />
+        <BigScore icon={<Building2 size={16} className="text-emerald-600" />} label="V kanceláři" score={d.company.officeScore} sub={`${amt(d.company.officeDays)} · ${d.company.officeActiveHours} h práce`} />
         <div className="card flex flex-col items-center justify-center p-6">
           <div className="mb-1 text-sm muted">Rozdíl HO vs. kancelář</div>
           <div className={`flex items-center gap-1 text-4xl font-bold ${diff < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
@@ -55,7 +70,10 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
         <div className="space-y-3">
           {d.byDept.map((x) => (
             <div key={x.department} className="flex items-center gap-3">
-              <div className="w-40 shrink-0 truncate text-sm">{x.department}</div>
+              <div className="w-40 shrink-0 truncate text-sm">
+                {x.department}
+                <span className="ml-1 text-xs muted-2">({amt(x.hoDays)} HO)</span>
+              </div>
               <div className="flex-1 space-y-1">
                 <Bar label="HO" value={x.hoScore} max={maxDept} color="#10b981" />
                 <Bar label="Kancelář" value={x.officeScore} max={maxDept} color="#64748b" />
@@ -75,13 +93,13 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
         <h3 className="mb-1 text-sm font-semibold">Zaměstnanci – efektivita na HO vs. v kanceláři</h3>
         <p className="mb-3 text-xs muted-2">Řazeno dle největšího propadu na home office.</p>
         <table className="w-full">
-          <thead><tr><th className="th">Zaměstnanec</th><th className="th">Odd.</th><th className="th text-right">HO dnů</th><th className="th text-right">HO skóre</th><th className="th text-right">Kancelář</th><th className="th text-right">Rozdíl</th></tr></thead>
+          <thead><tr><th className="th">Zaměstnanec</th><th className="th">Odd.</th><th className="th text-right">HO ({unit === 'hours' ? 'h' : 'dní'})</th><th className="th text-right">HO skóre</th><th className="th text-right">Kancelář</th><th className="th text-right">Rozdíl</th></tr></thead>
           <tbody>
             {d.perUser.map((u) => (
               <tr key={u.userId} className="divide-row">
                 <td className="td"><button onClick={() => onOpenUser(u.userId)} className="font-medium hover:underline">{u.displayName}</button></td>
                 <td className="td muted">{u.department}</td>
-                <td className="td text-right tabular-nums">{u.hoDays}</td>
+                <td className="td text-right tabular-nums">{unit === 'hours' ? u.hoDays * 8 : u.hoDays}</td>
                 <td className={`td text-right tabular-nums font-semibold ${scoreColor(u.hoScore)}`}>{u.hoScore}%</td>
                 <td className="td text-right tabular-nums muted">{u.officeScore}%</td>
                 <td className={`td text-right tabular-nums font-semibold ${u.diff < 0 ? 'text-red-500' : 'text-emerald-500'}`}>{u.diff > 0 ? '+' : ''}{u.diff}</td>

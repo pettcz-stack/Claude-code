@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db.js';
-import { logAccess } from '../auth.js';
+import { logAccess, requireRole } from '../auth.js';
 import { getCategoryMap } from '../services/categories.js';
 import { computeUserScore } from '../services/scoring.js';
 import { trend, topActivities, overview, heatmap, homeOffice, selfReport, monitorsComparison, softwareAudit, costAudit, exportClassification } from '../services/analytics.js';
@@ -33,8 +33,8 @@ dashboardRouter.get('/software', async (req, res) => {
   res.json(await softwareAudit(new Date(from), new Date(to), department));
 });
 
-/** Náklady neproduktivního času (mzda × mimopráce/nečinnost/mimo PC). */
-dashboardRouter.get('/cost', async (req, res) => {
+/** Náklady neproduktivního času (mzda × …). CITLIVÉ – jen ADMIN (šéf). */
+dashboardRouter.get('/cost', requireRole('ADMIN'), async (req, res) => {
   const parsed = rangeSchema.safeParse(req.query);
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
   const { from, to, department } = parsed.data;
