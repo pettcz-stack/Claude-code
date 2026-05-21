@@ -7,7 +7,9 @@ type Entry = { exp: number; val: unknown };
 const store = new Map<string, Entry>();
 let inflight = new Map<string, Promise<unknown>>();
 
-const DEFAULT_TTL = 30_000; // 30 s
+// Delší platnost je bezpečná: cache se vyprázdní při ingestu dat i změně
+// nastavení, takže nikdy neukáže zastaralá data.
+const DEFAULT_TTL = 5 * 60_000; // 5 min
 
 /** Vrátí z cache, nebo spočítá přes fn a uloží. Sdílí i probíhající výpočet. */
 export async function memo<T>(key: string, fn: () => Promise<T>, ttlMs = DEFAULT_TTL): Promise<T> {

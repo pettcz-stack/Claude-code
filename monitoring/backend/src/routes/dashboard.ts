@@ -3,12 +3,12 @@ import { z } from 'zod';
 import { prisma } from '../db.js';
 import { logAccess, requireRole } from '../auth.js';
 import { getCategoryMap } from '../services/categories.js';
-import { computeUserScore, kpmCohort } from '../services/scoring.js';
+import { computeUserScore } from '../services/scoring.js';
 import { getSettings } from '../services/settings.js';
-import { trend, topActivities, overview, heatmap, homeOffice, selfReport, monitorsComparison, softwareAudit, costAudit, exportClassification } from '../services/analytics.js';
+import { heatmap, exportClassification } from '../services/analytics.js';
 import { computeIntegrity, detectAlerts } from '../services/integrity.js';
 import { getTips } from '../services/tips.js';
-import { memo } from '../services/cache.js';
+import { cq } from '../services/cachedQueries.js';
 
 export const dashboardRouter = Router();
 
@@ -22,7 +22,7 @@ dashboardRouter.get('/overview', async (req, res) => {
   const parsed = rangeSchema.safeParse(req.query);
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
   const { from, to, department } = parsed.data;
-  res.json(await memo(`overview:${from}:${to}:${department ?? ''}`, () => overview(new Date(from), new Date(to), department)));
+  res.json(await cq.overview(from, to, department));
 });
 
 /** Heatmapa využití: den v týdnu × hodina. */
@@ -38,7 +38,7 @@ dashboardRouter.get('/software', async (req, res) => {
   const parsed = rangeSchema.safeParse(req.query);
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
   const { from, to, department } = parsed.data;
-  res.json(await memo(`software:${from}:${to}:${department ?? ''}`, () => softwareAudit(new Date(from), new Date(to), department)));
+  res.json(await cq.software(from, to, department));
 });
 
 /** Náklady neproduktivního času (mzda × …). CITLIVÉ – jen ADMIN (šéf). */
@@ -46,7 +46,7 @@ dashboardRouter.get('/cost', requireRole('ADMIN'), async (req, res) => {
   const parsed = rangeSchema.safeParse(req.query);
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
   const { from, to, department } = parsed.data;
-  res.json(await memo(`cost:${from}:${to}:${department ?? ''}`, () => costAudit(new Date(from), new Date(to), department)));
+  res.json(await cq.cost(from, to, department));
 });
 
 /** Export položek k zařazení (dávková klasifikace). */
@@ -80,7 +80,7 @@ dashboardRouter.get('/monitors', async (req, res) => {
   const parsed = rangeSchema.safeParse(req.query);
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
   const { from, to, department } = parsed.data;
-  res.json(await memo(`monitors:${from}:${to}:${department ?? ''}`, () => monitorsComparison(new Date(from), new Date(to), department)));
+  res.json(await cq.monitors(from, to, department));
 });
 
 /** Home Office vyhodnocení (efektivita HO vs. kancelář). */
@@ -88,7 +88,7 @@ dashboardRouter.get('/homeoffice', async (req, res) => {
   const parsed = rangeSchema.safeParse(req.query);
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
   const { from, to, department } = parsed.data;
-  res.json(await memo(`homeoffice:${from}:${to}:${department ?? ''}`, () => homeOffice(new Date(from), new Date(to), department)));
+  res.json(await cq.homeoffice(from, to, department));
 });
 
 /** Self-report pro zaměstnance (anonymizované srovnání). */
@@ -98,7 +98,7 @@ dashboardRouter.get('/selfreport', async (req, res) => {
   const { from, to, userId } = parsed.data;
   if (!userId) return void res.status(400).json({ error: 'userId_required' });
   await logAccess(req.admin?.username ?? 'unknown', 'VIEW', `selfreport ${from}..${to}`, userId);
-  res.json({ report: await memo(`selfreport:${userId}:${from}:${to}`, () => selfReport(userId, new Date(from), new Date(to))) });
+  res.json({ report: await cq.selfreport(userId, from, to) });
 });
 
 /** Integrita aktivity jednoho uživatele (detekce nepovolených praktik). */
@@ -126,7 +126,7 @@ dashboardRouter.get('/trend', async (req, res) => {
     return;
   }
   const { from, to, userId, department } = parsed.data;
-  const points = await memo(`trend:${from}:${to}:${userId ?? ''}:${department ?? ''}`, () => trend(new Date(from), new Date(to), userId, department));
+  const points = await cq.trend(from, to, userId, department);
   res.json({ points });
 });
 
@@ -138,7 +138,7 @@ dashboardRouter.get('/top-activities', async (req, res) => {
     return;
   }
   const { from, to, userId, department } = parsed.data;
-  const result = await memo(`topact:${from}:${to}:${userId ?? ''}:${department ?? ''}`, () => topActivities(new Date(from), new Date(to), userId, department));
+  const result = await cq.topact(from, to, userId, department);
   res.json(result);
 });
 
@@ -173,33 +173,7 @@ dashboardRouter.get('/scoreboard', async (req, res) => {
     return;
   }
   const { from, to, department } = parsed.data;
-  const rows = await memo(`scoreboard:${from}:${to}:${department ?? ''}`, async () => {
-    const users = await prisma.monitoredUser.findMany({
-      where: { active: true, ...(department ? { department } : {}) },
-      select: { id: true },
-    });
-    const { interpretMonitors } = await getSettings();
-    const cohort = await kpmCohort(new Date(from), new Date(to));
-    const out = [];
-    for (const u of users) {
-      const s = await computeUserScore(u.id, new Date(from), new Date(to), { interpretMonitors, kpmCohort: cohort });
-      out.push({
-        userId: s.userId,
-        displayName: s.displayName,
-        department: s.department,
-        score: s.score,
-        scoreRaw: s.scoreRaw,
-        monitorAdjusted: s.monitorAdjusted,
-        workPct: s.workPct,
-        nonWorkPct: s.nonWorkPct,
-        idlePct: s.idlePct,
-        pcOffPct: s.pcOffPct,
-        avgKpm: s.avgKpm,
-      });
-    }
-    out.sort((a, b) => b.score - a.score);
-    return out;
-  });
+  const rows = await cq.scoreboard(from, to, department);
   res.json({ rows });
 });
 

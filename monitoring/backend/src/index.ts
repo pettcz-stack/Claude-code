@@ -8,6 +8,7 @@ import { ensureAdmin } from './auth.js';
 import { ensureDefaultCategories } from './services/categories.js';
 import { ensureDefaultWebRules } from './services/classify.js';
 import { ensureDefaultTips } from './services/tips.js';
+import { cq } from './services/cachedQueries.js';
 import { sendReport } from './services/report.js';
 import { runAlertChecks } from './services/alerts.js';
 
@@ -23,7 +24,32 @@ const server = app.listen(config.port, async () => {
   await ensureDefaultTips();
   // eslint-disable-next-line no-console
   console.log(`WorkView backend naslouchá na portu ${config.port}`);
+  // Předehřej cache pro výchozí období (poslední měsíc) → první načtení je rychlé.
+  void warmCache();
+  // Drž cache výchozího pohledu teplou (TTL 5 min) i pro pozdější první otevření.
+  setInterval(() => void warmCache(), 4 * 60_000);
 });
+
+/** Výchozí období dashboardu (poslední 30 dní), shodné s frontendem. */
+function defaultRange(): { from: string; to: string } {
+  const now = new Date();
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const from = new Date(start); from.setUTCDate(from.getUTCDate() - 29);
+  const to = new Date(start); to.setUTCDate(to.getUTCDate() + 1);
+  return { from: from.toISOString(), to: to.toISOString() };
+}
+
+async function warmCache(): Promise<void> {
+  try {
+    const { from, to } = defaultRange();
+    await Promise.allSettled([
+      cq.overview(from, to), cq.scoreboard(from, to), cq.monitors(from, to),
+      cq.software(from, to), cq.homeoffice(from, to), cq.trend(from, to), cq.topact(from, to),
+    ]);
+    // eslint-disable-next-line no-console
+    console.log('Cache předehřátá (výchozí období).');
+  } catch { /* nepodstatné – cache se naplní při prvním požadavku */ }
+}
 
 const jobs: cron.ScheduledTask[] = [];
 if (config.enableJobs) {

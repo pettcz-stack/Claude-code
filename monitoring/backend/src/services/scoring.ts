@@ -2,6 +2,7 @@ import { prisma } from '../db.js';
 import { config } from '../config.js';
 import { getCategoryMap, type CatType } from './categories.js';
 import { classifyActivity, getWebRules } from './classify.js';
+import { getSettings } from './settings.js';
 
 export type ScoreBreakdown = {
   expectedMinutes: number;
@@ -98,6 +99,33 @@ function percentileOf(value: number, cohort: number[]): number {
   if (cohort.length <= 1) return 50;
   const lower = cohort.filter((k) => k < value).length;
   return Math.round((lower / cohort.length) * 100);
+}
+
+export type ScoreboardRow = {
+  userId: string; displayName: string | null; department: string | null;
+  score: number; scoreRaw: number; monitorAdjusted: boolean;
+  workPct: number; nonWorkPct: number; idlePct: number; pcOffPct: number; avgKpm: number;
+};
+
+/** Žebříček skóre všech aktivních uživatelů (kpm-cohort se spočítá jen jednou). */
+export async function scoreboardRows(from: Date, to: Date, department?: string): Promise<ScoreboardRow[]> {
+  const users = await prisma.monitoredUser.findMany({
+    where: { active: true, ...(department ? { department } : {}) },
+    select: { id: true },
+  });
+  const { interpretMonitors } = await getSettings();
+  const cohort = await kpmCohort(from, to);
+  const out: ScoreboardRow[] = [];
+  for (const u of users) {
+    const s = await computeUserScore(u.id, from, to, { interpretMonitors, kpmCohort: cohort });
+    out.push({
+      userId: s.userId, displayName: s.displayName, department: s.department,
+      score: s.score, scoreRaw: s.scoreRaw, monitorAdjusted: s.monitorAdjusted,
+      workPct: s.workPct, nonWorkPct: s.nonWorkPct, idlePct: s.idlePct, pcOffPct: s.pcOffPct, avgKpm: s.avgKpm,
+    });
+  }
+  out.sort((a, b) => b.score - a.score);
+  return out;
 }
 
 /** Spočítá skóre a rozpad jednoho uživatele za období. */
