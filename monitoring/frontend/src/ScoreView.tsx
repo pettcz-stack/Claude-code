@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Keyboard, Clock, AlertTriangle, AppWindow, Monitor, Shuffle, CalendarOff } from 'lucide-react';
+import { Keyboard, Clock, AlertTriangle, AppWindow, Monitor, Shuffle, CalendarOff, MapPin } from 'lucide-react';
 import { api, type UserScore, type User } from './api.js';
 import { Donut } from './Donut.js';
 import { ScoreScaleLegend } from './Legend.js';
@@ -98,6 +98,13 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
         <Card title="Nejpoužívanější aplikace" icon={<AppWindow size={13} />}>
           {s.topApp
             ? <span className="flex items-center gap-2"><AppIcon app={s.topApp} size={16} /> {appName(s.topApp)}</span>
+            : '—'}
+        </Card>
+        <Card title="Kde pracoval (dny)" icon={<MapPin size={13} />}>
+          {s.siteDays && s.siteDays.length > 0
+            ? <span className="flex flex-wrap gap-1.5">{s.siteDays.map((d) => (
+                <span key={d.site} className={`rounded-full px-2 py-0.5 text-xs font-medium ${d.site === 'Mimo firmu' ? 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300' : 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300'}`}>{d.site}: {d.days}</span>
+              ))}</span>
             : '—'}
         </Card>
         <Card title="Počet monitorů" icon={<Monitor size={13} />}>

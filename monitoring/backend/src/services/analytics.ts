@@ -228,6 +228,7 @@ export type OverviewResult = {
   departments: { department: string; avgScore: number; activeHours: number; nonWorkPct: number; users: number }[];
   top: { userId: string; displayName: string | null; department: string | null; score: number }[];
   bottom: { userId: string; displayName: string | null; department: string | null; score: number }[];
+  locations: { site: string; users: number }[]; // kde se pracuje (počet lidí dle převažující provozovny)
 };
 
 export async function overview(from: Date, to: Date, department?: string): Promise<OverviewResult> {
@@ -291,6 +292,26 @@ export async function overview(from: Date, to: Date, department?: string): Promi
   const devices = await prisma.device.findMany({ where: { active: true }, select: { lastSeen: true } });
   const onlineCount = devices.filter((d) => d.lastSeen && now - new Date(d.lastSeen).getTime() < 5 * 60 * 1000).length;
 
+  // Kde se pracuje: pro každého převažující provozovna v období → počet lidí.
+  const siteRows = await prisma.dailyStat.groupBy({
+    by: ['userId', 'site'], where: { userId: { in: ids }, date: { gte: from, lt: to } }, _count: { _all: true },
+  });
+  const perUserSite = new Map<string, Map<string, number>>();
+  for (const r of siteRows) {
+    let m = perUserSite.get(r.userId);
+    if (!m) (m = new Map()), perUserSite.set(r.userId, m);
+    m.set(r.site ?? 'Mimo firmu', (m.get(r.site ?? 'Mimo firmu') ?? 0) + r._count._all);
+  }
+  const locCount = new Map<string, number>();
+  for (const m of perUserSite.values()) {
+    let best = '', bd = -1;
+    for (const [s, d] of m) if (d > bd) { bd = d; best = s; }
+    if (best) locCount.set(best, (locCount.get(best) ?? 0) + 1);
+  }
+  const locations = Array.from(locCount.entries())
+    .map(([site, users]) => ({ site, users }))
+    .sort((a, b) => b.users - a.users);
+
   const ranked = users
     .map((u) => ({ userId: u.id, displayName: u.displayName, department: u.department, score: perUserScore.get(u.id) ?? 0 }))
     .sort((a, b) => b.score - a.score);
@@ -326,6 +347,7 @@ export async function overview(from: Date, to: Date, department?: string): Promi
       .sort((a, b) => b.avgScore - a.avgScore),
     top: ranked.slice(0, 5),
     bottom: ranked.slice(-5).reverse(),
+    locations,
   };
 }
 

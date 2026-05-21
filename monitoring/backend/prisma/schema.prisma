@@ -73,6 +73,7 @@ model ActivityInterval {
   mouseEvents     Int      @default(0) // POČET pohybů+kliků (nikdy souřadnice)
   sessionLocked   Boolean  @default(false)
   monitorCount    Int? // počet připojených monitorů (jen číslo, žádný obsah)
+  clientIp        String? // lokální (privátní) IPv4 fyzického adaptéru – pro určení provozovny; NE veřejná IP
   createdAt       DateTime @default(now())
 
   device Device        @relation(fields: [deviceId], references: [id], onDelete: Cascade)
@@ -218,6 +219,7 @@ model DailyStat {
   monitorTop    Int      @default(0) // nejčastější počet monitorů toho dne
   multiMonitorMin Float  @default(0) // minuty na 2+ monitorech
   domWorkCat    String? // dominantní pracovní kategorie dne (pro doporučení monitorů)
+  site          String? // převažující pracoviště dne (název provozovny; null = Mimo firmu)
   suspicious    Boolean  @default(false) // detekce nepovolených praktik v daný den
 
   @@unique([userId, date])
@@ -238,6 +240,16 @@ model DailyAppStat {
 
   @@unique([userId, date, kind, label])
   @@index([date, kind])
+}
+
+/// Provozovny / pobočky / výrobní závody – číselník pro určení pracoviště
+/// podle lokální (privátní) podsítě, do které je PC připojené.
+model Site {
+  id        String   @id @default(cuid())
+  name      String // "Brno", "Praha", "Areál Hořovice"
+  subnets   String // CSV CIDR, např. "10.10.0.0/16,10.11.0.0/16"
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
 }
 
 /// Účet pro přístup do dashboardu (role ADMIN | VIEWER).

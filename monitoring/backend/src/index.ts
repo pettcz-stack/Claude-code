@@ -8,6 +8,7 @@ import { ensureAdmin } from './auth.js';
 import { ensureDefaultCategories } from './services/categories.js';
 import { ensureDefaultWebRules } from './services/classify.js';
 import { ensureDefaultTips } from './services/tips.js';
+import { ensureDefaultSites } from './services/sites.js';
 import { cq } from './services/cachedQueries.js';
 import { sendReport } from './services/report.js';
 import { runAlertChecks } from './services/alerts.js';
@@ -22,6 +23,7 @@ const server = app.listen(config.port, async () => {
   await ensureDefaultCategories();
   await ensureDefaultWebRules();
   await ensureDefaultTips();
+  await ensureDefaultSites();
   // eslint-disable-next-line no-console
   console.log(`WorkView backend naslouchá na portu ${config.port}`);
   // Předehřej cache pro výchozí období (poslední měsíc) → první načtení je rychlé.

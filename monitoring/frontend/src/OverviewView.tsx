@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Gauge, Clock, Wifi, ShieldAlert, AlertTriangle, ArrowUp, ArrowDown, Minus, Monitor, Lightbulb } from 'lucide-react';
+import { Gauge, Clock, Wifi, ShieldAlert, AlertTriangle, ArrowUp, ArrowDown, Minus, Monitor, Lightbulb, MapPin, Building2, House } from 'lucide-react';
 import { api, type Overview, type MonitorsData } from './api.js';
 import { Donut } from './Donut.js';
 import { TrendChart } from './TrendChart.js';
@@ -89,6 +89,26 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
           </div>
         </div>
       </div>
+
+      {/* Kde se pracuje (podle lokální sítě) */}
+      {o.locations && o.locations.length > 0 && (
+        <div className="card p-5">
+          <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><MapPin size={16} className="text-sky-500" /> Kde se pracuje (počet zaměstnanců)</h3>
+          <p className="mb-3 text-xs muted-2">Převažující pracoviště za období podle firemní sítě. „Mimo firmu" = Home Office / mimo provozovny (VPN se nepočítá jako pobočka).</p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {o.locations.map((l) => {
+              const out = l.site === 'Mimo firmu';
+              return (
+                <div key={l.site} className="rounded-lg border border-gray-200 p-3 dark:border-slate-700">
+                  <div className="flex items-center gap-1.5 text-xs muted-2">{out ? <House size={13} /> : <Building2 size={13} className="text-sky-500" />} {l.site}</div>
+                  <div className="text-2xl font-bold">{l.users}</div>
+                  <div className="text-xs muted-2">{l.users === 1 ? 'zaměstnanec' : l.users >= 2 && l.users <= 4 ? 'zaměstnanci' : 'zaměstnanců'}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Top / Bottom */}
       <div className="grid gap-4 lg:grid-cols-2">

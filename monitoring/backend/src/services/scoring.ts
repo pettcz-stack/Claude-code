@@ -40,6 +40,7 @@ export type UserScore = ScoreBreakdown & {
   vacationDays: number; // dny dovolené v období (z HR) – nezapočítané do fondu
   sickDays: number; // dny nemoci v období (z HR) – nezapočítané do fondu
   holidayDays: number; // státní svátky (Po–Pá) v období – nezapočítané do fondu
+  siteDays: { site: string; days: number }[]; // kde pracoval (počet dní podle provozovny; „Mimo firmu")
 };
 
 // Kategorie práce, kde druhý monitor prokazatelně pomáhá (porovnávání/přepínání oken).
@@ -213,6 +214,13 @@ export async function computeUserScore(userId: string, from: Date, to: Date, opt
   const holidayDays = holidays.size;
   const effDays = effectiveWorkdays(from, to, holidays, absInfo?.days);
   const expectedMinutesRaw = effDays * config.expectedWorkHoursPerDay * 60;
+  // Kde pracoval – počet dní podle převažující provozovny (z denních souhrnů).
+  const siteRows = await prisma.dailyStat.groupBy({
+    by: ['site'], where: { userId, date: { gte: from, lt: to } }, _count: { _all: true },
+  });
+  const siteDays = siteRows
+    .map((r) => ({ site: r.site ?? 'Mimo firmu', days: r._count._all }))
+    .sort((a, b) => b.days - a.days);
   // Nezařazený čas se vyjme z fondu → nejde do + ani −.
   const expectedMinutes = Math.max(expectedMinutesRaw - unknownMinutes, 1);
   const trackedOnMinutes = workMinutes + nonWorkMinutes + idleOnMinutes;
@@ -285,6 +293,7 @@ export async function computeUserScore(userId: string, from: Date, to: Date, opt
     vacationDays,
     sickDays,
     holidayDays,
+    siteDays,
   };
 }
 

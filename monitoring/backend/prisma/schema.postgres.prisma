@@ -65,6 +65,7 @@ model ActivityInterval {
   mouseEvents     Int      @default(0)
   sessionLocked   Boolean  @default(false)
   monitorCount    Int?
+  clientIp        String?
   createdAt       DateTime @default(now())
 
   device Device        @relation(fields: [deviceId], references: [id], onDelete: Cascade)
@@ -196,6 +197,7 @@ model DailyStat {
   monitorTop    Int      @default(0)
   multiMonitorMin Float  @default(0)
   domWorkCat    String?
+  site          String?
   suspicious    Boolean  @default(false)
 
   @@unique([userId, date])
@@ -214,6 +216,14 @@ model DailyAppStat {
 
   @@unique([userId, date, kind, label])
   @@index([date, kind])
+}
+
+model Site {
+  id        String   @id @default(cuid())
+  name      String
+  subnets   String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
 }
 
 model AdminUser {

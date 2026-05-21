@@ -7,8 +7,43 @@ import { smtpEnabled } from '../config.js';
 import { getSettings, saveSettings } from '../services/settings.js';
 import { runAlertChecks } from '../services/alerts.js';
 import { clearCache } from '../services/cache.js';
+import { getSites } from '../services/sites.js';
+
+/** Provozovny / pobočky – číselník pro určení pracoviště podle lokální sítě. */
+const siteSchema = z.object({
+  name: z.string().min(1).max(80),
+  subnets: z.string().min(1).max(500), // CSV CIDR, např. "10.10.0.0/16,10.11.0.0/16"
+  active: z.boolean().optional(),
+});
 
 export const adminRouter = Router();
+
+/** Provozovny – výpis. */
+adminRouter.get('/sites', async (_req, res) => {
+  res.json({ sites: await getSites() });
+});
+/** Provozovny – přidání (ADMIN). */
+adminRouter.post('/sites', requireRole('ADMIN'), async (req, res) => {
+  const p = siteSchema.safeParse(req.body);
+  if (!p.success) return void res.status(400).json({ error: 'invalid_payload' });
+  const site = await prisma.site.create({ data: { name: p.data.name, subnets: p.data.subnets, active: p.data.active ?? true } });
+  clearCache();
+  res.json({ site });
+});
+/** Provozovny – úprava (ADMIN). */
+adminRouter.patch('/sites/:id', requireRole('ADMIN'), async (req, res) => {
+  const p = siteSchema.partial().safeParse(req.body);
+  if (!p.success) return void res.status(400).json({ error: 'invalid_payload' });
+  const site = await prisma.site.update({ where: { id: req.params.id }, data: p.data });
+  clearCache();
+  res.json({ site });
+});
+/** Provozovny – smazání (ADMIN). */
+adminRouter.delete('/sites/:id', requireRole('ADMIN'), async (req, res) => {
+  await prisma.site.deleteMany({ where: { id: req.params.id } });
+  clearCache();
+  res.json({ ok: true });
+});
 
 /** Nastavení (e-maily pro upozornění atd.). */
 adminRouter.get('/settings', async (_req, res) => {

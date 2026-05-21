@@ -8,6 +8,14 @@ import { aggregateAll } from './services/aggregate.js';
 import { ensureDefaultCategories } from './services/categories.js';
 import { DEFAULT_WEB_RULES } from './services/classify.js';
 import { ensureDefaultTips } from './services/tips.js';
+import { ensureDefaultSites } from './services/sites.js';
+
+// Provozovna podle útvaru (pro lokální IP v demu): 10.30=Hořovice, 10.20=Praha, 10.10=Brno.
+function siteBaseFor(dept: string): string {
+  if (['Výroba', 'Montáže a servis', 'Konstrukce'].includes(dept)) return '10.30';
+  if (dept === 'Obchod Export') return '10.10';
+  return '10.20';
+}
 
 type Behavior = 'normal' | 'slacker' | 'cheater_mouse' | 'cheater_keyboard';
 
@@ -87,7 +95,7 @@ const BROWSER_NONWORK_TITLES = ['YouTube', 'Facebook', 'Instagram', 'Novinky.cz'
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 const rnd = (n: number) => Math.floor(Math.random() * n);
 
-type Person = { id: string; deviceId: string; behavior: Behavior; diligence: number; hoDip: number; monitors: number; workPool: Pick[] };
+type Person = { id: string; deviceId: string; behavior: Behavior; diligence: number; hoDip: number; monitors: number; workPool: Pick[]; siteBase: string };
 
 // Kolik monitorů kdo má (z HW). Část lidí 2, IT i 3.
 function monitorsFor(dept: string): number {
@@ -106,6 +114,7 @@ async function main() {
   // Zajisti výchozí kategorie aplikací, pravidla webů a tipy do reportu.
   await ensureDefaultCategories();
   await ensureDefaultTips();
+  await ensureDefaultSites();
   for (const r of DEFAULT_WEB_RULES) {
     await prisma.webRule.upsert({
       where: { keyword: r.keyword },
@@ -129,7 +138,7 @@ async function main() {
       update: { lastSeen: new Date(), agentVersion: '0.1.0', os: 'Windows 11' },
       create: { machineId, hostname: `ALB-PC-${i + 1}`, os: 'Windows 11', agentVersion: '0.1.0', lastSeen: new Date() },
     });
-    created.push({ id: user.id, deviceId: device.id, behavior: p.behavior, diligence: p.diligence, hoDip: hoDipFor(p.behavior), monitors: monitorsFor(p.dept), workPool: buildPool(p.dept) });
+    created.push({ id: user.id, deviceId: device.id, behavior: p.behavior, diligence: p.diligence, hoDip: hoDipFor(p.behavior), monitors: monitorsFor(p.dept), workPool: buildPool(p.dept), siteBase: siteBaseFor(p.dept) });
   }
 
   const userIds = created.map((c) => c.id);
@@ -214,7 +223,9 @@ async function main() {
 }
 
 function makeRow(c: Person, intervalStart: Date, isHO: boolean): Prisma.ActivityIntervalCreateManyInput | null {
-  const base = { deviceId: c.deviceId, userId: c.id, intervalStart, intervalSeconds: 300, monitorCount: c.monitors };
+  // Lokální IP: v kanceláři podsíť provozovny, na Home Office domácí síť → „Mimo firmu".
+  const clientIp = isHO ? `192.168.1.${10 + rnd(240)}` : `${c.siteBase}.${rnd(254)}.${10 + rnd(240)}`;
+  const base = { deviceId: c.deviceId, userId: c.id, intervalStart, intervalSeconds: 300, monitorCount: c.monitors, clientIp };
 
   // Podvodníci: vypadají „aktivně" celý den, ale vzor je strojový.
   if (c.behavior === 'cheater_mouse') {

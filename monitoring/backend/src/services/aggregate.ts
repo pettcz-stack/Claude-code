@@ -2,6 +2,7 @@ import { prisma } from '../db.js';
 import { getCategoryMap } from './categories.js';
 import { classifyActivity, getWebRules } from './classify.js';
 import { computeIntegrity } from './integrity.js';
+import { getSites, resolveSite } from './sites.js';
 
 /** Zarovná čas na začátek hodiny (UTC). */
 export function floorToHour(d: Date): Date {
@@ -27,12 +28,13 @@ export async function aggregateDays(pairs: { userId: string; day: Date }[]): Pro
 
   const catMap = await getCategoryMap();
   const webRules = await getWebRules();
+  const sites = await getSites();
   let written = 0;
   for (const { userId, day } of unique.values()) {
     const dayEnd = new Date(day.getTime() + 24 * 60 * 60 * 1000);
     const intervals = await prisma.activityInterval.findMany({
       where: { userId, intervalStart: { gte: day, lt: dayEnd } },
-      select: { activeSeconds: true, idleSeconds: true, foregroundApp: true, windowTitle: true, keystrokeCount: true, monitorCount: true },
+      select: { activeSeconds: true, idleSeconds: true, foregroundApp: true, windowTitle: true, keystrokeCount: true, monitorCount: true, clientIp: true },
     });
     if (intervals.length === 0) {
       await prisma.dailyStat.deleteMany({ where: { userId, date: day } });
@@ -43,6 +45,7 @@ export async function aggregateDays(pairs: { userId: string; day: Date }[]): Pro
     let work = 0, nonwork = 0, idle = 0, unknown = 0, keystroke = 0, multiMon = 0;
     const catMin = new Map<string, number>();
     const monMin = new Map<number, number>();
+    const locMin = new Map<string, number>(); // pracoviště → aktivní minuty ('' = mimo firmu)
     type AppAgg = { category: string; type: string; min: number };
     const appAgg = new Map<string, AppAgg>();
     const siteAgg = new Map<string, AppAgg>();
@@ -56,6 +59,8 @@ export async function aggregateDays(pairs: { userId: string; day: Date }[]): Pro
         monMin.set(it.monitorCount, (monMin.get(it.monitorCount) ?? 0) + aMin);
         if (it.monitorCount >= 2) multiMon += aMin;
       }
+      const loc = resolveSite(it.clientIp, sites) ?? '';
+      locMin.set(loc, (locMin.get(loc) ?? 0) + aMin);
       const info = classifyActivity(catMap, webRules, it.foregroundApp, it.windowTitle);
       if (info.type === 'NON_WORK') nonwork += aMin;
       else if (info.type === 'UNKNOWN') unknown += aMin;
@@ -72,9 +77,10 @@ export async function aggregateDays(pairs: { userId: string; day: Date }[]): Pro
     }
     let monitorTop = 0, mb = -1; for (const [c, m] of monMin) if (m > mb) { mb = m; monitorTop = c; }
     let domWorkCat: string | null = null, db = -1; for (const [c, m] of catMin) if (m > db) { db = m; domWorkCat = c; }
+    let site: string | null = null, sb = -1; for (const [c, m] of locMin) if (m > sb) { sb = m; site = c || null; }
     const integ = await computeIntegrity(userId, day, dayEnd);
 
-    const data = { workMin: work, nonWorkMin: nonwork, idleMin: idle, unknownMin: unknown, keystroke, monitorTop, multiMonitorMin: multiMon, domWorkCat, suspicious: integ.suspicious };
+    const data = { workMin: work, nonWorkMin: nonwork, idleMin: idle, unknownMin: unknown, keystroke, monitorTop, multiMonitorMin: multiMon, domWorkCat, site, suspicious: integ.suspicious };
     await prisma.dailyStat.upsert({
       where: { userId_date: { userId, date: day } },
       create: { userId, date: day, ...data },

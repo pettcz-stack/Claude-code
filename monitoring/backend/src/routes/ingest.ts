@@ -19,6 +19,7 @@ const intervalSchema = z.object({
   mouseEvents: z.number().int().min(0),
   sessionLocked: z.boolean().default(false),
   monitorCount: z.number().int().min(1).max(16).optional(),
+  clientIp: z.string().max(45).optional(), // lokální privátní IPv4 fyz. adaptéru
 });
 
 const payloadSchema = z.object({
@@ -87,6 +88,7 @@ ingestRouter.post('/', requireIngestToken, async (req, res) => {
         mouseEvents: iv.mouseEvents,
         sessionLocked: iv.sessionLocked,
         monitorCount: iv.monitorCount,
+        clientIp: iv.clientIp,
       },
       update: {
         intervalSeconds: iv.intervalSeconds,
@@ -99,6 +101,7 @@ ingestRouter.post('/', requireIngestToken, async (req, res) => {
         mouseEvents: iv.mouseEvents,
         sessionLocked: iv.sessionLocked,
         monitorCount: iv.monitorCount,
+        clientIp: iv.clientIp,
       },
     });
     accepted++;

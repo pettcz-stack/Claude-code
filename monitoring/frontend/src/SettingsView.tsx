@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Bell, Save, Play, AlertTriangle, Smile, HeartPulse, Quote, Monitor, Sparkles } from 'lucide-react';
 import { api } from './api.js';
 import { useToast } from './Toast.js';
+import { SitesAdmin } from './SitesAdmin.js';
 
 export function SettingsView({ canEdit }: { canEdit: boolean }) {
   const [enabled, setEnabled] = useState(true);
@@ -125,6 +126,8 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
           Plánováno: self-service přístup pro zaměstnance (každý jen svá data) a soutěž „Zaměstnanec měsíce".
         </p>
       </div>
+
+      <SitesAdmin canEdit={canEdit} />
 
       <div className="card p-5">
         <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Sparkles size={16} className="text-violet-500" /> Interpretace dat</h3>
