@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Gauge, Clock, Wifi, ShieldAlert, AlertTriangle, ArrowUp, ArrowDown, Minus, Monitor } from 'lucide-react';
+import { Gauge, Clock, Wifi, ShieldAlert, AlertTriangle, ArrowUp, ArrowDown, Minus, Monitor, Lightbulb } from 'lucide-react';
 import { api, type Overview, type MonitorsData } from './api.js';
 import { Donut } from './Donut.js';
 import { TrendChart } from './TrendChart.js';
@@ -108,6 +108,44 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
           </div>
           <p className="mt-3 text-xs muted-2">
             Sledujeme pouze počet připojených monitorů (HW), nikoli obsah druhé obrazovky.
+          </p>
+        </div>
+      )}
+
+      {/* Manažerská doporučení (interpretace dat – nezasahuje do nich) */}
+      {mon && mon.advice.candidates.length > 0 && (
+        <div className="card p-5">
+          <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Lightbulb size={16} className="text-amber-500" /> Manažerská doporučení</h3>
+          <p className="mb-3 text-xs muted-2">
+            Návrhy odvozené z dat (nezasahují do nich). Druhý monitor u níže uvedených lidí dělá práci,
+            které dle studií přináší +{mon.advice.upliftLowPct}–{mon.advice.upliftHighPct} % – vyplatí se ho zvážit.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr>
+                  <th className="th">Zaměstnanec</th><th className="th">Odd.</th>
+                  <th className="th">Typ práce</th><th className="th text-right">Monitorů</th>
+                  <th className="th text-right">Odpracováno</th><th className="th text-right">Možný přínos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mon.advice.candidates.map((c) => (
+                  <tr key={c.userId} className="divide-row">
+                    <td className="td font-medium">{c.displayName ?? '—'}</td>
+                    <td className="td muted">{c.department ?? '—'}</td>
+                    <td className="td muted">{c.dominantCategory}</td>
+                    <td className="td text-right tabular-nums">{c.monitors}</td>
+                    <td className="td text-right tabular-nums">{c.activeHours} h</td>
+                    <td className="td text-right tabular-nums font-semibold text-emerald-500">+{c.reclaimHoursLow}–{c.reclaimHoursHigh} h</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-xs muted-2">
+            „Možný přínos" = orientační rozsah produktivnějších hodin za období, pokud by člověk dostal druhý monitor.
+            Jde o odhad ze studií, ne o naměřená data.
           </p>
         </div>
       )}

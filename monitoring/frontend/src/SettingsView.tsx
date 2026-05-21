@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, Save, Play, AlertTriangle, Smile, HeartPulse, Quote } from 'lucide-react';
+import { Bell, Save, Play, AlertTriangle, Smile, HeartPulse, Quote, Monitor, Sparkles } from 'lucide-react';
 import { api } from './api.js';
 import { useToast } from './Toast.js';
 
@@ -10,6 +10,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
   const [funMode, setFunMode] = useState(false);
   const [healthMode, setHealthMode] = useState(false);
   const [growthMode, setGrowthMode] = useState(false);
+  const [interpretMonitors, setInterpretMonitors] = useState(false);
   const [smtp, setSmtp] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
   const toast = useToast();
@@ -22,6 +23,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
       setFunMode(d.settings.funMode);
       setHealthMode(d.settings.healthMode);
       setGrowthMode(d.settings.growthMode);
+      setInterpretMonitors(d.settings.interpretMonitors);
       setSmtp(d.smtpConfigured);
     }).catch(() => undefined);
   }
@@ -30,7 +32,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
   async function save() {
     setMsg('Ukládám…');
     try {
-      await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline, funMode, healthMode, growthMode });
+      await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline, funMode, healthMode, growthMode, interpretMonitors });
       setMsg(null); toast('Nastavení uloženo');
     } catch (e) { toast('Uložení selhalo: ' + e, 'error'); }
     load();
@@ -122,6 +124,35 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
         <p className="mt-4 text-xs muted-2">
           Plánováno: self-service přístup pro zaměstnance (každý jen svá data) a soutěž „Zaměstnanec měsíce".
         </p>
+      </div>
+
+      <div className="card p-5">
+        <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Sparkles size={16} className="text-violet-500" /> Interpretace dat</h3>
+        <p className="mb-4 text-xs muted-2">
+          Data na serveru zůstávají vždy úplná a nezměněná. Interpretace pouze mění, <em>jak</em> se z nich
+          počítá výsledek – lze je kdykoli vypnout a skóre se vrátí k surovým hodnotám.
+        </p>
+
+        <label className="flex items-start gap-3 text-sm">
+          <input type="checkbox" checked={interpretMonitors} disabled={!canEdit} onChange={(e) => setInterpretMonitors(e.target.checked)} className="mt-1" />
+          <span>
+            <span className="flex items-center gap-1.5 font-medium"><Monitor size={15} className="text-sky-500" /> Zohlednit počet monitorů ve skóre</span>
+            <span className="muted-2">
+              U práce, které prokazatelně pomáhá druhý monitor (kancelář, vývoj, podnikové systémy,
+              projektové řízení, grafika), je člověk s jedním monitorem v nevýhodě – dle studií odvede
+              o 20–35 % méně než se dvěma. Po zapnutí dostane handicapový bonus: stejný výkon na jednom
+              monitoru = vyšší skóre než na dvou/třech. Férovější srovnání lidí s nerovným vybavením.
+            </span>
+            <span className="mt-1 block text-xs muted-2">
+              <strong>Následek ve výsledcích:</strong> u dotčených lidí poroste zobrazené skóre v přehledu,
+              žebříčku i v jejich reportu. Surová data, kategorie ani časy se nemění. Vypnutím se vše vrátí zpět.
+            </span>
+          </span>
+        </label>
+
+        {canEdit && (
+          <button onClick={save} className="btn-primary mt-4"><Save size={15} /> Uložit interpretaci</button>
+        )}
       </div>
     </div>
   );

@@ -56,6 +56,9 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
             center={<>
               <div className={`text-5xl font-bold ${scoreColor}`}>{s.score}%</div>
               <div className="text-xs muted-2">odpracováno z fondu</div>
+              {s.monitorAdjusted && (
+                <div className="mt-1 text-[10px] font-medium text-sky-500">upraveno o monitory (surové {s.scoreRaw}%)</div>
+              )}
             </>}
           />
         </div>

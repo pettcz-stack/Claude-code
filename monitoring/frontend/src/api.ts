@@ -81,6 +81,8 @@ export type UserScore = {
   multiMonitorPct: number;
   keystrokeTotal: number;
   appSwitchesPerHour: number;
+  scoreRaw: number;
+  monitorAdjusted: boolean;
 };
 export type SoftwareItem = {
   app: string; category: string | null; type: string; activeHours: number; users: number; usersPct: number;
@@ -89,10 +91,21 @@ export type SoftwareItem = {
 };
 export type SoftwareAudit = { workforce: number; totalWasteCost: number; items: SoftwareItem[] };
 
+export type MonitorAdvice = {
+  userId: string;
+  displayName: string | null;
+  department: string | null;
+  monitors: number;
+  dominantCategory: string;
+  activeHours: number;
+  reclaimHoursLow: number;
+  reclaimHoursHigh: number;
+};
 export type MonitorsData = {
   single: { users: number; avgScore: number; avgActiveHours: number };
   multi: { users: number; avgScore: number; avgActiveHours: number };
   perUser: { userId: string; displayName: string | null; department: string | null; monitors: number; score: number }[];
+  advice: { upliftLowPct: number; upliftHighPct: number; candidates: MonitorAdvice[] };
 };
 
 export type ScoreboardRow = {
@@ -100,6 +113,8 @@ export type ScoreboardRow = {
   displayName: string | null;
   department: string | null;
   score: number;
+  scoreRaw: number;
+  monitorAdjusted: boolean;
   workPct: number;
   nonWorkPct: number;
   idlePct: number;
@@ -138,7 +153,7 @@ export type HomeOffice = {
 };
 export type SelfReportData = { displayName: string | null; department: string | null; score: number; companyPercentile: number; deptPercentile: number; kpmPercentile: number; avgKpm: number; activeHours: number; nonWorkPct: number; monitorTypical: number; multiMonitorPct: number; appSwitchesPerHour: number; keystrokeTotal: number; caloriesTyping: number; distanceMeters: number };
 
-export type AppSettings = { alertsEnabled: boolean; alertRecipients: string[]; offlineMinutes: number; funMode: boolean; healthMode: boolean; growthMode: boolean };
+export type AppSettings = { alertsEnabled: boolean; alertRecipients: string[]; offlineMinutes: number; funMode: boolean; healthMode: boolean; growthMode: boolean; interpretMonitors: boolean };
 
 export type Me = { username: string; role: string };
 
@@ -286,7 +301,7 @@ export const api = {
   deleteWebRule: (keyword: string) =>
     fetch(`/api/v1/admin/webrules/${encodeURIComponent(keyword)}`, { method: 'DELETE', headers: authHeader() }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   getSettings: () => getJson<{ settings: AppSettings; smtpConfigured: boolean }>('/api/v1/admin/settings'),
-  saveSettings: (data: { alertsEnabled?: boolean; alertRecipients?: string; offlineMinutes?: number; funMode?: boolean; healthMode?: boolean; growthMode?: boolean }) =>
+  saveSettings: (data: { alertsEnabled?: boolean; alertRecipients?: string; offlineMinutes?: number; funMode?: boolean; healthMode?: boolean; growthMode?: boolean; interpretMonitors?: boolean }) =>
     fetch('/api/v1/admin/settings', { method: 'PUT', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   runAlerts: () =>
     fetch('/api/v1/admin/alerts/run', { method: 'POST', headers: authHeader() }).then((r) => r.json()),

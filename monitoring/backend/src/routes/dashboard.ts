@@ -4,6 +4,7 @@ import { prisma } from '../db.js';
 import { logAccess, requireRole } from '../auth.js';
 import { getCategoryMap } from '../services/categories.js';
 import { computeUserScore } from '../services/scoring.js';
+import { getSettings } from '../services/settings.js';
 import { trend, topActivities, overview, heatmap, homeOffice, selfReport, monitorsComparison, softwareAudit, costAudit, exportClassification } from '../services/analytics.js';
 import { computeIntegrity, detectAlerts } from '../services/integrity.js';
 
@@ -151,7 +152,8 @@ dashboardRouter.get('/score', async (req, res) => {
     res.status(400).json({ error: 'userId_required' });
     return;
   }
-  const score = await computeUserScore(userId, new Date(from), new Date(to));
+  const { interpretMonitors } = await getSettings();
+  const score = await computeUserScore(userId, new Date(from), new Date(to), { interpretMonitors });
   await logAccess(req.admin?.username ?? 'unknown', 'VIEW', `score ${from}..${to}`, userId);
   res.json({ score });
 });
@@ -168,14 +170,17 @@ dashboardRouter.get('/scoreboard', async (req, res) => {
     where: { active: true, ...(department ? { department } : {}) },
     select: { id: true },
   });
+  const { interpretMonitors } = await getSettings();
   const rows = [];
   for (const u of users) {
-    const s = await computeUserScore(u.id, new Date(from), new Date(to));
+    const s = await computeUserScore(u.id, new Date(from), new Date(to), { interpretMonitors });
     rows.push({
       userId: s.userId,
       displayName: s.displayName,
       department: s.department,
       score: s.score,
+      scoreRaw: s.scoreRaw,
+      monitorAdjusted: s.monitorAdjusted,
       workPct: s.workPct,
       nonWorkPct: s.nonWorkPct,
       idlePct: s.idlePct,

@@ -3,7 +3,8 @@ import { config } from '../config.js';
 import { getCategoryMap, type CatType } from './categories.js';
 import { classifyActivity, getWebRules } from './classify.js';
 import { computeIntegrity } from './integrity.js';
-import { computeUserScore } from './scoring.js';
+import { computeUserScore, monitorHandicapFactor, MULTI_MONITOR_BENEFIT_CATS } from './scoring.js';
+import { getSettings } from './settings.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -177,6 +178,59 @@ const EMPTY_ACC: Acc = { work: 0, nonwork: 0, idle: 0, unknown: 0 };
 /** Skóre uživatele s vyjmutím nezařazeného času z fondu. */
 const userScorePct = (a: Acc, expected: number) => clampPct((a.work / Math.max(expected - a.unknown, 1)) * 100);
 
+/**
+ * Interpretace monitorů (volitelná): handicapový faktor na uživatele. Kdo má míň
+ * monitorů u práce, které z nich těží, je v nevýhodě → jeho skóre se férově navýší.
+ * Vrací prázdnou mapu, když je interpretace vypnutá (skóre se nemění). Nezasahuje do dat.
+ */
+async function monitorFactorMap(userIds: string[], from: Date, to: Date): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (userIds.length === 0) return out;
+  const { interpretMonitors } = await getSettings();
+  if (!interpretMonitors) return out;
+  const catMap = await getCategoryMap();
+  const webRules = await getWebRules();
+  const rows = await prisma.activityInterval.findMany({
+    where: { userId: { in: userIds }, intervalStart: { gte: from, lt: to } },
+    select: { userId: true, foregroundApp: true, windowTitle: true, activeSeconds: true, monitorCount: true },
+  });
+  const workCat = new Map<string, Map<string, number>>(); // user → kategorie WORK → sekundy
+  const monSec = new Map<string, Map<number, number>>(); // user → počet monitorů → sekundy
+  for (const r of rows) {
+    if (r.activeSeconds <= 0) continue;
+    if (r.monitorCount && r.monitorCount > 0) {
+      let mm = monSec.get(r.userId);
+      if (!mm) (mm = new Map()), monSec.set(r.userId, mm);
+      mm.set(r.monitorCount, (mm.get(r.monitorCount) ?? 0) + r.activeSeconds);
+    }
+    const { category, type } = classifyActivity(catMap, webRules, r.foregroundApp, r.windowTitle);
+    if (type !== 'WORK' && type !== 'NEUTRAL') continue;
+    let cm = workCat.get(r.userId);
+    if (!cm) (cm = new Map()), workCat.set(r.userId, cm);
+    cm.set(category, (cm.get(category) ?? 0) + r.activeSeconds);
+  }
+  const dominantOf = (m?: Map<string, number>) => {
+    if (!m) return '';
+    let best = '', sec = 0;
+    for (const [c, s] of m) if (s > sec) ((sec = s), (best = c));
+    return best;
+  };
+  const typicalOf = (m?: Map<number, number>) => {
+    if (!m) return 0;
+    let best = 0, sec = -1;
+    for (const [c, s] of m) if (s > sec) ((sec = s), (best = c));
+    return best;
+  };
+  for (const id of userIds) {
+    const typical = typicalOf(monSec.get(id));
+    const dom = dominantOf(workCat.get(id));
+    if (typical >= 1 && typical < 3 && MULTI_MONITOR_BENEFIT_CATS.has(dom)) {
+      out.set(id, monitorHandicapFactor(typical));
+    }
+  }
+  return out;
+}
+
 export type OverviewResult = {
   kpi: {
     userCount: number;
@@ -205,10 +259,17 @@ export async function overview(from: Date, to: Date, department?: string): Promi
 
   const cur = await perUser(ids, from, to);
 
+  // Interpretace monitorů (volitelná) – handicapový faktor na uživatele.
+  const factors = await monitorFactorMap(ids, from, to);
+  const adjScore = (id: string, raw: number) => {
+    const f = factors.get(id);
+    return f ? clampPct(raw * f) : raw;
+  };
+
   // předchozí stejně dlouhé období (pro deltu skóre)
   const span = to.getTime() - from.getTime();
   const prev = await perUser(ids, new Date(from.getTime() - span), from);
-  const prevScore = (id: string) => userScorePct(prev.get(id) ?? EMPTY_ACC, expected);
+  const prevScore = (id: string) => adjScore(id, userScorePct(prev.get(id) ?? EMPTY_ACC, expected));
 
   let workSum = 0, nonworkSum = 0, idleSum = 0, pcoffSum = 0, scoreSum = 0;
   const perUserScore = new Map<string, number>();
@@ -216,7 +277,7 @@ export async function overview(from: Date, to: Date, department?: string): Promi
 
   for (const u of users) {
     const a = cur.get(u.id) ?? EMPTY_ACC;
-    const score = userScorePct(a, expected);
+    const score = adjScore(u.id, userScorePct(a, expected));
     const adjExpected = Math.max(expected - a.unknown, 1);
     pcoffSum += Math.max(adjExpected - (a.work + a.nonwork + a.idle), 0);
     perUserScore.set(u.id, score);
@@ -453,9 +514,15 @@ export async function selfReport(userId: string, from: Date, to: Date): Promise<
   const expected = countWorkdays(from, to) * config.expectedWorkHoursPerDay * 60;
 
   const scores = await perUser(ids, from, to);
-  const scoreOf = (id: string) => userScorePct(scores.get(id) ?? EMPTY_ACC, expected);
+  const { interpretMonitors } = await getSettings();
+  const factors = await monitorFactorMap(ids, from, to);
+  const scoreOf = (id: string) => {
+    const raw = userScorePct(scores.get(id) ?? EMPTY_ACC, expected);
+    const f = factors.get(id);
+    return f ? clampPct(raw * f) : raw;
+  };
 
-  const me = await computeUserScore(userId, from, to);
+  const me = await computeUserScore(userId, from, to, { interpretMonitors });
   const myScore = me.score;
   const myDept = users.find((u) => u.id === userId)?.department ?? null;
 
@@ -485,10 +552,24 @@ export async function selfReport(userId: string, from: Date, to: Date): Promise<
 
 // --- Efektivita podle počtu monitorů -----------------------------------------
 
+export type MonitorAdvice = {
+  userId: string;
+  displayName: string | null;
+  department: string | null;
+  monitors: number;
+  dominantCategory: string;
+  activeHours: number;
+  reclaimHoursLow: number; // odhad „získaných" produktivních hodin/období (dolní mez studií)
+  reclaimHoursHigh: number; // horní mez
+};
+
 export type MonitorsResult = {
   single: { users: number; avgScore: number; avgActiveHours: number };
   multi: { users: number; avgScore: number; avgActiveHours: number };
   perUser: { userId: string; displayName: string | null; department: string | null; monitors: number; score: number }[];
+  // Interpretace (nezasahuje do dat): doporučení druhého monitoru pro typy práce,
+  // které z něj mají dle studií prokazatelný přínos. upliftLow/High = rozsah +%.
+  advice: { upliftLowPct: number; upliftHighPct: number; candidates: MonitorAdvice[] };
 };
 
 export async function monitorsComparison(from: Date, to: Date, department?: string): Promise<MonitorsResult> {
@@ -531,10 +612,56 @@ export async function monitorsComparison(from: Date, to: Date, department?: stri
     if (mon >= 2) { multi.push(score); multiHours.push(hours); } else { single.push(score); singleHours.push(hours); }
   }
   const avg = (a: number[]) => (a.length ? Math.round(a.reduce((s, x) => s + x, 0) / a.length) : 0);
+
+  // --- Interpretace: kandidáti na druhý monitor (čistě výpočet nad daty) ------
+  const UPLIFT_LOW = 20, UPLIFT_HIGH = 35; // % dle studií (porovnávání/přepínání oken)
+  const singleIds = perUserOut.filter((u) => u.monitors <= 1).map((u) => u.userId);
+  const candidates: MonitorAdvice[] = [];
+  if (singleIds.length > 0) {
+    const catMap = await getCategoryMap();
+    const webRules = await getWebRules();
+    const appRows = await prisma.activityInterval.findMany({
+      where: { userId: { in: singleIds }, intervalStart: { gte: from, lt: to } },
+      select: { userId: true, foregroundApp: true, windowTitle: true, activeSeconds: true },
+    });
+    // dominantní WORK kategorie podle aktivních sekund
+    const byUser = new Map<string, Map<string, number>>();
+    for (const r of appRows) {
+      if (r.activeSeconds <= 0) continue;
+      const { category, type } = classifyActivity(catMap, webRules, r.foregroundApp, r.windowTitle);
+      if (type !== 'WORK') continue;
+      let m = byUser.get(r.userId);
+      if (!m) (m = new Map()), byUser.set(r.userId, m);
+      m.set(category, (m.get(category) ?? 0) + r.activeSeconds);
+    }
+    for (const u of perUserOut) {
+      if (u.monitors > 1) continue;
+      const m = byUser.get(u.userId);
+      if (!m) continue;
+      let domCat = '', domSec = 0;
+      for (const [c, s] of m) if (s > domSec) ((domSec = s), (domCat = c));
+      if (!MULTI_MONITOR_BENEFIT_CATS.has(domCat)) continue;
+      const activeHours = (scores.get(u.userId)?.work ?? 0) / 60;
+      if (activeHours < 1) continue; // bez reálné práce nemá smysl doporučovat
+      candidates.push({
+        userId: u.userId,
+        displayName: u.displayName,
+        department: u.department,
+        monitors: u.monitors,
+        dominantCategory: domCat,
+        activeHours: Math.round(activeHours),
+        reclaimHoursLow: Math.round(activeHours * (UPLIFT_LOW / 100)),
+        reclaimHoursHigh: Math.round(activeHours * (UPLIFT_HIGH / 100)),
+      });
+    }
+    candidates.sort((a, b) => b.reclaimHoursHigh - a.reclaimHoursHigh);
+  }
+
   return {
     single: { users: single.length, avgScore: avg(single), avgActiveHours: avg(singleHours) },
     multi: { users: multi.length, avgScore: avg(multi), avgActiveHours: avg(multiHours) },
     perUser: perUserOut.sort((a, b) => b.monitors - a.monitors || b.score - a.score),
+    advice: { upliftLowPct: UPLIFT_LOW, upliftHighPct: UPLIFT_HIGH, candidates },
   };
 }
 

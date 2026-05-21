@@ -33,7 +33,32 @@ export type UserScore = ScoreBreakdown & {
   multiMonitorPct: number; // podíl času na 2+ monitorech
   keystrokeTotal: number; // úhozy celkem za období
   appSwitchesPerHour: number; // přepínání aplikací za hodinu (fragmentace pozornosti)
+  scoreRaw: number; // skóre bez interpretace (vždy z plných dat)
+  monitorAdjusted: boolean; // bylo skóre upraveno o handicap monitorů?
 };
+
+// Kategorie práce, kde druhý monitor prokazatelně pomáhá (porovnávání/přepínání oken).
+export const MULTI_MONITOR_BENEFIT_CATS = new Set<string>([
+  'Kancelář', 'Vývoj', 'Podnikový systém', 'Projektové řízení', 'Grafika', 'Práce – nástroje',
+]);
+
+// Relativní pracovní kapacita podle počtu monitorů u práce, která z nich těží
+// (dle studií +20–35 %). 1 monitor = výchozí, víc monitorů = větší kapacita.
+function monitorCapacity(monitors: number): number {
+  if (monitors >= 3) return 1.35;
+  if (monitors === 2) return 1.25;
+  return 1.0;
+}
+
+/**
+ * Handicapový faktor: kdo má míň monitorů, je u takové práce v nevýhodě a jeho
+ * skóre se férově navýší vůči nejlépe vybavenému (3 monitory). 1 monitor dostane
+ * největší bonus, 3 monitory žádný. Nezasahuje do dat – jen interpretace skóre.
+ */
+export function monitorHandicapFactor(monitors: number): number {
+  const capMax = 1.35;
+  return capMax / monitorCapacity(monitors);
+}
 
 function countWorkdays(from: Date, to: Date): number {
   let days = 0;
@@ -51,7 +76,7 @@ function pct(part: number, whole: number): number {
 }
 
 /** Spočítá skóre a rozpad jednoho uživatele za období. */
-export async function computeUserScore(userId: string, from: Date, to: Date): Promise<UserScore> {
+export async function computeUserScore(userId: string, from: Date, to: Date, opts?: { interpretMonitors?: boolean }): Promise<UserScore> {
   const user = await prisma.monitoredUser.findUnique({
     where: { id: userId },
     select: { id: true, displayName: true, department: true },
@@ -135,6 +160,15 @@ export async function computeUserScore(userId: string, from: Date, to: Date): Pr
   const activeAll = workMinutes + nonWorkMinutes;
   const appSwitchesPerHour = activeAll > 0 ? Math.round((appSwitches / (activeAll / 60)) * 10) / 10 : 0;
 
+  // Skóre z plných dat (vždy faktické).
+  const scoreRaw = pct(workMinutes, expectedMinutes);
+  // Interpretace (volitelná, nezasahuje do dat): u práce těžící z více monitorů
+  // navýšíme skóre lidem v nevýhodě (míň monitorů) handicapovým faktorem.
+  const dominantWork = categories.find((c) => c.type === 'WORK' || c.type === 'NEUTRAL');
+  const benefits = !!dominantWork && MULTI_MONITOR_BENEFIT_CATS.has(dominantWork.category);
+  const adjust = !!opts?.interpretMonitors && benefits && monitorTypical >= 1 && monitorTypical < 3;
+  const score = adjust ? Math.min(100, Math.round(scoreRaw * monitorHandicapFactor(monitorTypical))) : scoreRaw;
+
   return {
     userId,
     displayName: user?.displayName ?? null,
@@ -150,7 +184,7 @@ export async function computeUserScore(userId: string, from: Date, to: Date): Pr
     nonWorkPct: pct(nonWorkMinutes, expectedMinutes),
     idlePct: pct(idleOnMinutes, expectedMinutes),
     pcOffPct: pct(pcOffMinutes, expectedMinutes),
-    score: pct(workMinutes, expectedMinutes),
+    score,
     avgKpm: Math.round(avgKpm),
     kpmPercentile,
     categories,
@@ -159,6 +193,8 @@ export async function computeUserScore(userId: string, from: Date, to: Date): Pr
     multiMonitorPct,
     keystrokeTotal: totalKeystrokes,
     appSwitchesPerHour,
+    scoreRaw,
+    monitorAdjusted: adjust,
   };
 }
 
