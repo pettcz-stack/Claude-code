@@ -57,7 +57,7 @@ export function TrendChart({ from, to, userId, department, dark }: {
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: axis }} stroke={grid} />
               <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: axis }} stroke={grid} unit="%" />
               <Tooltip {...tooltip} />
-              <Bar dataKey="score" fill="#10b981" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="score" fill="#10b981" radius={[3, 3, 0, 0]} isAnimationActive={false} />
             </BarChart>
           ) : type === 'line' ? (
             <LineChart data={data} margin={{ top: 6, right: 12, left: -16, bottom: 0 }}>
@@ -65,7 +65,7 @@ export function TrendChart({ from, to, userId, department, dark }: {
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: axis }} stroke={grid} />
               <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: axis }} stroke={grid} unit="%" />
               <Tooltip {...tooltip} />
-              <Line type="monotone" dataKey="score" stroke="#10b981" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="score" stroke="#10b981" strokeWidth={2} dot={false} isAnimationActive={false} />
             </LineChart>
           ) : (
             <AreaChart data={data} margin={{ top: 6, right: 12, left: -16, bottom: 0 }}>
@@ -79,7 +79,7 @@ export function TrendChart({ from, to, userId, department, dark }: {
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: axis }} stroke={grid} />
               <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: axis }} stroke={grid} unit="%" />
               <Tooltip {...tooltip} />
-              <Area type="monotone" dataKey="score" stroke="#10b981" strokeWidth={2} fill="url(#g)" />
+              <Area type="monotone" dataKey="score" stroke="#10b981" strokeWidth={2} fill="url(#g)" isAnimationActive={false} />
             </AreaChart>
           )}
         </ResponsiveContainer>
