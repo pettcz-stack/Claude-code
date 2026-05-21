@@ -247,7 +247,8 @@ model DailyAppStat {
 model Site {
   id        String   @id @default(cuid())
   name      String // "Brno", "Praha", "Areál Hořovice"
-  subnets   String // CSV CIDR, např. "10.10.0.0/16,10.11.0.0/16"
+  subnets   String // CSV CIDR, např. "10.10.0.0/16,10.11.0.0/16"; prázdné = zatím neměřitelné
+  kind      String   @default("VLASTNI") // VLASTNI | PARTNER
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 }

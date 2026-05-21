@@ -149,7 +149,7 @@ export type Overview = {
   bottom: { userId: string; displayName: string | null; department: string | null; score: number }[];
   locations: { site: string; users: number }[];
 };
-export type Site = { id: string; name: string; subnets: string; active: boolean };
+export type Site = { id: string; name: string; subnets: string; kind: string; active: boolean };
 export type Heatmap = { matrix: number[][]; max: number };
 
 export type HomeOffice = {
@@ -300,7 +300,7 @@ export const api = {
   classificationImport: (payload: unknown) =>
     fetch('/api/v1/admin/classification-import', { method: 'POST', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(payload) }).then((r) => r.json()),
   sites: () => getJson<{ sites: Site[] }>('/api/v1/admin/sites').then((d) => d.sites),
-  saveSite: (data: { name: string; subnets: string; active?: boolean }) =>
+  saveSite: (data: { name: string; subnets: string; kind?: string; active?: boolean }) =>
     fetch('/api/v1/admin/sites', { method: 'POST', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   deleteSite: (id: string) =>
     fetch(`/api/v1/admin/sites/${id}`, { method: 'DELETE', headers: authHeader() }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),

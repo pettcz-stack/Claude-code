@@ -222,6 +222,7 @@ model Site {
   id        String   @id @default(cuid())
   name      String
   subnets   String
+  kind      String   @default("VLASTNI")
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 }

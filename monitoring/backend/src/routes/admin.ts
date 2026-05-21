@@ -12,7 +12,8 @@ import { getSites } from '../services/sites.js';
 /** Provozovny / pobočky – číselník pro určení pracoviště podle lokální sítě. */
 const siteSchema = z.object({
   name: z.string().min(1).max(80),
-  subnets: z.string().min(1).max(500), // CSV CIDR, např. "10.10.0.0/16,10.11.0.0/16"
+  subnets: z.string().max(500), // CSV CIDR; prázdné = zatím neměřitelné (partner)
+  kind: z.enum(['VLASTNI', 'PARTNER']).optional(),
   active: z.boolean().optional(),
 });
 
@@ -26,7 +27,7 @@ adminRouter.get('/sites', async (_req, res) => {
 adminRouter.post('/sites', requireRole('ADMIN'), async (req, res) => {
   const p = siteSchema.safeParse(req.body);
   if (!p.success) return void res.status(400).json({ error: 'invalid_payload' });
-  const site = await prisma.site.create({ data: { name: p.data.name, subnets: p.data.subnets, active: p.data.active ?? true } });
+  const site = await prisma.site.create({ data: { name: p.data.name, subnets: p.data.subnets, kind: p.data.kind ?? 'VLASTNI', active: p.data.active ?? true } });
   clearCache();
   res.json({ site });
 });

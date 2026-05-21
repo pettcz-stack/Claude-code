@@ -1,6 +1,6 @@
 import { prisma } from '../db.js';
 
-export type SiteDef = { id: string; name: string; subnets: string; active: boolean };
+export type SiteDef = { id: string; name: string; subnets: string; kind: string; active: boolean };
 
 /** IPv4 → 32bit číslo; null pokud nevalidní. */
 function ipToInt(ip: string): number | null {
@@ -43,19 +43,33 @@ export function resolveSite(ip: string | null | undefined, sites: SiteDef[]): st
 }
 
 export async function getSites(): Promise<SiteDef[]> {
-  const rows = await prisma.site.findMany({ orderBy: { name: 'asc' } });
-  return rows.map((r) => ({ id: r.id, name: r.name, subnets: r.subnets, active: r.active }));
+  // Vlastní provozovny první, pak partnerské; uvnitř podle názvu.
+  const rows = await prisma.site.findMany({ orderBy: [{ kind: 'asc' }, { name: 'asc' }] });
+  return rows.map((r) => ({ id: r.id, name: r.name, subnets: r.subnets, kind: r.kind, active: r.active }));
 }
 
-/** Demo provozovny (jen pokud je číselník prázdný). */
+/** Výchozí seznam provozoven (vlastní s rozsahy + partnerské zatím bez rozsahů). */
+export const DEFAULT_SITES: { name: string; subnets: string; kind: string }[] = [
+  // Vlastní – síť ve správě IT (rozsahy demo).
+  { name: 'Areál Hořovice (výroba)', subnets: '10.30.0.0/16', kind: 'VLASTNI' },
+  { name: 'Pobočka Praha', subnets: '10.20.0.0/16', kind: 'VLASTNI' },
+  { name: 'Pobočka Brno', subnets: '10.10.0.0/16', kind: 'VLASTNI' },
+  { name: 'Pobočka Ostrava', subnets: '10.40.0.0/16', kind: 'VLASTNI' },
+  // Partnerské – síť nemusí být ve správě našeho IT → rozsah zatím nezadán
+  // (dokud IT nedoplní podsíť, vyhodnotí se jako „Mimo firmu").
+  { name: 'Partner Mladá Boleslav', subnets: '', kind: 'PARTNER' },
+  { name: 'Partner Ústí nad Labem', subnets: '', kind: 'PARTNER' },
+  { name: 'Partner Pardubice', subnets: '', kind: 'PARTNER' },
+  { name: 'Partner České Budějovice', subnets: '', kind: 'PARTNER' },
+  { name: 'Partner Plzeň', subnets: '', kind: 'PARTNER' },
+  { name: 'Partner Olomouc', subnets: '', kind: 'PARTNER' },
+  { name: 'Partner Vlašim', subnets: '', kind: 'PARTNER' },
+  { name: 'Partner Jihlava', subnets: '', kind: 'PARTNER' },
+];
+
+/** Naplní číselník provozoven (jen pokud je prázdný). */
 export async function ensureDefaultSites(): Promise<void> {
   const count = await prisma.site.count();
   if (count > 0) return;
-  await prisma.site.createMany({
-    data: [
-      { name: 'Areál Hořovice (výroba)', subnets: '10.30.0.0/16' },
-      { name: 'Pobočka Praha', subnets: '10.20.0.0/16' },
-      { name: 'Pobočka Brno', subnets: '10.10.0.0/16' },
-    ],
-  });
+  await prisma.site.createMany({ data: DEFAULT_SITES });
 }
