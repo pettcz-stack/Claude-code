@@ -18,6 +18,10 @@ namespace WorkView.Agent
         private readonly string _devicePart;
         private readonly string _userPart;
 
+        // Server v odpovědi ingestu řekne, zda je zaměstnancům zpřístupněn report
+        // (přepínač v administraci). Agent podle toho zobrazí/skryje ikonku v liště.
+        public volatile bool LastEmployeeReportEnabled;
+
         public Sender(AgentConfig cfg)
         {
             _cfg = cfg;
@@ -62,13 +66,45 @@ namespace WorkView.Agent
                     content.Headers.ContentEncoding.Add("gzip");
                     using (HttpResponseMessage resp = await _http.PostAsync(_cfg.BackendUrl + "/api/v1/ingest", content))
                     {
-                        return resp.IsSuccessStatusCode;
+                        if (!resp.IsSuccessStatusCode) return false;
+                        try
+                        {
+                            string body = await resp.Content.ReadAsStringAsync();
+                            LastEmployeeReportEnabled = body.IndexOf("\"employeeReportEnabled\":true", StringComparison.Ordinal) >= 0;
+                        }
+                        catch { /* nepodstatné pro úspěch odeslání */ }
+                        return true;
                     }
                 }
             }
             catch
             {
                 return false; // síťová chyba – necháme v bufferu na příště
+            }
+        }
+
+        /// <summary>Vyžádá krátkodobý odkaz na report pro přihlášeného uživatele (vázaný na jeho SID).</summary>
+        public async Task<string> RequestSelfTokenAsync()
+        {
+            try
+            {
+                string payload = "{\"sid\":" + Json.Str(MachineIdentity.UserSid()) + "}";
+                using (StringContent content = new StringContent(payload, Encoding.UTF8, "application/json"))
+                using (HttpResponseMessage resp = await _http.PostAsync(_cfg.BackendUrl + "/api/v1/self/token", content))
+                {
+                    if (!resp.IsSuccessStatusCode) return null;
+                    string body = await resp.Content.ReadAsStringAsync();
+                    const string key = "\"token\":\"";
+                    int i = body.IndexOf(key, StringComparison.Ordinal);
+                    if (i < 0) return null;
+                    i += key.Length;
+                    int j = body.IndexOf('"', i);
+                    return j > i ? body.Substring(i, j - i) : null;
+                }
+            }
+            catch
+            {
+                return null;
             }
         }
 

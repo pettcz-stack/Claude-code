@@ -139,7 +139,8 @@ namespace WorkView.Agent
                 KeystrokeCount = ks,
                 MouseEvents = mouse,
                 SessionLocked = _lockedSeconds * 2 >= _elapsedSeconds,
-                MonitorCount = SafeMonitorCount()
+                MonitorCount = SafeMonitorCount(),
+                ClientIp = NetworkInfo.LocalIPv4()
             };
 
             try { _buffer.Enqueue(rec.ToJson()); } catch { /* nesmí shodit ticker */ }

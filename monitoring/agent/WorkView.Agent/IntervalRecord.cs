@@ -15,6 +15,7 @@ namespace WorkView.Agent
         public long MouseEvents;           // POČET pohybů/kliků (nikdy souřadnice)
         public bool SessionLocked;
         public int MonitorCount; // počet připojených monitorů (jen číslo)
+        public string ClientIp;  // lokální (privátní) IPv4 fyz. adaptéru – pro určení pracoviště
 
         public string ToJson()
         {
@@ -30,6 +31,7 @@ namespace WorkView.Agent
             sb.Append("\"mouseEvents\":").Append(Json.Num(MouseEvents)).Append(',');
             sb.Append("\"sessionLocked\":").Append(Json.Bool(SessionLocked));
             if (MonitorCount > 0) { sb.Append(','); sb.Append("\"monitorCount\":").Append(Json.Num(MonitorCount)); }
+            if (ClientIp != null) { sb.Append(','); sb.Append("\"clientIp\":").Append(Json.Str(ClientIp)); }
             sb.Append('}');
             return sb.ToString();
         }

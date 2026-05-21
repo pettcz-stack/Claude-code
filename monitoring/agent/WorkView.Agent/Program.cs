@@ -22,6 +22,7 @@ namespace WorkView.Agent
         private static Sender _sender;
         private static AgentConfig _cfg;
         private static bool _sending;
+        private static NotifyIcon _tray; // ikonka reportu zaměstnance (jen když to admin povolí)
 
         [STAThread]
         private static void Main()
@@ -63,18 +64,53 @@ namespace WorkView.Agent
                     // Odesílání dávek v konfigurovatelném intervalu (výchozí 15 minut).
                     // Mezitím se data hromadí v lokálním bufferu (přežijí restart i výpadek sítě).
                     System.Windows.Forms.Timer sendTimer = new System.Windows.Forms.Timer { Interval = cfg.SendIntervalSeconds * 1000 };
-                    sendTimer.Tick += async (s, e) => await TrySendAsync();
+                    sendTimer.Tick += async (s, e) => { await TrySendAsync(); UpdateTray(); };
                     sendTimer.Start();
 
                     Application.ApplicationExit += (s, e) =>
                     {
                         SystemEvents.SessionSwitch -= OnSessionSwitch;
                         sendTimer.Stop();
+                        if (_tray != null) { _tray.Visible = false; _tray.Dispose(); _tray = null; }
                     };
 
                     Application.Run();
                 }
             }
+        }
+
+        /// <summary>Zobrazí/skryje ikonku reportu v liště podle přepínače z administrace.</summary>
+        private static void UpdateTray()
+        {
+            try
+            {
+                bool on = _sender != null && _sender.LastEmployeeReportEnabled;
+                if (on && _tray == null)
+                {
+                    _tray = new NotifyIcon { Icon = System.Drawing.SystemIcons.Information, Text = "Můj report práce", Visible = true };
+                    ContextMenuStrip menu = new ContextMenuStrip();
+                    menu.Items.Add("Zobrazit můj report", null, async (s, e) => await OpenReportAsync());
+                    _tray.ContextMenuStrip = menu;
+                    _tray.DoubleClick += async (s, e) => await OpenReportAsync();
+                }
+                else if (!on && _tray != null)
+                {
+                    _tray.Visible = false; _tray.Dispose(); _tray = null;
+                }
+            }
+            catch { /* ikonka není kritická */ }
+        }
+
+        private static async System.Threading.Tasks.Task OpenReportAsync()
+        {
+            try
+            {
+                string token = await _sender.RequestSelfTokenAsync();
+                if (string.IsNullOrEmpty(token)) return;
+                string url = _cfg.BackendUrl + "/?selfToken=" + Uri.EscapeDataString(token);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+            }
+            catch { /* nepodstatné */ }
         }
 
         private static void LogError(string message)
