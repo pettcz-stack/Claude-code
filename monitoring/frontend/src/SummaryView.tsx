@@ -35,8 +35,8 @@ export function SummaryView({ from, to, department }: Props) {
         <thead>
           <tr>
             <th className="th">Zaměstnanec</th><th className="th">Oddělení</th>
-            <th className="th text-right">Aktivní</th><th className="th text-right">Nečinnost</th>
-            <th className="th text-right">Zamčeno</th><th className="th text-right">Úhozy/min</th>
+            <th className="th text-right">Aktivní práce (hodiny:minuty)</th><th className="th text-right">Nečinnost u PC (hodiny:minuty)</th>
+            <th className="th text-right">Zamčená obrazovka (hodiny:minuty)</th><th className="th text-right">Tempo psaní (úhozů/min)</th>
           </tr>
         </thead>
         <tbody>

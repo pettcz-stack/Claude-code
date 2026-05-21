@@ -41,32 +41,32 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="card p-4">
-          <div className="mb-1 flex items-center gap-1.5 text-xs uppercase muted-2"><Wallet size={13} /> Měsíční plýtvání licencemi</div>
+          <div className="mb-1 flex items-center gap-1.5 text-xs uppercase muted-2"><Wallet size={13} /> Plýtvání licencemi (Kč/měsíc)</div>
           <div className="text-3xl font-bold text-red-500">{data.totalWasteCost.toLocaleString('cs-CZ')} Kč</div>
-          <div className="text-xs muted-2">nevyužité placené licence</div>
+          <div className="text-xs muted-2">cena nevyužitých placených licencí měsíčně</div>
         </div>
         <div className="card p-4">
-          <div className="mb-1 flex items-center gap-1.5 text-xs uppercase muted-2"><Wallet size={13} /> Ročně</div>
+          <div className="mb-1 flex items-center gap-1.5 text-xs uppercase muted-2"><Wallet size={13} /> Možná úspora (Kč/rok)</div>
           <div className="text-3xl font-bold text-red-500">{(data.totalWasteCost * 12).toLocaleString('cs-CZ')} Kč</div>
-          <div className="text-xs muted-2">potenciální úspora za rok</div>
+          <div className="text-xs muted-2">potenciální roční úspora při zrušení nevyužitých licencí</div>
         </div>
         <div className="card p-4">
-          <div className="mb-1 flex items-center gap-1.5 text-xs uppercase muted-2"><Boxes size={13} /> Sledováno</div>
+          <div className="mb-1 flex items-center gap-1.5 text-xs uppercase muted-2"><Boxes size={13} /> Sledováno zaměstnanců (počet)</div>
           <div className="text-3xl font-bold">{data.workforce}</div>
-          <div className="text-xs muted-2">zaměstnanců</div>
+          <div className="text-xs muted-2">zaměstnanců zahrnutých do auditu</div>
         </div>
       </div>
 
       {/* Náklady neproduktivního času */}
       {cost && (
         <div className="card p-5">
-          <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Coins size={16} className="text-red-500" /> Cena neproduktivního času</h3>
-          <p className="mb-3 text-xs muted-2">Kolik stojí čas, kdy se nepracuje (mzda × neproduktivní hodiny). {cost.withRate}/{cost.workforce} lidí má zadanou mzdu.</p>
+          <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Coins size={16} className="text-red-500" /> Cena neproduktivního času (Kč)</h3>
+          <p className="mb-3 text-xs muted-2">Kolik firmu stojí čas, kdy se nepracuje (hrubá mzda × neproduktivní hodiny). Mzdu má zadanou {cost.withRate} z {cost.workforce} zaměstnanců.</p>
           <div className="mb-4 grid gap-3 sm:grid-cols-4">
-            <CostCard label="Mimopráce (soc. sítě, hry…)" value={cost.totals.nonworkCost} />
-            <CostCard label="Nečinnost u PC" value={cost.totals.idleCost} />
-            <CostCard label="Mimo PC v prac. době" value={cost.totals.pcoffCost} />
-            <CostCard label="Celkem za období" value={cost.totals.wastedCost} big />
+            <CostCard label="Mimopracovní aktivity – soc. sítě, hry… (Kč)" value={cost.totals.nonworkCost} />
+            <CostCard label="Nečinnost u zapnutého PC (Kč)" value={cost.totals.idleCost} />
+            <CostCard label="Mimo PC v pracovní době (Kč)" value={cost.totals.pcoffCost} />
+            <CostCard label="Celkem za období (Kč)" value={cost.totals.wastedCost} big />
           </div>
           {cost.totals.wastedCost === 0 && (
             <p className="mb-3 flex items-center gap-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
@@ -74,7 +74,15 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
             </p>
           )}
           <table className="w-full">
-            <thead><tr><th className="th">Zaměstnanec</th><th className="th">Odd.</th><th className="th text-right">Mzda/h</th><th className="th text-right">Mimopráce</th><th className="th text-right">Nečinnost</th><th className="th text-right">Mimo PC</th><th className="th text-right">Stálo nás</th></tr></thead>
+            <thead><tr>
+              <th className="th">Zaměstnanec</th>
+              <th className="th">Oddělení</th>
+              <th className="th text-right">Hrubá mzda (Kč/h)</th>
+              <th className="th text-right">Mimopracovní čas (h)</th>
+              <th className="th text-right">Nečinnost u PC (h)</th>
+              <th className="th text-right">Mimo PC v prac. době (h)</th>
+              <th className="th text-right">Náklad celkem (Kč)</th>
+            </tr></thead>
             <tbody>
               {cost.perUser.slice(0, 10).map((u) => (
                 <tr key={u.userId} className="divide-row">
@@ -106,10 +114,10 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
             <thead>
               <tr>
                 <th className="th">Aplikace</th><th className="th">Kategorie</th>
-                <th className="th text-right">Hodin</th><th className="th text-right">Uživatelů</th>
-                <th className="th text-center">Placená</th><th className="th text-right">Licencí</th>
-                <th className="th text-right">Cena/lic.</th><th className="th text-right">Využití</th>
-                <th className="th text-right">Plýtvání/měs.</th>{canEdit && <th className="th"></th>}
+                <th className="th text-right">Aktivní čas (hodiny)</th><th className="th text-right">Uživatelů (počet)</th>
+                <th className="th text-center">Placená licence</th><th className="th text-right">Licencí (počet)</th>
+                <th className="th text-right">Cena za licenci (Kč/měs)</th><th className="th text-right">Využití licencí (%)</th>
+                <th className="th text-right">Plýtvání (Kč/měs)</th>{canEdit && <th className="th"></th>}
               </tr>
             </thead>
             <tbody>

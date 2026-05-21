@@ -32,9 +32,9 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
       {/* Rychlý přehled HO množství + přepínač jednotek */}
       <div className="card flex flex-wrap items-center gap-4 p-4">
         <div>
-          <div className="text-xs uppercase muted-2">Home office za období (celá firma)</div>
+          <div className="text-xs uppercase muted-2">Odpracováno z Home Office za období (celá firma)</div>
           <div className="text-2xl font-bold">{amt(d.company.hoDays)}</div>
-          <div className="text-xs muted-2">{d.company.usersWithHo} lidí mělo HO</div>
+          <div className="text-xs muted-2">{d.company.usersWithHo} zaměstnanců mělo alespoň 1 den Home Office</div>
         </div>
         <div className="ml-auto flex gap-1 rounded-lg bg-gray-100 p-1 text-sm dark:bg-slate-800">
           <button onClick={() => setUnit('hours')} className={`rounded px-3 py-1 ${unit === 'hours' ? 'bg-white shadow-sm dark:bg-slate-700' : 'muted'}`}>Hodiny</button>
@@ -44,10 +44,10 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
 
       {/* Headline srovnání */}
       <div className="grid gap-4 md:grid-cols-3">
-        <BigScore icon={<House size={16} className="text-emerald-600" />} label="Home office" score={d.company.hoScore} sub={`${amt(d.company.hoDays)} HO · ${d.company.hoActiveHours} h práce`} />
-        <BigScore icon={<Building2 size={16} className="text-emerald-600" />} label="V kanceláři" score={d.company.officeScore} sub={`${amt(d.company.officeDays)} · ${d.company.officeActiveHours} h práce`} />
+        <BigScore icon={<House size={16} className="text-emerald-600" />} label="Skóre efektivity – Home Office (%)" score={d.company.hoScore} sub={`${amt(d.company.hoDays)} na HO · ${d.company.hoActiveHours} h aktivní práce`} />
+        <BigScore icon={<Building2 size={16} className="text-emerald-600" />} label="Skóre efektivity – kancelář (%)" score={d.company.officeScore} sub={`${amt(d.company.officeDays)} v kanceláři · ${d.company.officeActiveHours} h aktivní práce`} />
         <div className="card flex flex-col items-center justify-center p-6">
-          <div className="mb-1 text-sm muted">Rozdíl HO vs. kancelář</div>
+          <div className="mb-1 text-center text-sm muted">Rozdíl efektivity: Home Office − kancelář (body)</div>
           <div className={`flex items-center gap-1 text-4xl font-bold ${diff < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
             {diff < 0 ? <ArrowDown size={28} /> : <ArrowUp size={28} />} {Math.abs(diff)} b.
           </div>
@@ -59,13 +59,13 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
 
       {/* Mimopracovní podíl */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="card p-4"><div className="text-xs uppercase muted-2">Mimopracovní podíl – Home office</div><div className="text-2xl font-bold text-red-500">{d.company.hoNonWorkPct}%</div></div>
-        <div className="card p-4"><div className="text-xs uppercase muted-2">Mimopracovní podíl – Kancelář</div><div className="text-2xl font-bold">{d.company.officeNonWorkPct}%</div></div>
+        <div className="card p-4"><div className="text-xs uppercase muted-2">Podíl mimopracovních aktivit – Home Office (%)</div><div className="text-2xl font-bold text-red-500">{d.company.hoNonWorkPct} %</div></div>
+        <div className="card p-4"><div className="text-xs uppercase muted-2">Podíl mimopracovních aktivit – kancelář (%)</div><div className="text-2xl font-bold">{d.company.officeNonWorkPct} %</div></div>
       </div>
 
       {/* Oddělení */}
       <div className="card p-5">
-        <h3 className="mb-3 text-sm font-semibold">HO vs. kancelář podle oddělení</h3>
+        <h3 className="mb-3 text-sm font-semibold">Skóre efektivity podle oddělení: Home Office vs. kancelář (%)</h3>
         <div className="space-y-3">
           {d.byDept.map((x) => (
             <div key={x.department} className="flex items-center gap-3">
@@ -74,7 +74,7 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
                 <span className="ml-1 text-xs muted-2">({amt(x.hoDays)} HO)</span>
               </div>
               <div className="flex-1 space-y-1">
-                <Bar label="HO" value={x.hoScore} color="#6366f1" />
+                <Bar label="Home Office" value={x.hoScore} color="#6366f1" />
                 <Bar label="Kancelář" value={x.officeScore} color="#64748b" />
               </div>
             </div>
@@ -90,10 +90,17 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
 
       {/* Per-user: největší propad na HO */}
       <div className="card p-5">
-        <h3 className="mb-1 text-sm font-semibold">Zaměstnanci – efektivita na HO vs. v kanceláři</h3>
-        <p className="mb-3 text-xs muted-2">Řazeno dle největšího propadu na home office.</p>
+        <h3 className="mb-1 text-sm font-semibold">Zaměstnanci – skóre efektivity: Home Office vs. kancelář</h3>
+        <p className="mb-3 text-xs muted-2">Seřazeno podle největšího propadu skóre na Home Office (nahoře ti, kdo doma pracují výrazně méně efektivně).</p>
         <table className="w-full">
-          <thead><tr><th className="th">Zaměstnanec</th><th className="th">Odd.</th><th className="th text-right">HO ({unit === 'hours' ? 'h' : 'dní'})</th><th className="th text-right">HO skóre</th><th className="th text-right">Kancelář</th><th className="th text-right">Rozdíl</th></tr></thead>
+          <thead><tr>
+            <th className="th">Zaměstnanec</th>
+            <th className="th">Oddělení</th>
+            <th className="th text-right">Home Office ({unit === 'hours' ? 'hodiny' : 'dny'})</th>
+            <th className="th text-right">Skóre na Home Office (%)</th>
+            <th className="th text-right">Skóre v kanceláři (%)</th>
+            <th className="th text-right">Rozdíl (body)</th>
+          </tr></thead>
           <tbody>
             {d.perUser.map((u) => (
               <tr key={u.userId} className="divide-row">
@@ -115,7 +122,7 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
 function Bar({ label, value, color }: { label: string; value: number; max?: number; color: string }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="w-16 shrink-0 text-xs muted-2">{label}</span>
+      <span className="w-24 shrink-0 text-xs muted-2">{label}</span>
       <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
         <div className="h-full rounded-full" style={{ width: `${value}%`, background: color }} />
       </div>

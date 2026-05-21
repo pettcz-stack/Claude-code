@@ -74,29 +74,29 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card title="Tempo psaní" icon={<Keyboard size={13} />}>
+        <Card title="Tempo psaní (úhozů/min)" icon={<Keyboard size={13} />}>
           {s.avgKpm} <span className="text-sm font-normal muted">úhozů/min</span>
           <div className="mt-1 text-xs font-normal text-emerald-500">píše rychleji než {s.kpmPercentile} % firmy {s.kpmPercentile >= 50 ? '🎉' : ''}</div>
         </Card>
-        <Card title="Aktivní práce" icon={<Clock size={13} />} accent="text-emerald-500">{minutesToHm(s.workMinutes)}</Card>
-        <Card title="Mimopracovní" icon={<AlertTriangle size={13} />} accent="text-red-500">{minutesToHm(s.nonWorkMinutes)}</Card>
-        <Card title="Nejčastější aplikace" icon={<AppWindow size={13} />}>
+        <Card title="Aktivní práce (hodiny:minuty)" icon={<Clock size={13} />} accent="text-emerald-500">{minutesToHm(s.workMinutes)}</Card>
+        <Card title="Mimopracovní aktivity (hodiny:minuty)" icon={<AlertTriangle size={13} />} accent="text-red-500">{minutesToHm(s.nonWorkMinutes)}</Card>
+        <Card title="Nejpoužívanější aplikace" icon={<AppWindow size={13} />}>
           {s.topApp
             ? <span className="flex items-center gap-2"><AppIcon app={s.topApp} size={16} /> {appName(s.topApp)}</span>
             : '—'}
         </Card>
-        <Card title="Monitory" icon={<Monitor size={13} />}>
+        <Card title="Počet monitorů" icon={<Monitor size={13} />}>
           {s.monitorTypical ? `${s.monitorTypical} ` : '— '}<span className="text-sm font-normal muted">{s.monitorTypical === 1 ? 'obrazovka' : s.monitorTypical >= 2 && s.monitorTypical <= 4 ? 'obrazovky' : 'obrazovek'}</span>
-          <div className="mt-1 text-xs font-normal muted-2">{s.multiMonitorPct} % času na 2+ obrazovkách</div>
+          <div className="mt-1 text-xs font-normal muted-2">{s.multiMonitorPct} % času na 2 a více obrazovkách</div>
         </Card>
-        <Card title="Fragmentace pozornosti" icon={<Shuffle size={13} />}>
+        <Card title="Fragmentace pozornosti (přepnutí/h)" icon={<Shuffle size={13} />}>
           {s.appSwitchesPerHour} <span className="text-sm font-normal muted">přepnutí/h</span>
-          <div className="mt-1 text-xs font-normal muted-2">nižší = soustředěnější práce</div>
+          <div className="mt-1 text-xs font-normal muted-2">nižší číslo = soustředěnější práce</div>
         </Card>
       </div>
 
       <div className="card p-5">
-        <h3 className="mb-3 text-sm font-semibold">V čem trávil čas (kategorie)</h3>
+        <h3 className="mb-3 text-sm font-semibold">V čem trávil čas podle kategorií (hodiny:minuty)</h3>
         <div className="space-y-2">
           {s.categories.map((c) => (
             <div key={c.category} className="flex items-center gap-3">

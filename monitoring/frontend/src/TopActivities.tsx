@@ -43,8 +43,8 @@ export function TopActivities({ from, to, userId, department }: { from: string; 
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <List title="Top aplikace" icon={<AppWindow size={16} className="text-emerald-600" />} items={apps} kind="app" />
-      <List title="Top weby (z titulků oken)" icon={<Globe size={16} className="text-emerald-600" />} items={sites} kind="site" />
+      <List title="Nejpoužívanější aplikace (aktivní čas)" icon={<AppWindow size={16} className="text-emerald-600" />} items={apps} kind="app" />
+      <List title="Nejnavštěvovanější weby (aktivní čas)" icon={<Globe size={16} className="text-emerald-600" />} items={sites} kind="site" />
     </div>
   );
 }

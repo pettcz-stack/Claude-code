@@ -121,10 +121,10 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
       <div className="card p-5">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Sparkles size={16} className="text-emerald-500" /> Tvoje čísla za období</h3>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Stat label="Skóre efektivity" value={`${r.score} %`} />
-          <Stat label="Aktivní práce" value={`${r.activeHours} h`} />
-          <Stat label="Tempo psaní" value={`${r.avgKpm} úhozů/min`} />
-          <Stat label="Monitory" value={r.monitorTypical ? `${r.monitorTypical} ${r.monitorTypical === 1 ? 'obrazovka' : 'obrazovky'}` : '—'} />
+          <Stat label="Skóre efektivity (%)" value={`${r.score} %`} />
+          <Stat label="Aktivní práce (hodiny)" value={`${r.activeHours} h`} />
+          <Stat label="Tempo psaní (úhozů/min)" value={`${r.avgKpm} úhozů/min`} />
+          <Stat label="Počet monitorů" value={r.monitorTypical ? `${r.monitorTypical} ${r.monitorTypical === 1 ? 'obrazovka' : 'obrazovky'}` : '—'} />
         </div>
         <div className="mt-4 flex items-start gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
           <Trophy size={16} className="mt-0.5 shrink-0" />
