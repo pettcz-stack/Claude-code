@@ -43,10 +43,14 @@ export const smtpEnabled = () => config.smtp.host.length > 0 && config.report.re
  */
 export function assertProductionSecrets(): void {
   if (config.nodeEnv !== 'production') return;
+  // Zástupné hodnoty z ukázkové konfigurace/compose – nesmí projít do provozu.
+  const placeholders = ['zmente-me', 'zmeňte-me', 'change-me', 'changeme', 'tbd', 'xxx'];
   const weak: string[] = [];
-  if (['admin', 'heslo', 'password', ''].includes(config.adminPassword.toLowerCase())) weak.push('ADMIN_PASSWORD');
+  const pw = config.adminPassword.toLowerCase();
+  const tok = config.ingestToken.toLowerCase();
+  if (['admin', 'heslo', 'password', ''].includes(pw) || placeholders.includes(pw)) weak.push('ADMIN_PASSWORD');
   if (config.adminPassword.length < 10) weak.push('ADMIN_PASSWORD (min. 10 znaků)');
-  if (['dev-token', '', 'token'].includes(config.ingestToken.toLowerCase())) weak.push('INGEST_TOKEN');
+  if (['dev-token', '', 'token'].includes(tok) || placeholders.includes(tok)) weak.push('INGEST_TOKEN');
   if (weak.length > 0) {
     throw new Error('Odmítnut start v produkci se slabými tajemstvími: ' + weak.join(', '));
   }
