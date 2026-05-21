@@ -128,7 +128,7 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
                 </tr>
               </thead>
               <tbody>
-                {mon.advice.candidates.map((c) => (
+                {mon.advice.candidates.slice(0, 10).map((c) => (
                   <tr key={c.userId} className="divide-row">
                     <td className="td font-medium">{c.displayName ?? '—'}</td>
                     <td className="td muted">{c.department ?? '—'}</td>
@@ -141,6 +141,9 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
               </tbody>
             </table>
           </div>
+          {mon.advice.candidates.length > 10 && (
+            <p className="mt-2 text-xs muted-2">…a dalších {mon.advice.candidates.length - 10} zaměstnanců. Zobrazeno 10 s největším přínosem.</p>
+          )}
           <p className="mt-3 text-xs muted-2">
             „Možný přínos" = orientační rozsah produktivnějších hodin za období, pokud by člověk dostal druhý monitor.
             Jde o odhad ze studií, ne o naměřená data.

@@ -107,7 +107,7 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
               <tr>
                 <th className="th">Aplikace</th><th className="th">Kategorie</th>
                 <th className="th text-right">Hodin</th><th className="th text-right">Uživatelů</th>
-                <th className="th">Placená</th><th className="th text-right">Licencí</th>
+                <th className="th text-center">Placená</th><th className="th text-right">Licencí</th>
                 <th className="th text-right">Cena/lic.</th><th className="th text-right">Využití</th>
                 <th className="th text-right">Plýtvání/měs.</th>{canEdit && <th className="th"></th>}
               </tr>
@@ -125,13 +125,13 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
                     <td className="td text-right tabular-nums">{i.users} <span className="muted-2">({i.usersPct}%)</span></td>
                     {canEdit ? (
                       <>
-                        <td className="td"><input type="checkbox" checked={e.licensed} onChange={(ev) => setEdit({ ...edit, [i.app]: { ...e, licensed: ev.target.checked } })} /></td>
-                        <td className="td"><input value={e.seats} onChange={(ev) => setEdit({ ...edit, [i.app]: { ...e, seats: ev.target.value } })} className="field w-16 text-right" /></td>
-                        <td className="td"><input value={e.cost} onChange={(ev) => setEdit({ ...edit, [i.app]: { ...e, cost: ev.target.value } })} className="field w-20 text-right" /></td>
+                        <td className="td text-center"><input type="checkbox" checked={e.licensed} onChange={(ev) => setEdit({ ...edit, [i.app]: { ...e, licensed: ev.target.checked } })} /></td>
+                        <td className="td text-right"><input value={e.seats} onChange={(ev) => setEdit({ ...edit, [i.app]: { ...e, seats: ev.target.value } })} className="field w-16 text-right" /></td>
+                        <td className="td text-right"><input value={e.cost} onChange={(ev) => setEdit({ ...edit, [i.app]: { ...e, cost: ev.target.value } })} className="field w-20 text-right" /></td>
                       </>
                     ) : (
                       <>
-                        <td className="td">{i.licensed ? 'ano' : '—'}</td>
+                        <td className="td text-center">{i.licensed ? 'ano' : '—'}</td>
                         <td className="td text-right tabular-nums">{i.seats ?? '—'}</td>
                         <td className="td text-right tabular-nums">{i.costPerSeat != null ? `${i.costPerSeat} Kč` : '—'}</td>
                       </>
