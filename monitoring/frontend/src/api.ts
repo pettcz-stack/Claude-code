@@ -264,6 +264,11 @@ export const api = {
   selfReport: (userId: string, from: string, to: string) =>
     getJson<{ report: SelfReportData }>(`/api/v1/dashboard/selfreport?userId=${encodeURIComponent(userId)}&from=${from}&to=${to}`).then((d) => d.report),
   tips: () => getJson<TipsData>('/api/v1/dashboard/tips'),
+  selfReportPublic: (token: string, from: string, to: string) =>
+    fetch(`/api/v1/self/report?token=${encodeURIComponent(token)}&from=${from}&to=${to}`).then((r) => {
+      if (!r.ok) throw new Error(`${r.status}`);
+      return r.json() as Promise<{ report: SelfReportData; tips: TipsData; modes: { funMode: boolean; healthMode: boolean; growthMode: boolean } }>;
+    }),
   trend: (from: string, to: string, opts: { userId?: string; department?: string } = {}) => {
     const q = new URLSearchParams({ from, to });
     if (opts.userId) q.set('userId', opts.userId);

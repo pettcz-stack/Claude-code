@@ -65,16 +65,28 @@ function Compare({ icon, label, pct, color, note }: { icon: React.ReactNode; lab
   );
 }
 
-export function SelfReportView({ user, from, to }: { user: User; from: string; to: string }) {
-  const [r, setR] = useState<SelfReportData | null>(null);
-  const [tips, setTips] = useState<TipsData | null>(null);
+type Preloaded = { report: SelfReportData; tips: TipsData; modes: { funMode: boolean; healthMode: boolean; growthMode: boolean } };
+
+export function SelfReportView({ user, from, to, preloaded }: { user?: User; from: string; to: string; preloaded?: Preloaded }) {
+  const [r, setR] = useState<SelfReportData | null>(preloaded?.report ?? null);
+  const [tips, setTips] = useState<TipsData | null>(preloaded?.tips ?? null);
   const [showPrivacy, setShowPrivacy] = useState(true);
-  const [funMode, setFunMode] = useState(false);
-  const [healthMode, setHealthMode] = useState(false);
-  const [growthMode, setGrowthMode] = useState(false);
-  useEffect(() => { api.selfReport(user.id, from, to).then(setR).catch(() => setR(null)); }, [user.id, from, to]);
-  useEffect(() => { api.tips().then(setTips).catch(() => setTips(null)); }, []);
-  useEffect(() => { api.getSettings().then((d) => { setFunMode(d.settings.funMode); setHealthMode(d.settings.healthMode); setGrowthMode(d.settings.growthMode); }).catch(() => undefined); }, []);
+  const [funMode, setFunMode] = useState(preloaded?.modes.funMode ?? false);
+  const [healthMode, setHealthMode] = useState(preloaded?.modes.healthMode ?? false);
+  const [growthMode, setGrowthMode] = useState(preloaded?.modes.growthMode ?? false);
+  useEffect(() => {
+    if (preloaded) { setR(preloaded.report); return; }
+    if (!user) return;
+    api.selfReport(user.id, from, to).then(setR).catch(() => setR(null));
+  }, [user?.id, from, to, preloaded]);
+  useEffect(() => {
+    if (preloaded) { setTips(preloaded.tips); return; }
+    api.tips().then(setTips).catch(() => setTips(null));
+  }, [preloaded]);
+  useEffect(() => {
+    if (preloaded) { setFunMode(preloaded.modes.funMode); setHealthMode(preloaded.modes.healthMode); setGrowthMode(preloaded.modes.growthMode); return; }
+    api.getSettings().then((d) => { setFunMode(d.settings.funMode); setHealthMode(d.settings.healthMode); setGrowthMode(d.settings.growthMode); }).catch(() => undefined);
+  }, [preloaded]);
   if (!r) return <p className="muted-2">Načítám…</p>;
 
   const distance = r.distanceMeters >= 1000 ? `${(r.distanceMeters / 1000).toFixed(1)} km` : `${r.distanceMeters} m`;

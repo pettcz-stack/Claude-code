@@ -20,6 +20,7 @@ import { CategoryAdmin } from './CategoryAdmin.js';
 import { AlertsView } from './AlertsView.js';
 import { SoftwareView } from './SoftwareView.js';
 import { SettingsView } from './SettingsView.js';
+import { EmployeeSelfReport } from './EmployeeSelfReport.js';
 import { Login } from './Login.js';
 import { useTheme } from './theme.js';
 import { isoDate, startOfLocalDay } from './util.js';
@@ -92,6 +93,7 @@ export default function App() {
   const [cmdOpen, setCmdOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [warmed, setWarmed] = useState(false);
+  const selfToken = useMemo(() => new URLSearchParams(window.location.search).get('selfToken'), []);
 
   useEffect(() => {
     if (auth.isLoggedIn()) auth.me().then(setMe).catch(() => auth.logout()).finally(() => setAuthChecked(true));
@@ -160,6 +162,7 @@ export default function App() {
 
   function shiftDay(delta: number) { setDay((d) => { const x = new Date(d); x.setDate(x.getDate() + delta); return x; }); }
 
+  if (selfToken) return <EmployeeSelfReport token={selfToken} />;
   if (!authChecked) return <div className="p-6 muted-2">Načítám…</div>;
   if (!me) return <Login onLogin={setMe} />;
   if (!warmed) return <WarmingScreen />;

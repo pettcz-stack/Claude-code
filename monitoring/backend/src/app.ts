@@ -12,6 +12,7 @@ import { ingestRouter } from './routes/ingest.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { exportRouter } from './routes/export.js';
 import { adminRouter } from './routes/admin.js';
+import { selfRouter } from './routes/self.js';
 import { requireAuth, login, destroySession } from './auth.js';
 
 const isTest = process.env.NODE_ENV === 'test';
@@ -99,6 +100,9 @@ export function createApp() {
     skip: () => isTest,
   });
   app.use('/api/v1/ingest', ingestLimiter, ingestRouter);
+
+  // Zaměstnanecký self-service report (token vázaný na SID, ne dashboard login).
+  app.use('/api/v1/self', selfRouter);
 
   // --- Čtení dat a správa (session token, role uvnitř routerů) ---
   app.use('/api/v1/dashboard', requireAuth, dashboardRouter);
