@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Gauge, LayoutDashboard, User as UserIcon, Trophy, TrendingUp, AppWindow, CalendarDays, Table2, Shield,
   ShieldAlert, SlidersHorizontal, House, BadgeCheck, KeyRound, Sun, Moon, LogOut, ChevronLeft, ChevronRight,
+  Menu, Search,
 } from 'lucide-react';
 import { api, auth, type Me, type User } from './api.js';
+import { CommandPalette, type Command } from './CommandPalette.js';
 import { OverviewView } from './OverviewView.js';
 import { HomeOfficeView } from './HomeOfficeView.js';
 import { SelfReportView } from './SelfReportView.js';
@@ -75,10 +77,24 @@ export default function App() {
   const [customFrom, setCustomFrom] = useState<string>(isoDate(new Date()));
   const [customTo, setCustomTo] = useState<string>(isoDate(new Date()));
   const [department, setDepartment] = useState<string>('');
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (auth.isLoggedIn()) auth.me().then(setMe).catch(() => auth.logout()).finally(() => setAuthChecked(true));
     else setAuthChecked(true);
+  }, []);
+
+  // Command palette: Ctrl/Cmd+K
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCmdOpen((o) => !o);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   useEffect(() => {
@@ -89,6 +105,17 @@ export default function App() {
   const departments = useMemo(() => Array.from(new Set(users.map((u) => u.department).filter(Boolean))) as string[], [users]);
   const selectedUser = users.find((u) => u.id === userId);
   const dark = theme === 'dark';
+
+  const commands: Command[] = useMemo(() => {
+    const pages: Command[] = NAV.map((n) => ({ id: 'p:' + n.id, label: n.label, hint: 'stránka', onSelect: () => setTab(n.id) }));
+    const people: Command[] = users.map((u) => ({
+      id: 'u:' + u.id,
+      label: u.displayName ?? u.sid,
+      hint: u.department ?? 'zaměstnanec',
+      onSelect: () => { setUserId(u.id); setTab('detail'); },
+    }));
+    return [...pages, ...people];
+  }, [users]);
 
   const { from, to } = useMemo(() => {
     const todayStart = startOfLocalDay(new Date());
@@ -118,8 +145,14 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen">
+      <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} commands={commands} />
+      {/* Overlay pro mobilní sidebar */}
+      {sidebarOpen && <div className="fixed inset-0 z-20 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
       {/* Sidebar */}
-      <aside className="flex w-60 shrink-0 flex-col border-r border-gray-200 bg-white dark:border-slate-700/70 dark:bg-slate-800/40">
+      <aside
+        onClick={() => setSidebarOpen(false)}
+        className={`fixed inset-y-0 left-0 z-30 flex w-60 shrink-0 flex-col border-r border-gray-200 bg-white transition-transform dark:border-slate-700/70 dark:bg-slate-800/40 lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
         <div className="flex items-center gap-2.5 px-5 py-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white"><Gauge size={20} /></div>
           <div className="leading-tight">
@@ -159,11 +192,16 @@ export default function App() {
 
       {/* Obsah */}
       <div className="flex-1 overflow-x-hidden">
-        <header className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-gray-200 bg-gray-50/80 px-6 py-3 backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/80">
+        <header className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-gray-200 bg-gray-50/80 px-4 py-3 backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/80 sm:px-6">
+          <button onClick={() => setSidebarOpen(true)} className="btn-ghost px-2 lg:hidden" title="Menu"><Menu size={18} /></button>
           <div>
             <h1 className="text-lg font-semibold leading-tight">{title}</h1>
             {(needsPeriod || tab === 'calendar') && <div className="text-xs muted-2">{rangeLabel}</div>}
           </div>
+          <button onClick={() => setCmdOpen(true)} className="btn-ghost ml-2 hidden items-center gap-2 sm:flex" title="Hledat (Ctrl+K)">
+            <Search size={15} /> <span className="muted-2">Hledat</span>
+            <span className="rounded border border-gray-300 px-1.5 py-0.5 text-[10px] muted-2 dark:border-slate-600">⌘K</span>
+          </button>
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {needsUser && (
               <select value={userId} onChange={(e) => setUserId(e.target.value)} className="field">
