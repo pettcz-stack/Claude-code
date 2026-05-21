@@ -81,3 +81,55 @@ procesu a titulku okna:
 - Vyřízení žádostí subjektu (export/výmaz dat zaměstnance) z UI.
 - Evidence rozdání informace o monitoringu a souhlasů/poučení.
 - Nastavitelná retence přímo v UI.
+
+---
+
+## 8. Rozšířený brainstorm (godmode)
+
+### 8.1 Analytika – další úroveň
+- **Index produktivity podle role** – jiný baseline pro vývoj/obchod/výrobu (férové srovnání místo jednoho metru na všechny).
+- **Predikce trendu** – jednoduchá projekce skóre („kam to u tohoto týmu směřuje").
+- **Včasné varování před přetížením/vyhořením** – dlouhodobě dlouhé aktivní hodiny, práce po nocích/víkendech → upozornění pro manažera (péče, ne trest).
+- **Kvalita soustředění** – poměr hluboké práce vs. roztříštěnost, „meeting load" index.
+- **Spolupráce vs. sólo práce** – čas v komunikačních vs. produkčních aplikacích.
+- **Náběhová křivka nováčka** – jak rychle se nový zaměstnanec rozjíždí (týden po týdnu).
+- **Oboustranné odlehlé hodnoty** – nejen příliš nízké, ale i „podezřele dokonalé" (cheating).
+- **Audit licencí SW** – které placené aplikace nikdo nepoužívá (úspora nákladů) – původní hodnota „SW auditu".
+- **Nákladové hledisko** – nečinné/mimopracovní hodiny × prům. hodinová sazba = peněžní pohled pro vedení.
+- **Cíle a targety** – nastavit cíl týmu a sledovat plnění; OKR-like.
+- **Profil výkonu během dne (chronotyp)** – kdy je člověk nejlepší → plánovat náročnou práci.
+- **Custom dashboardy / KPI builder** – vedení si poskládá vlastní pohled.
+
+### 8.2 Komfort pro šéfa/admina
+- **Globální vyhledávání** (zaměstnanec/aplikace/oddělení) + command palette.
+- **Uložené pohledy a filtry**, oblíbení/připnutí zaměstnanci.
+- **Plánované e-mail/PDF digesty** pro manažery (denní/týdenní).
+- **Drill-down všude** – klik na číslo ukáže, co je za ním.
+- **Srovnání s předchozím obdobím** přepínačem u každého grafu.
+- **Hromadné akce** (přiřadit oddělení, aktivovat/deaktivovat).
+- **Notifikační centrum** v appce (zvoneček) s feedem upozornění.
+- **Manažerské poznámky** k zaměstnanci (1:1), s auditem.
+- **Vícejazyčnost** (CZ/EN/SK).
+
+### 8.3 Pro-zaměstnanecké featurky (důvěra + motivace)
+- **Self-service portál** s vlastním loginem (vidí jen svá data) – klíč k důvěře.
+- **Reklamace klasifikace** – „tohle byla práce" → zpřesní hodnocení a zvýší přijetí nástroje.
+- **Transparency centrum** – přesně co se sbírá, retence, moje práva (GDPR self-service: export/výmaz).
+- **„Proč mám takové skóre"** – srozumitelné vysvětlení výpočtu.
+- **Osobní cíle, série (streaky), oslava „můj nejlepší týden"**, „zlepšuješ se" trend.
+- **Uznání/kudos**, „Zaměstnanec měsíce" (opt-in), týmové výzvy.
+- **Focus session** na 1 klik („soustředím se 25 min") – ztiší rušení, změří soustředěný blok (výkonově, ne jako přestávka).
+- **Volitelný wellbeing check-in** (nálada/zátěž) – podklad pro férové vedení.
+
+### 8.4 UI/UX
+- Vyladěné **loading skeletony**, jemné animace, **toasty** místo hlášek.
+- **Onboarding průvodce** + kontextová nápověda.
+- **Plná responzivita** (mobil/tablet), manažerský mobilní pohled.
+- **Branding/white-label** – logo firmy, akcentní barva.
+- **Přístupnost** (kontrast, klávesnice, čtečky).
+- **Hustota zobrazení** (kompaktní/pohodlné), export grafu jako obrázek, tisková podoba reportů.
+
+### 8.5 Technika / výkon
+- **Real-time** „online teď" přes websocket.
+- **Předagregace + cache** pro velké organizace (tisíce PC).
+- **Vícenájemnost** (více firem/poboček) pokud by se z toho dělal produkt.
