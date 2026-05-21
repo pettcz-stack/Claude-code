@@ -4,7 +4,7 @@ import { prisma } from '../db.js';
 import { logAccess } from '../auth.js';
 import { getCategoryMap } from '../services/categories.js';
 import { computeUserScore } from '../services/scoring.js';
-import { trend, topActivities, overview, heatmap, homeOffice, selfReport, monitorsComparison, softwareAudit } from '../services/analytics.js';
+import { trend, topActivities, overview, heatmap, homeOffice, selfReport, monitorsComparison, softwareAudit, costAudit, exportClassification } from '../services/analytics.js';
 import { computeIntegrity, detectAlerts } from '../services/integrity.js';
 
 export const dashboardRouter = Router();
@@ -31,6 +31,40 @@ dashboardRouter.get('/software', async (req, res) => {
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
   const { from, to, department } = parsed.data;
   res.json(await softwareAudit(new Date(from), new Date(to), department));
+});
+
+/** Náklady neproduktivního času (mzda × mimopráce/nečinnost/mimo PC). */
+dashboardRouter.get('/cost', async (req, res) => {
+  const parsed = rangeSchema.safeParse(req.query);
+  if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
+  const { from, to, department } = parsed.data;
+  res.json(await costAudit(new Date(from), new Date(to), department));
+});
+
+/** Export položek k zařazení (dávková klasifikace). */
+dashboardRouter.get('/classification-export', async (req, res) => {
+  const parsed = rangeSchema.safeParse(req.query);
+  if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
+  const { from, to } = parsed.data;
+  const all = req.query.all === 'true';
+  res.json(await exportClassification(new Date(from), new Date(to), !all));
+});
+
+/** Reklamace klasifikace od zaměstnance (omezená kvótou 3 otevřené). */
+const claimSchema = z.object({
+  userId: z.string().min(1),
+  target: z.string().min(1).max(260),
+  targetKind: z.enum(['APP', 'TITLE']).default('APP'),
+  suggested: z.enum(['WORK', 'NON_WORK']),
+  note: z.string().max(500).optional(),
+});
+dashboardRouter.post('/claims', async (req, res) => {
+  const p = claimSchema.safeParse(req.body);
+  if (!p.success) return void res.status(400).json({ error: 'invalid_payload' });
+  const open = await prisma.classificationClaim.count({ where: { userId: p.data.userId, status: 'OPEN' } });
+  if (open >= 3) return void res.status(429).json({ error: 'claim_quota_reached' });
+  await prisma.classificationClaim.create({ data: p.data });
+  res.json({ ok: true, remaining: 3 - open - 1 });
 });
 
 /** Efektivita podle počtu monitorů (1 vs. 2+). */

@@ -65,5 +65,6 @@ export function classifyActivity(
       }
     }
   }
-  return appInfo ?? { category: app ? 'Ostatní' : 'Bez aktivity', type: 'NEUTRAL' };
+  // Nic nesedí → NEZAŘAZENO (vyjmuto ze statistik, dokud admin nerozhodne).
+  return appInfo ?? { category: app ? 'Nezařazeno' : 'Bez aktivity', type: 'UNKNOWN' };
 }

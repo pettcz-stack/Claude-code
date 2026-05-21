@@ -188,7 +188,7 @@ export default function App() {
           {tab === 'apps' && (
             <div className="space-y-4">
               <TopActivities from={from} to={to} department={department || undefined} />
-              <CategoryAdmin canEdit={me.role === 'ADMIN'} />
+              <CategoryAdmin canEdit={me.role === 'ADMIN'} from={from} to={to} />
             </div>
           )}
           {tab === 'software' && <SoftwareView from={from} to={to} department={department || undefined} canEdit={me.role === 'ADMIN'} />}

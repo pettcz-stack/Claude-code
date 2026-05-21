@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Download, Upload } from 'lucide-react';
 import { api, type AppCategoryRow, type WebRuleRow } from './api.js';
 import { chipClass, typeLabel } from './util.js';
 
-const TYPES = ['WORK', 'NON_WORK', 'NEUTRAL'];
+const TYPES = ['WORK', 'NON_WORK', 'NEUTRAL', 'UNKNOWN'];
 
-export function CategoryAdmin({ canEdit }: { canEdit: boolean }) {
+export function CategoryAdmin({ canEdit, from, to }: { canEdit: boolean; from: string; to: string }) {
   const [cats, setCats] = useState<AppCategoryRow[]>([]);
   const [rules, setRules] = useState<WebRuleRow[]>([]);
   const [newCat, setNewCat] = useState({ appName: '', category: '', type: 'WORK' });
   const [newRule, setNewRule] = useState({ keyword: '', category: '', type: 'NON_WORK' });
+  const [importMsg, setImportMsg] = useState<string | null>(null);
 
   function load() {
     api.adminCategories().then(setCats).catch(() => undefined);
@@ -17,8 +18,38 @@ export function CategoryAdmin({ canEdit }: { canEdit: boolean }) {
   }
   useEffect(load, []);
 
+  async function doExport() {
+    const data = await api.classificationExport(from, to);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+    a.download = 'klasifikace-k-zarazeni.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+  async function doImport() {
+    const text = prompt('Vlož JSON se zařazením (categories / webRules):');
+    if (!text) return;
+    try {
+      const r = await api.classificationImport(JSON.parse(text));
+      setImportMsg(r.ok ? `Importováno: ${r.categories} aplikací, ${r.webRules} pravidel.` : `Chyba: ${r.error}`);
+      load();
+    } catch {
+      setImportMsg('Neplatný JSON.');
+    }
+  }
+
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="space-y-4">
+      {canEdit && (
+        <div className="card flex flex-wrap items-center gap-3 p-4">
+          <span className="text-sm font-medium">Dávková klasifikace:</span>
+          <button onClick={doExport} className="btn-ghost"><Download size={15} /> Export nezařazených</button>
+          <button onClick={doImport} className="btn-ghost"><Upload size={15} /> Import zařazení</button>
+          {importMsg && <span className="text-sm muted">{importMsg}</span>}
+          <span className="text-xs muted-2">Vyexportuj nezařazené položky, nech je zařadit (např. asistentem) a naimportuj zpět.</span>
+        </div>
+      )}
+      <div className="grid gap-4 lg:grid-cols-2">
       {/* Aplikace */}
       <div className="card p-5">
         <h3 className="mb-3 text-sm font-semibold">Kategorie aplikací (proces)</h3>
@@ -88,6 +119,7 @@ export function CategoryAdmin({ canEdit }: { canEdit: boolean }) {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </div>
   );

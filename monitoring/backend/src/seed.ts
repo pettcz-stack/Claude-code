@@ -29,6 +29,13 @@ const PEOPLE: { name: string; dept: string; behavior: Behavior; diligence: numbe
 
 const WORK_APPS = ['winword.exe', 'excel.exe', 'outlook.exe', 'teams.exe', 'code.exe', 'sap.exe'];
 const NONWORK_APPS = ['steam.exe', 'spotify.exe'];
+// Nezařazené (interní) aplikace – nejsou ve výchozích kategoriích → UNKNOWN.
+const UNKNOWN_APPS = ['interni-nastroj.exe', 'utilitka.exe', 'firemni-app.exe'];
+
+function rateFor(dept: string): number {
+  const map: Record<string, number> = { 'Vedení': 750, 'IT': 560, 'Ekonomika': 460, 'Konstrukce': 500, 'Obchod Export': 520, 'Marketing': 420, 'Obchod ČR': 410 };
+  return map[dept] ?? 360;
+}
 const BROWSER_WORK_TITLES = ['Jira – úkoly', 'Confluence – dokumentace', 'GitLab – merge request', 'Firemní CRM', 'SharePoint'];
 const BROWSER_NONWORK_TITLES = ['YouTube', 'Facebook', 'Instagram', 'Novinky.cz', 'Seznam.cz - Email', 'Alza.cz'];
 
@@ -57,8 +64,8 @@ async function main() {
     const sid = `S-1-5-21-DEMO-${1000 + i}`;
     const user = await prisma.monitoredUser.upsert({
       where: { sid },
-      update: { displayName: p.name, department: p.dept },
-      create: { sid, displayName: p.name, department: p.dept, email: `${i}@albixon-demo.cz` },
+      update: { displayName: p.name, department: p.dept, hourlyRate: rateFor(p.dept) },
+      create: { sid, displayName: p.name, department: p.dept, email: `${i}@albixon-demo.cz`, hourlyRate: rateFor(p.dept) },
     });
     const machineId = `DEMO-PC-${i + 1}`;
     const device = await prisma.device.upsert({
@@ -157,6 +164,9 @@ function makeRow(c: Person, intervalStart: Date, isHO: boolean): Prisma.Activity
     active = 240 + rnd(60);
   } else if (r < nonWorkProb + 0.18) {
     app = 'chrome.exe'; title = pick(BROWSER_WORK_TITLES); active = 200 + rnd(90);
+  } else if (Math.random() < 0.06) {
+    // nezařazená interní aplikace → UNKNOWN (vyjmuto, dokud admin nezařadí)
+    app = pick(UNKNOWN_APPS); active = 200 + rnd(90);
   } else if (Math.random() > 0.85) {
     app = pick(WORK_APPS); active = rnd(60);
   } else {

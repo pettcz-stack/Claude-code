@@ -113,7 +113,7 @@ procesu a titulku okna:
 
 ### 8.3 Pro-zaměstnanecké featurky (důvěra + motivace)
 - **Self-service portál** s vlastním loginem (vidí jen svá data) – klíč k důvěře.
-- **Reklamace klasifikace** – „tohle byla práce" → zpřesní hodnocení a zvýší přijetí nástroje.
+- [x] ~~Reklamace klasifikace~~ – HOTOVO (omezená kvótou, admin vyřizuje).
 - **Transparency centrum** – přesně co se sbírá, retence, moje práva (GDPR self-service: export/výmaz).
 - **„Proč mám takové skóre"** – srozumitelné vysvětlení výpočtu.
 - **Osobní cíle, série (streaky), oslava „můj nejlepší týden"**, „zlepšuješ se" trend.

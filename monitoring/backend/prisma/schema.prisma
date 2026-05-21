@@ -42,6 +42,7 @@ model MonitoredUser {
   department  String?
   email       String? // pro budoucí napojení Outlook (Fáze 3)
   okbaseId    String? // pro budoucí napojení OKbase (Fáze 2)
+  hourlyRate  Float? // hrubá mzda Kč/hod – pro výpočet ceny neproduktivního času
   active      Boolean @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -117,6 +118,21 @@ model AppCategory {
   costPerSeat Float?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+/// Reklamace klasifikace od zaměstnance (omezená kvótou). Admin posoudí.
+model ClassificationClaim {
+  id         String   @id @default(cuid())
+  userId     String
+  target     String // název aplikace nebo klíčové slovo / titulek
+  targetKind String   @default("APP") // APP | TITLE
+  suggested  String // navržený typ: WORK | NON_WORK
+  note       String?
+  status     String   @default("OPEN") // OPEN | RESOLVED
+  createdAt  DateTime @default(now())
+
+  @@index([status])
+  @@index([userId])
 }
 
 /// Pravidlo klasifikace podle klíčového slova v titulku okna (zejm. weby).

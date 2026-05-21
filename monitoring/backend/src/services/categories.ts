@@ -1,6 +1,7 @@
 import { prisma } from '../db.js';
 
-export type CatType = 'WORK' | 'NON_WORK' | 'NEUTRAL';
+// UNKNOWN = nezařazeno; vyjmuto ze statistik (nejde do + ani −), dokud admin nerozhodne.
+export type CatType = 'WORK' | 'NON_WORK' | 'NEUTRAL' | 'UNKNOWN';
 
 export type CatDef = { appName: string; category: string; type: CatType };
 

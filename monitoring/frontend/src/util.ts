@@ -40,7 +40,10 @@ export function chipClass(type: string): string {
 }
 
 export function typeLabel(type: string): string {
-  return type === 'NON_WORK' ? 'mimo' : type === 'WORK' ? 'práce' : 'neutrál';
+  if (type === 'NON_WORK') return 'mimo';
+  if (type === 'WORK') return 'práce';
+  if (type === 'UNKNOWN') return 'nezařazeno';
+  return 'neutrál';
 }
 
 /** Krátký název dne z ISO data (pro grafy). */

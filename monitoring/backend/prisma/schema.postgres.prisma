@@ -36,6 +36,7 @@ model MonitoredUser {
   department  String?
   email       String?
   okbaseId    String?
+  hourlyRate  Float?
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -106,6 +107,20 @@ model AppCategory {
   costPerSeat Float?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model ClassificationClaim {
+  id         String   @id @default(cuid())
+  userId     String
+  target     String
+  targetKind String   @default("APP")
+  suggested  String
+  note       String?
+  status     String   @default("OPEN")
+  createdAt  DateTime @default(now())
+
+  @@index([status])
+  @@index([userId])
 }
 
 model WebRule {

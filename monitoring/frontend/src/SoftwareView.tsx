@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Boxes, KeyRound, Wallet, Save } from 'lucide-react';
-import { api, type SoftwareAudit, type SoftwareItem } from './api.js';
+import { Boxes, KeyRound, Wallet, Save, Coins, AlertTriangle } from 'lucide-react';
+import { api, type SoftwareAudit, type SoftwareItem, type CostResult } from './api.js';
 
 export function SoftwareView({ from, to, department, canEdit }: { from: string; to: string; department?: string; canEdit: boolean }) {
   const [data, setData] = useState<SoftwareAudit | null>(null);
+  const [cost, setCost] = useState<CostResult | null>(null);
   const [edit, setEdit] = useState<Record<string, { licensed: boolean; seats: string; cost: string }>>({});
 
   function load() {
@@ -13,6 +14,7 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
       for (const i of d.items) e[i.app] = { licensed: i.licensed, seats: i.seats != null ? String(i.seats) : '', cost: i.costPerSeat != null ? String(i.costPerSeat) : '' };
       setEdit(e);
     }).catch(() => setData(null));
+    api.cost(from, to, department).then(setCost).catch(() => setCost(null));
   }
   useEffect(load, [from, to, department]);
   if (!data) return <p className="muted-2">Načítám…</p>;
@@ -49,6 +51,41 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
           <div className="text-xs muted-2">zaměstnanců</div>
         </div>
       </div>
+
+      {/* Náklady neproduktivního času */}
+      {cost && (
+        <div className="card p-5">
+          <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Coins size={16} className="text-red-500" /> Cena neproduktivního času</h3>
+          <p className="mb-3 text-xs muted-2">Kolik stojí čas, kdy se nepracuje (mzda × neproduktivní hodiny). {cost.withRate}/{cost.workforce} lidí má zadanou mzdu.</p>
+          <div className="mb-4 grid gap-3 sm:grid-cols-4">
+            <CostCard label="Mimopráce (soc. sítě, hry…)" value={cost.totals.nonworkCost} />
+            <CostCard label="Nečinnost u PC" value={cost.totals.idleCost} />
+            <CostCard label="Mimo PC v prac. době" value={cost.totals.pcoffCost} />
+            <CostCard label="Celkem za období" value={cost.totals.wastedCost} big />
+          </div>
+          {cost.totals.wastedCost === 0 && (
+            <p className="mb-3 flex items-center gap-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+              <AlertTriangle size={14} /> Zadej mzdy zaměstnanců ve „Správa", aby se cena spočítala.
+            </p>
+          )}
+          <table className="w-full">
+            <thead><tr><th className="th">Zaměstnanec</th><th className="th">Odd.</th><th className="th text-right">Mzda/h</th><th className="th text-right">Mimopráce</th><th className="th text-right">Nečinnost</th><th className="th text-right">Mimo PC</th><th className="th text-right">Stálo nás</th></tr></thead>
+            <tbody>
+              {cost.perUser.slice(0, 10).map((u) => (
+                <tr key={u.userId} className="divide-row">
+                  <td className="td font-medium">{u.displayName}</td>
+                  <td className="td muted">{u.department}</td>
+                  <td className="td text-right tabular-nums muted">{u.hourlyRate != null ? `${u.hourlyRate} Kč` : '—'}</td>
+                  <td className="td text-right tabular-nums">{u.nonworkHours} h</td>
+                  <td className="td text-right tabular-nums">{u.idleHours} h</td>
+                  <td className="td text-right tabular-nums">{u.pcoffHours} h</td>
+                  <td className="td text-right tabular-nums font-semibold text-red-500">{u.wastedCost != null ? `${u.wastedCost.toLocaleString('cs-CZ')} Kč` : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="card p-5">
         <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><KeyRound size={16} className="text-emerald-600" /> Audit softwaru a licencí</h3>
@@ -99,6 +136,15 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
         </div>
         <p className="mt-3 text-xs muted-2">Tip: u aplikace nad 100 % využití (víc uživatelů než licencí) je naopak potřeba licence dokoupit.</p>
       </div>
+    </div>
+  );
+}
+
+function CostCard({ label, value, big }: { label: string; value: number; big?: boolean }) {
+  return (
+    <div className={`rounded-lg border p-3 ${big ? 'border-red-300 dark:border-red-500/40' : 'border-gray-200 dark:border-slate-700'}`}>
+      <div className="text-xs uppercase muted-2">{label}</div>
+      <div className={`font-bold ${big ? 'text-2xl text-red-500' : 'text-xl'}`}>{value.toLocaleString('cs-CZ')} Kč</div>
     </div>
   );
 }

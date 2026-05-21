@@ -44,6 +44,7 @@ export type AdminUserRow = {
   displayName: string | null;
   department: string | null;
   active: boolean;
+  hourlyRate: number | null;
 };
 
 export type AuditRow = {
@@ -110,6 +111,12 @@ export type TrendPoint = { date: string; score: number; workMinutes: number; non
 export type ActivityItem = { label: string; category: string; type: 'WORK' | 'NON_WORK' | 'NEUTRAL'; minutes: number };
 export type AppCategoryRow = { id: string; appName: string; category: string; type: string };
 export type WebRuleRow = { id: string; keyword: string; category: string; type: string };
+export type CostResult = {
+  workforce: number; withRate: number;
+  totals: { nonworkCost: number; idleCost: number; pcoffCost: number; wastedCost: number };
+  perUser: { userId: string; displayName: string | null; department: string | null; hourlyRate: number | null; nonworkHours: number; idleHours: number; pcoffHours: number; wastedCost: number | null }[];
+};
+export type ClaimRow = { id: string; userId: string; target: string; targetKind: string; suggested: string; note: string | null; status: string; createdAt: string };
 
 export type IntegrityFlag = { type: string; severity: 'high' | 'medium'; detail: string; affectedMinutes: number };
 export type IntegrityResult = { userId: string; riskScore: number; suspicious: boolean; flags: IntegrityFlag[] };
@@ -255,6 +262,20 @@ export const api = {
     if (department) q.set('department', department);
     return getJson<SoftwareAudit>(`/api/v1/dashboard/software?${q}`);
   },
+  cost: (from: string, to: string, department?: string) => {
+    const q = new URLSearchParams({ from, to });
+    if (department) q.set('department', department);
+    return getJson<CostResult>(`/api/v1/dashboard/cost?${q}`);
+  },
+  classificationExport: (from: string, to: string) =>
+    getJson<unknown>(`/api/v1/dashboard/classification-export?from=${from}&to=${to}`),
+  classificationImport: (payload: unknown) =>
+    fetch('/api/v1/admin/classification-import', { method: 'POST', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(payload) }).then((r) => r.json()),
+  adminClaims: () => getJson<{ claims: ClaimRow[] }>('/api/v1/admin/claims').then((d) => d.claims),
+  resolveClaim: (id: string, data: { type: string; category: string }) =>
+    fetch(`/api/v1/admin/claims/${id}/resolve`, { method: 'POST', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
+  submitClaim: (data: { userId: string; target: string; targetKind?: string; suggested: string; note?: string }) =>
+    fetch('/api/v1/dashboard/claims', { method: 'POST', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => r.json()),
   saveCategory: (data: { appName: string; category: string; type: string; licensed?: boolean; seats?: number | null; costPerSeat?: number | null }) =>
     fetch('/api/v1/admin/categories', { method: 'POST', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   deleteCategory: (appName: string) =>
@@ -288,7 +309,7 @@ export const api = {
     }).then((r) => {
       if (!r.ok) throw new Error(`${r.status}`);
     }),
-  patchUser: (id: string, data: { displayName?: string; department?: string; active?: boolean }) =>
+  patchUser: (id: string, data: { displayName?: string; department?: string; active?: boolean; hourlyRate?: number | null }) =>
     fetch(`/api/v1/admin/users/${id}`, {
       method: 'PATCH',
       headers: { ...authHeader(), 'content-type': 'application/json' },

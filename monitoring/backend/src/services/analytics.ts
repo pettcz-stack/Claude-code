@@ -46,6 +46,7 @@ export async function trend(from: Date, to: Date, userId?: string, department?: 
     if (m > 0) {
       const info = classifyActivity(catMap, webRules, it.foregroundApp, it.windowTitle);
       if (info.type === 'NON_WORK') acc.nonwork += m;
+      else if (info.type === 'UNKNOWN') { /* nezařazeno – vyjmuto */ }
       else acc.work += m;
     }
   }
@@ -145,7 +146,7 @@ function countWorkdays(from: Date, to: Date): number {
   return Math.max(n, 1);
 }
 
-type Acc = { work: number; nonwork: number; idle: number };
+type Acc = { work: number; nonwork: number; idle: number; unknown: number };
 
 /** Agregace aktivních minut na uživatele z intervalů (jeden průchod). */
 async function perUser(userIds: string[], from: Date, to: Date): Promise<Map<string, Acc>> {
@@ -158,12 +159,13 @@ async function perUser(userIds: string[], from: Date, to: Date): Promise<Map<str
   const map = new Map<string, Acc>();
   for (const r of rows) {
     let a = map.get(r.userId);
-    if (!a) (a = { work: 0, nonwork: 0, idle: 0 }), map.set(r.userId, a);
+    if (!a) (a = { work: 0, nonwork: 0, idle: 0, unknown: 0 }), map.set(r.userId, a);
     a.idle += r.idleSeconds / 60;
     const m = r.activeSeconds / 60;
     if (m > 0) {
       const info = classifyActivity(catMap, webRules, r.foregroundApp, r.windowTitle);
       if (info.type === 'NON_WORK') a.nonwork += m;
+      else if (info.type === 'UNKNOWN') a.unknown += m; // vyjmuto ze statistik
       else a.work += m;
     }
   }
@@ -171,6 +173,9 @@ async function perUser(userIds: string[], from: Date, to: Date): Promise<Map<str
 }
 
 const clampPct = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
+const EMPTY_ACC: Acc = { work: 0, nonwork: 0, idle: 0, unknown: 0 };
+/** Skóre uživatele s vyjmutím nezařazeného času z fondu. */
+const userScorePct = (a: Acc, expected: number) => clampPct((a.work / Math.max(expected - a.unknown, 1)) * 100);
 
 export type OverviewResult = {
   kpi: {
@@ -203,15 +208,17 @@ export async function overview(from: Date, to: Date, department?: string): Promi
   // předchozí stejně dlouhé období (pro deltu skóre)
   const span = to.getTime() - from.getTime();
   const prev = await perUser(ids, new Date(from.getTime() - span), from);
-  const prevScore = (id: string) => clampPct(((prev.get(id)?.work ?? 0) / expected) * 100);
+  const prevScore = (id: string) => userScorePct(prev.get(id) ?? EMPTY_ACC, expected);
 
-  let workSum = 0, nonworkSum = 0, idleSum = 0, scoreSum = 0;
+  let workSum = 0, nonworkSum = 0, idleSum = 0, pcoffSum = 0, scoreSum = 0;
   const perUserScore = new Map<string, number>();
   const deptMap = new Map<string, { score: number; active: number; nonwork: number; n: number }>();
 
   for (const u of users) {
-    const a = cur.get(u.id) ?? { work: 0, nonwork: 0, idle: 0 };
-    const score = clampPct((a.work / expected) * 100);
+    const a = cur.get(u.id) ?? EMPTY_ACC;
+    const score = userScorePct(a, expected);
+    const adjExpected = Math.max(expected - a.unknown, 1);
+    pcoffSum += Math.max(adjExpected - (a.work + a.nonwork + a.idle), 0);
     perUserScore.set(u.id, score);
     workSum += a.work; nonworkSum += a.nonwork; idleSum += a.idle; scoreSum += score;
     const dep = u.department ?? '—';
@@ -240,8 +247,7 @@ export async function overview(from: Date, to: Date, department?: string): Promi
     .map((u) => ({ userId: u.id, displayName: u.displayName, department: u.department, score: perUserScore.get(u.id) ?? 0 }))
     .sort((a, b) => b.score - a.score);
 
-  const totalExpectedHours = (expected * users.length) / 60;
-  const pcoffHours = Math.max(0, totalExpectedHours - (workSum + nonworkSum + idleSum) / 60);
+  const pcoffHours = pcoffSum / 60;
 
   return {
     kpi: {
@@ -373,6 +379,7 @@ export async function homeOffice(from: Date, to: Date, department?: string): Pro
     const a = acc.get(it.userId)!;
     const b = isHO ? a.ho : a.office;
     if (info.type === 'NON_WORK') b.nonwork += m;
+    else if (info.type === 'UNKNOWN') { /* nezařazeno – vyjmuto */ }
     else b.work += m;
   }
 
@@ -446,7 +453,7 @@ export async function selfReport(userId: string, from: Date, to: Date): Promise<
   const expected = countWorkdays(from, to) * config.expectedWorkHoursPerDay * 60;
 
   const scores = await perUser(ids, from, to);
-  const scoreOf = (id: string) => clampPct(((scores.get(id)?.work ?? 0) / expected) * 100);
+  const scoreOf = (id: string) => userScorePct(scores.get(id) ?? EMPTY_ACC, expected);
 
   const me = await computeUserScore(userId, from, to);
   const myScore = me.score;
@@ -517,7 +524,7 @@ export async function monitorsComparison(from: Date, to: Date, department?: stri
   const single: number[] = [], multi: number[] = [];
   const singleHours: number[] = [], multiHours: number[] = [];
   for (const u of users) {
-    const score = clampPct(((scores.get(u.id)?.work ?? 0) / expected) * 100);
+    const score = userScorePct(scores.get(u.id) ?? EMPTY_ACC, expected);
     const hours = (scores.get(u.id)?.work ?? 0) / 60;
     const mon = typicalOf(u.id);
     perUserOut.push({ userId: u.id, displayName: u.displayName, department: u.department, monitors: mon, score });
@@ -622,4 +629,99 @@ export async function softwareAudit(from: Date, to: Date, department?: string): 
   items.sort((a, b) => (b.wasteCost ?? -1) - (a.wasteCost ?? -1) || b.activeHours - a.activeHours);
 
   return { workforce, totalWasteCost, items };
+}
+
+// --- Náklady neproduktivního času -------------------------------------------
+
+export type CostResult = {
+  workforce: number;
+  withRate: number; // kolik lidí má zadanou mzdu
+  totals: { nonworkCost: number; idleCost: number; pcoffCost: number; wastedCost: number };
+  perUser: {
+    userId: string; displayName: string | null; department: string | null;
+    hourlyRate: number | null;
+    nonworkHours: number; idleHours: number; pcoffHours: number;
+    wastedCost: number | null;
+  }[];
+};
+
+export async function costAudit(from: Date, to: Date, department?: string): Promise<CostResult> {
+  const users = await prisma.monitoredUser.findMany({
+    where: { active: true, ...(department ? { department } : {}) },
+    select: { id: true, displayName: true, department: true, hourlyRate: true },
+  });
+  const ids = users.map((u) => u.id);
+  const expected = countWorkdays(from, to) * config.expectedWorkHoursPerDay * 60;
+  const cur = await perUser(ids, from, to);
+
+  let tNon = 0, tIdle = 0, tPcoff = 0, withRate = 0;
+  const perUserOut: CostResult['perUser'] = [];
+  for (const u of users) {
+    const a = cur.get(u.id) ?? EMPTY_ACC;
+    const adjExpected = Math.max(expected - a.unknown, 1);
+    const pcoff = Math.max(adjExpected - (a.work + a.nonwork + a.idle), 0);
+    const rate = u.hourlyRate ?? null;
+    const nonworkHours = a.nonwork / 60, idleHours = a.idle / 60, pcoffHours = pcoff / 60;
+    let wastedCost: number | null = null;
+    if (rate != null) {
+      withRate++;
+      tNon += nonworkHours * rate; tIdle += idleHours * rate; tPcoff += pcoffHours * rate;
+      wastedCost = Math.round((nonworkHours + idleHours + pcoffHours) * rate);
+    }
+    perUserOut.push({
+      userId: u.id, displayName: u.displayName, department: u.department, hourlyRate: rate,
+      nonworkHours: Math.round(nonworkHours), idleHours: Math.round(idleHours), pcoffHours: Math.round(pcoffHours),
+      wastedCost,
+    });
+  }
+  perUserOut.sort((a, b) => (b.wastedCost ?? -1) - (a.wastedCost ?? -1));
+
+  return {
+    workforce: users.length,
+    withRate,
+    totals: {
+      nonworkCost: Math.round(tNon), idleCost: Math.round(tIdle), pcoffCost: Math.round(tPcoff),
+      wastedCost: Math.round(tNon + tIdle + tPcoff),
+    },
+    perUser: perUserOut,
+  };
+}
+
+// --- Export položek k zařazení (dávková klasifikace) -------------------------
+
+export type ClassificationExport = {
+  generatedAt: string;
+  apps: { app: string; hours: number; type: CatType; category: string }[];
+  titles: { title: string; hours: number; type: CatType; category: string }[];
+};
+
+/** Vyexportuje aplikace a titulky oken k zařazení (zejm. nezařazené UNKNOWN). */
+export async function exportClassification(from: Date, to: Date, onlyUnknown = true): Promise<ClassificationExport> {
+  const catMap = await getCategoryMap();
+  const webRules = await getWebRules();
+  const rows = await prisma.activityInterval.findMany({
+    where: { intervalStart: { gte: from, lt: to } },
+    select: { activeSeconds: true, foregroundApp: true, windowTitle: true },
+  });
+  const apps = new Map<string, number>();
+  const titles = new Map<string, number>();
+  for (const r of rows) {
+    if (r.activeSeconds <= 0) continue;
+    if (r.foregroundApp) apps.set(r.foregroundApp, (apps.get(r.foregroundApp) ?? 0) + r.activeSeconds);
+    if (r.windowTitle) titles.set(r.windowTitle, (titles.get(r.windowTitle) ?? 0) + r.activeSeconds);
+  }
+  const mapApps = Array.from(apps.entries()).map(([app, sec]) => {
+    const info = classifyActivity(catMap, webRules, app, null);
+    return { app, hours: Math.round(sec / 3600), type: info.type, category: info.category };
+  });
+  const mapTitles = Array.from(titles.entries()).map(([title, sec]) => {
+    const info = classifyActivity(catMap, webRules, null, title);
+    return { title, hours: Math.round(sec / 3600), type: info.type, category: info.category };
+  });
+  const flt = (x: { type: CatType }) => (onlyUnknown ? x.type === 'UNKNOWN' : true);
+  return {
+    generatedAt: new Date().toISOString(),
+    apps: mapApps.filter(flt).sort((a, b) => b.hours - a.hours),
+    titles: mapTitles.filter(flt).sort((a, b) => b.hours - a.hours),
+  };
 }

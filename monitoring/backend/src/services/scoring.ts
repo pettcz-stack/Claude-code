@@ -7,6 +7,7 @@ export type ScoreBreakdown = {
   expectedMinutes: number;
   workMinutes: number; // aktivní práce (WORK + NEUTRAL)
   nonWorkMinutes: number; // aktivní mimopráce (NON_WORK)
+  unknownMinutes: number; // nezařazeno – vyjmuto ze statistik
   idleOnMinutes: number; // PC zapnutý, ale nečinnost (vč. zamčeno)
   pcOffMinutes: number; // měl pracovat, ale PC nebyl aktivní/zapnutý
   meetingMinutes: number; // DEMO odhad (porady) – nahradí Outlook (Fáze 3)
@@ -68,6 +69,7 @@ export async function computeUserScore(userId: string, from: Date, to: Date): Pr
 
   let workMinutes = 0;
   let nonWorkMinutes = 0;
+  let unknownMinutes = 0; // nezařazeno – vyjmuto ze statistik
   let idleOnMinutes = 0;
   let totalKeystrokes = 0;
   const catMinutes = new Map<string, { type: CatType; minutes: number }>();
@@ -91,6 +93,7 @@ export async function computeUserScore(userId: string, from: Date, to: Date): Pr
 
     const info = classifyActivity(catMap, webRules, it.foregroundApp, it.windowTitle);
     if (info.type === 'NON_WORK') nonWorkMinutes += activeMin;
+    else if (info.type === 'UNKNOWN') unknownMinutes += activeMin; // vyjmuto
     else workMinutes += activeMin; // WORK + NEUTRAL
 
     const slice = catMinutes.get(info.category) ?? { type: info.type, minutes: 0 };
@@ -99,7 +102,9 @@ export async function computeUserScore(userId: string, from: Date, to: Date): Pr
     if (it.foregroundApp) appActive.set(it.foregroundApp, (appActive.get(it.foregroundApp) ?? 0) + activeMin);
   }
 
-  const expectedMinutes = countWorkdays(from, to) * config.expectedWorkHoursPerDay * 60;
+  const expectedMinutesRaw = countWorkdays(from, to) * config.expectedWorkHoursPerDay * 60;
+  // Nezařazený čas se vyjme z fondu → nejde do + ani −.
+  const expectedMinutes = Math.max(expectedMinutesRaw - unknownMinutes, 1);
   const trackedOnMinutes = workMinutes + nonWorkMinutes + idleOnMinutes;
   const pcOffMinutes = Math.max(expectedMinutes - trackedOnMinutes, 0);
   // DEMO: část „PC off" připíšeme poradám (nahradí Outlook). Jen ilustrace.
@@ -137,6 +142,7 @@ export async function computeUserScore(userId: string, from: Date, to: Date): Pr
     expectedMinutes,
     workMinutes: Math.round(workMinutes),
     nonWorkMinutes: Math.round(nonWorkMinutes),
+    unknownMinutes: Math.round(unknownMinutes),
     idleOnMinutes: Math.round(idleOnMinutes),
     pcOffMinutes: Math.round(pcOffMinutes),
     meetingMinutes,

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Mail, Save } from 'lucide-react';
-import { api, type AdminUserRow, type AuditRow, type Device } from './api.js';
+import { Mail, Save, MessageSquareWarning } from 'lucide-react';
+import { api, type AdminUserRow, type AuditRow, type ClaimRow, type Device } from './api.js';
 
 export function AdminView({ role }: { role: string }) {
   const [devices, setDevices] = useState<Device[]>([]);
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [audit, setAudit] = useState<AuditRow[]>([]);
+  const [claims, setClaims] = useState<ClaimRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [reportMsg, setReportMsg] = useState<string | null>(null);
   const isAdmin = role === 'ADMIN';
@@ -15,9 +16,15 @@ export function AdminView({ role }: { role: string }) {
     if (isAdmin) {
       api.adminUsers().then(setUsers).catch(() => undefined);
       api.audit().then(setAudit).catch(() => undefined);
+      api.adminClaims().then(setClaims).catch(() => undefined);
     }
   }
   useEffect(loadAll, [role]);
+
+  async function resolveClaim(c: ClaimRow, type: string) {
+    await api.resolveClaim(c.id, { type, category: type === 'NON_WORK' ? 'Mimopracovní' : 'Pracovní' }).catch(() => undefined);
+    loadAll();
+  }
 
   async function triggerReport() {
     setReportMsg('Odesílám…');
@@ -25,7 +32,7 @@ export function AdminView({ role }: { role: string }) {
     setReportMsg(r.ok ? `Report odeslán (${r.rows} řádků, ${r.recipients} příjemců).` : `Chyba: ${r.error}`);
   }
   async function toggleDevice(d: Device) { await api.patchDevice(d.id, !d.active).catch((e) => setError(String(e))); loadAll(); }
-  async function saveUser(u: AdminUserRow) { await api.patchUser(u.id, { displayName: u.displayName ?? '', department: u.department ?? '', active: u.active }).catch((e) => setError(String(e))); loadAll(); }
+  async function saveUser(u: AdminUserRow) { await api.patchUser(u.id, { displayName: u.displayName ?? '', department: u.department ?? '', active: u.active, hourlyRate: u.hourlyRate }).catch((e) => setError(String(e))); loadAll(); }
   function patchLocalUser(id: string, patch: Partial<AdminUserRow>) { setUsers((list) => list.map((u) => (u.id === id ? { ...u, ...patch } : u))); }
 
   return (
@@ -55,14 +62,44 @@ export function AdminView({ role }: { role: string }) {
         <div className="card p-5">
           <h3 className="mb-3 text-sm font-semibold">Sledovaní uživatelé</h3>
           <table className="w-full">
-            <thead><tr><th className="th">Jméno</th><th className="th">Oddělení</th><th className="th">Aktivní</th><th className="th"></th></tr></thead>
+            <thead><tr><th className="th">Jméno</th><th className="th">Oddělení</th><th className="th">Mzda Kč/h</th><th className="th">Aktivní</th><th className="th"></th></tr></thead>
             <tbody>
               {users.map((u) => (
                 <tr key={u.id} className="divide-row">
                   <td className="td"><input value={u.displayName ?? ''} onChange={(e) => patchLocalUser(u.id, { displayName: e.target.value })} className="field w-full" /></td>
                   <td className="td"><input value={u.department ?? ''} onChange={(e) => patchLocalUser(u.id, { department: e.target.value })} className="field w-full" /></td>
+                  <td className="td"><input type="number" value={u.hourlyRate ?? ''} onChange={(e) => patchLocalUser(u.id, { hourlyRate: e.target.value ? Number(e.target.value) : null })} className="field w-24 text-right" /></td>
                   <td className="td"><input type="checkbox" checked={u.active} onChange={(e) => patchLocalUser(u.id, { active: e.target.checked })} /></td>
                   <td className="td text-right"><button onClick={() => saveUser(u)} className="btn-ghost"><Save size={14} /> Uložit</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-2 text-xs muted-2">Mzda (Kč/h) slouží k výpočtu ceny neproduktivního času v záložce „Software & náklady".</p>
+        </div>
+      )}
+
+      {isAdmin && claims.length > 0 && (
+        <div className="card p-5">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><MessageSquareWarning size={16} className="text-amber-500" /> Reklamace klasifikace</h3>
+          <table className="w-full">
+            <thead><tr><th className="th">Cíl</th><th className="th">Typ cíle</th><th className="th">Návrh zaměstnance</th><th className="th">Poznámka</th><th className="th">Stav</th><th className="th"></th></tr></thead>
+            <tbody>
+              {claims.map((c) => (
+                <tr key={c.id} className="divide-row">
+                  <td className="td font-mono text-xs">{c.target}</td>
+                  <td className="td muted">{c.targetKind === 'TITLE' ? 'web/titulek' : 'aplikace'}</td>
+                  <td className="td">{c.suggested === 'WORK' ? 'práce' : 'mimopráce'}</td>
+                  <td className="td muted">{c.note ?? '—'}</td>
+                  <td className="td">{c.status === 'OPEN' ? 'otevřená' : 'vyřízená'}</td>
+                  <td className="td text-right">
+                    {c.status === 'OPEN' && (
+                      <span className="flex justify-end gap-1">
+                        <button onClick={() => resolveClaim(c, 'WORK')} className="chip-work">práce</button>
+                        <button onClick={() => resolveClaim(c, 'NON_WORK')} className="chip-nonwork">mimo</button>
+                      </span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
