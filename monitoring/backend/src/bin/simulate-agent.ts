@@ -16,6 +16,8 @@ const token = process.env.INGEST_TOKEN ?? 'dev-token';
 const machineId = args.get('machine') ?? 'SIM-PC-1';
 const sid = args.get('sid') ?? 'S-1-5-21-SIM-1';
 const minutes = Number(args.get('minutes') ?? 120);
+const monitors = Number(args.get('monitors') ?? 2);
+const clientIp = args.get('ip') ?? '10.20.5.42'; // odpovídá demo podsíti „Pobočka Praha" (10.20.0.0/16)
 
 const APPS = ['winword.exe', 'excel.exe', 'chrome.exe', 'outlook.exe', 'teams.exe', 'code.exe'];
 
@@ -36,6 +38,8 @@ function buildIntervals(count: number) {
       keystrokeCount: working ? Math.floor(Math.random() * 250) : 0,
       mouseEvents: working ? Math.floor(Math.random() * 120) : 0,
       sessionLocked: !working && Math.random() > 0.8,
+      monitorCount: monitors,
+      clientIp,
     });
   }
   return out;
