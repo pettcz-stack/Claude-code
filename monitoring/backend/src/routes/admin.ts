@@ -105,6 +105,9 @@ const catSchema = z.object({
   appName: z.string().min(1).max(260),
   category: z.string().min(1).max(64),
   type: z.enum(['WORK', 'NON_WORK', 'NEUTRAL']),
+  licensed: z.boolean().optional(),
+  seats: z.number().int().min(0).max(100000).nullable().optional(),
+  costPerSeat: z.number().min(0).max(1000000).nullable().optional(),
 });
 const ruleSchema = z.object({
   keyword: z.string().min(1).max(120),
@@ -123,7 +126,13 @@ adminRouter.post('/categories', requireRole('ADMIN'), async (req, res) => {
   const row = await prisma.appCategory.upsert({
     where: { appName: p.data.appName },
     create: p.data,
-    update: { category: p.data.category, type: p.data.type },
+    update: {
+      category: p.data.category,
+      type: p.data.type,
+      ...(p.data.licensed !== undefined ? { licensed: p.data.licensed } : {}),
+      ...(p.data.seats !== undefined ? { seats: p.data.seats } : {}),
+      ...(p.data.costPerSeat !== undefined ? { costPerSeat: p.data.costPerSeat } : {}),
+    },
   });
   res.json({ category: row });
 });

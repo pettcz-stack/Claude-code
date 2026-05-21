@@ -530,3 +530,96 @@ export async function monitorsComparison(from: Date, to: Date, department?: stri
     perUser: perUserOut.sort((a, b) => b.monitors - a.monitors || b.score - a.score),
   };
 }
+
+// --- Audit softwaru / licencí ------------------------------------------------
+
+export type SoftwareItem = {
+  app: string;
+  category: string | null;
+  type: string;
+  activeHours: number;
+  users: number; // kolik různých lidí appku reálně používalo
+  usersPct: number; // % ze sledovaných
+  licensed: boolean;
+  seats: number | null;
+  costPerSeat: number | null;
+  utilizationPct: number | null; // users / seats
+  wasteSeats: number | null; // nevyužité licence
+  wasteCost: number | null; // měsíční plýtvání (CZK)
+};
+
+export type SoftwareAudit = {
+  workforce: number;
+  totalWasteCost: number; // součet měsíčního plýtvání u placených aplikací
+  items: SoftwareItem[];
+};
+
+export async function softwareAudit(from: Date, to: Date, department?: string): Promise<SoftwareAudit> {
+  const users = await prisma.monitoredUser.findMany({
+    where: { active: true, ...(department ? { department } : {}) },
+    select: { id: true },
+  });
+  const ids = users.map((u) => u.id);
+  const workforce = Math.max(users.length, 1);
+
+  const rows = await prisma.activityInterval.findMany({
+    where: { userId: { in: ids }, intervalStart: { gte: from, lt: to }, foregroundApp: { not: null } },
+    select: { userId: true, activeSeconds: true, foregroundApp: true },
+  });
+
+  // app → { sekundy, set uživatelů }
+  const usage = new Map<string, { sec: number; users: Set<string> }>();
+  for (const r of rows) {
+    if (!r.foregroundApp || r.activeSeconds <= 0) continue;
+    let u = usage.get(r.foregroundApp);
+    if (!u) (u = { sec: 0, users: new Set() }), usage.set(r.foregroundApp, u);
+    u.sec += r.activeSeconds;
+    u.users.add(r.userId);
+  }
+
+  const cats = await prisma.appCategory.findMany();
+  const catByApp = new Map(cats.map((c) => [c.appName, c]));
+
+  // Zahrň i placené aplikace s NULOVÝM použitím (největší plýtvání).
+  const apps = new Set<string>([...usage.keys()]);
+  for (const c of cats) if (c.licensed) apps.add(c.appName);
+
+  let totalWasteCost = 0;
+  const items: SoftwareItem[] = [];
+  for (const app of apps) {
+    const u = usage.get(app);
+    const c = catByApp.get(app);
+    const userCount = u ? u.users.size : 0;
+    const seats = c?.seats ?? null;
+    const cost = c?.costPerSeat ?? null;
+    const licensed = c?.licensed ?? false;
+    let utilizationPct: number | null = null;
+    let wasteSeats: number | null = null;
+    let wasteCost: number | null = null;
+    if (licensed && seats && seats > 0) {
+      utilizationPct = Math.round((userCount / seats) * 100);
+      wasteSeats = Math.max(seats - userCount, 0);
+      wasteCost = cost ? Math.round(wasteSeats * cost) : null;
+      if (wasteCost) totalWasteCost += wasteCost;
+    }
+    items.push({
+      app,
+      category: c?.category ?? null,
+      type: c?.type ?? 'NEUTRAL',
+      activeHours: u ? Math.round(u.sec / 3600) : 0,
+      users: userCount,
+      usersPct: Math.round((userCount / workforce) * 100),
+      licensed,
+      seats,
+      costPerSeat: cost,
+      utilizationPct,
+      wasteSeats,
+      wasteCost,
+    });
+  }
+
+  // Řazení: placené s největším plýtváním nahoře, pak dle využití.
+  items.sort((a, b) => (b.wasteCost ?? -1) - (a.wasteCost ?? -1) || b.activeHours - a.activeHours);
+
+  return { workforce, totalWasteCost, items };
+}

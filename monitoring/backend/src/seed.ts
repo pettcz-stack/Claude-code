@@ -107,6 +107,24 @@ async function main() {
     await prisma.activityInterval.createMany({ data: batch.slice(i, i + 1000) });
   }
   if (absences.length) await prisma.absence.createMany({ data: absences });
+
+  // Demo licence: placené aplikace + jejich seaty/cena (CZK/měsíc).
+  // projectpro.exe a designstudio.exe nikdo nepoužívá → demonstrace plýtvání.
+  const LICENSES = [
+    { appName: 'sap.exe', category: 'Podnikový systém', type: 'WORK', seats: 16, costPerSeat: 1200 },
+    { appName: 'excel.exe', category: 'Kancelář', type: 'WORK', seats: 16, costPerSeat: 350 },
+    { appName: 'code.exe', category: 'Vývoj', type: 'WORK', seats: 8, costPerSeat: 250 },
+    { appName: 'projectpro.exe', category: 'Projektové řízení', type: 'WORK', seats: 10, costPerSeat: 900 },
+    { appName: 'designstudio.exe', category: 'Grafika', type: 'WORK', seats: 5, costPerSeat: 1500 },
+  ];
+  for (const l of LICENSES) {
+    await prisma.appCategory.upsert({
+      where: { appName: l.appName },
+      create: { appName: l.appName, category: l.category, type: l.type, licensed: true, seats: l.seats, costPerSeat: l.costPerSeat },
+      update: { licensed: true, seats: l.seats, costPerSeat: l.costPerSeat },
+    });
+  }
+
   const hours = await aggregateAll();
   // eslint-disable-next-line no-console
   console.log(`Seed hotov: ${created.length} uživatelů, ${batch.length} intervalů, ${absences.length} HO dnů, ${hours} agregátů.`);

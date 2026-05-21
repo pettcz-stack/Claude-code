@@ -81,6 +81,13 @@ export type UserScore = {
   keystrokeTotal: number;
   appSwitchesPerHour: number;
 };
+export type SoftwareItem = {
+  app: string; category: string | null; type: string; activeHours: number; users: number; usersPct: number;
+  licensed: boolean; seats: number | null; costPerSeat: number | null;
+  utilizationPct: number | null; wasteSeats: number | null; wasteCost: number | null;
+};
+export type SoftwareAudit = { workforce: number; totalWasteCost: number; items: SoftwareItem[] };
+
 export type MonitorsData = {
   single: { users: number; avgScore: number; avgActiveHours: number };
   multi: { users: number; avgScore: number; avgActiveHours: number };
@@ -243,7 +250,12 @@ export const api = {
   },
   // Správa kategorií a pravidel
   adminCategories: () => getJson<{ categories: AppCategoryRow[] }>('/api/v1/admin/categories').then((d) => d.categories),
-  saveCategory: (data: { appName: string; category: string; type: string }) =>
+  software: (from: string, to: string, department?: string) => {
+    const q = new URLSearchParams({ from, to });
+    if (department) q.set('department', department);
+    return getJson<SoftwareAudit>(`/api/v1/dashboard/software?${q}`);
+  },
+  saveCategory: (data: { appName: string; category: string; type: string; licensed?: boolean; seats?: number | null; costPerSeat?: number | null }) =>
     fetch('/api/v1/admin/categories', { method: 'POST', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   deleteCategory: (appName: string) =>
     fetch(`/api/v1/admin/categories/${encodeURIComponent(appName)}`, { method: 'DELETE', headers: authHeader() }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),

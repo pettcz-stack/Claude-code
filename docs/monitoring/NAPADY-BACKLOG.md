@@ -94,7 +94,7 @@ procesu a titulku okna:
 - **Spolupráce vs. sólo práce** – čas v komunikačních vs. produkčních aplikacích.
 - **Náběhová křivka nováčka** – jak rychle se nový zaměstnanec rozjíždí (týden po týdnu).
 - **Oboustranné odlehlé hodnoty** – nejen příliš nízké, ale i „podezřele dokonalé" (cheating).
-- **Audit licencí SW** – které placené aplikace nikdo nepoužívá (úspora nákladů) – původní hodnota „SW auditu".
+- [x] ~~Audit licencí SW~~ – HOTOVO (záložka „Software & licence").
 - **Nákladové hledisko** – nečinné/mimopracovní hodiny × prům. hodinová sazba = peněžní pohled pro vedení.
 - **Cíle a targety** – nastavit cíl týmu a sledovat plnění; OKR-like.
 - **Profil výkonu během dne (chronotyp)** – kdy je člověk nejlepší → plánovat náročnou práci.

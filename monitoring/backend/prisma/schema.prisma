@@ -107,12 +107,16 @@ model ActivityHourly {
 
 /// Kategorizace aplikací (práce / komunikace / web / hry ...). Doplňuje agregaci.
 model AppCategory {
-  id        String   @id @default(cuid())
-  appName   String   @unique // např. "winword.exe"
-  category  String // čitelný název, např. "Kancelář", "Hry", "Soukromý e-mail"
-  type      String   @default("NEUTRAL") // WORK | NON_WORK | NEUTRAL
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  appName     String   @unique // např. "winword.exe"
+  category    String // čitelný název, např. "Kancelář", "Hry", "Soukromý e-mail"
+  type        String   @default("NEUTRAL") // WORK | NON_WORK | NEUTRAL
+  // Licenční audit: placená aplikace, počet zakoupených licencí, měsíční cena/licence (CZK)
+  licensed    Boolean  @default(false)
+  seats       Int?
+  costPerSeat Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 /// Pravidlo klasifikace podle klíčového slova v titulku okna (zejm. weby).

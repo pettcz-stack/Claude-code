@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Gauge, LayoutDashboard, User as UserIcon, Trophy, TrendingUp, AppWindow, CalendarDays, Table2, Shield,
-  ShieldAlert, SlidersHorizontal, House, BadgeCheck, Sun, Moon, LogOut, ChevronLeft, ChevronRight,
+  ShieldAlert, SlidersHorizontal, House, BadgeCheck, KeyRound, Sun, Moon, LogOut, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { api, auth, type Me, type User } from './api.js';
 import { OverviewView } from './OverviewView.js';
@@ -16,12 +16,13 @@ import { TrendChart } from './TrendChart.js';
 import { TopActivities } from './TopActivities.js';
 import { CategoryAdmin } from './CategoryAdmin.js';
 import { AlertsView } from './AlertsView.js';
+import { SoftwareView } from './SoftwareView.js';
 import { SettingsView } from './SettingsView.js';
 import { Login } from './Login.js';
 import { useTheme } from './theme.js';
 import { isoDate, startOfLocalDay } from './util.js';
 
-type Tab = 'overview' | 'homeoffice' | 'detail' | 'selfreport' | 'scoreboard' | 'alerts' | 'trends' | 'apps' | 'calendar' | 'summary' | 'admin' | 'settings';
+type Tab = 'overview' | 'homeoffice' | 'detail' | 'selfreport' | 'scoreboard' | 'alerts' | 'trends' | 'apps' | 'software' | 'calendar' | 'summary' | 'admin' | 'settings';
 type PeriodMode = 'day' | 'week' | 'month' | 'custom';
 
 const NAV: { id: Tab; label: string; Icon: typeof UserIcon }[] = [
@@ -33,6 +34,7 @@ const NAV: { id: Tab; label: string; Icon: typeof UserIcon }[] = [
   { id: 'alerts', label: 'Upozornění', Icon: ShieldAlert },
   { id: 'trends', label: 'Trendy', Icon: TrendingUp },
   { id: 'apps', label: 'Aplikace & weby', Icon: AppWindow },
+  { id: 'software', label: 'Software & licence', Icon: KeyRound },
   { id: 'calendar', label: 'Kalendář', Icon: CalendarDays },
   { id: 'summary', label: 'Firemní přehled', Icon: Table2 },
   { id: 'admin', label: 'Správa', Icon: Shield },
@@ -82,8 +84,8 @@ export default function App() {
   if (!me) return <Login onLogin={setMe} />;
 
   const needsUser = tab === 'detail' || tab === 'calendar' || tab === 'selfreport';
-  const needsPeriod = tab === 'overview' || tab === 'homeoffice' || tab === 'detail' || tab === 'selfreport' || tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'trends' || tab === 'alerts';
-  const needsDept = tab === 'overview' || tab === 'homeoffice' || tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'trends' || tab === 'alerts';
+  const needsPeriod = tab === 'overview' || tab === 'homeoffice' || tab === 'detail' || tab === 'selfreport' || tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'software' || tab === 'trends' || tab === 'alerts';
+  const needsDept = tab === 'overview' || tab === 'homeoffice' || tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'software' || tab === 'trends' || tab === 'alerts';
   const title = NAV.find((n) => n.id === tab)?.label ?? '';
 
   return (
@@ -189,6 +191,7 @@ export default function App() {
               <CategoryAdmin canEdit={me.role === 'ADMIN'} />
             </div>
           )}
+          {tab === 'software' && <SoftwareView from={from} to={to} department={department || undefined} canEdit={me.role === 'ADMIN'} />}
           {tab === 'calendar' && selectedUser && <CalendarView user={selectedUser} day={day} />}
           {tab === 'summary' && <SummaryView from={from} to={to} department={department || undefined} />}
           {tab === 'admin' && <AdminView role={me.role} />}
