@@ -17,6 +17,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Reference assemblies pro .NET Framework 4.8 z NuGetu – build pak nezávisí
+         na targeting packu předinstalovaném na runneru (CI windows-2022/2025). -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" />
     <!-- V SDK-style net48 není System.Net.Http implicitně referencováno. -->
     <Reference Include="System.Net.Http" />
     <!-- GZip komprese odesílané dávky (menší přenos po síti). -->
