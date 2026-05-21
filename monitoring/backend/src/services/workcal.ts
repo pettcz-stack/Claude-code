@@ -1,9 +1,9 @@
 import { prisma } from '../db.js';
+import { localParts, localDow, dayKey, addDays, floorToDay } from './tz.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const ymd = (d: Date) => d.toISOString().slice(0, 10);
 
-/** Velikonoční neděle (záp. církev) – Meeus/Jones/Butcher. */
+/** Velikonoční neděle (záp. církev) – Meeus/Jones/Butcher. Vrací kalendářní datum. */
 function easterSunday(y: number): Date {
   const a = y % 19, b = Math.floor(y / 100), c = y % 100;
   const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
@@ -15,23 +15,27 @@ function easterSunday(y: number): Date {
   return new Date(Date.UTC(y, month - 1, day));
 }
 
-/** Je daný den (UTC) český státní svátek? */
+/** Kalendářní „měsíc-den" z UTC-půlnočního data. */
+const mdUtc = (x: Date) => `${x.getUTCMonth() + 1}-${x.getUTCDate()}`;
+
+/** Je daný den (místní čas) český státní svátek? */
 export function isCzHoliday(d: Date): boolean {
-  const md = `${d.getUTCMonth() + 1}-${d.getUTCDate()}`;
+  const p = localParts(d);
+  const md = `${p.month}-${p.day}`;
   const fixed = new Set(['1-1', '5-1', '5-8', '7-5', '7-6', '9-28', '10-28', '11-17', '12-24', '12-25', '12-26']);
   if (fixed.has(md)) return true;
-  const e = easterSunday(d.getUTCFullYear());
-  const sameDay = (x: Date) => x.getUTCMonth() === d.getUTCMonth() && x.getUTCDate() === d.getUTCDate();
-  return sameDay(new Date(e.getTime() - 2 * DAY_MS)) || sameDay(new Date(e.getTime() + DAY_MS));
+  const e = easterSunday(p.year);
+  const goodFriday = new Date(e.getTime() - 2 * DAY_MS); // Velký pátek
+  const easterMonday = new Date(e.getTime() + DAY_MS); // Velikonoční pondělí
+  return md === mdUtc(goodFriday) || md === mdUtc(easterMonday);
 }
 
 /** Množina dní (YYYY-MM-DD), které jsou v období Po–Pá a zároveň státní svátek. */
 export function holidayWeekdaySet(from: Date, to: Date): Set<string> {
   const s = new Set<string>();
-  for (let t = Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()); t < to.getTime(); t += DAY_MS) {
-    const d = new Date(t);
-    const dow = d.getUTCDay();
-    if (dow >= 1 && dow <= 5 && isCzHoliday(d)) s.add(ymd(d));
+  for (let d = floorToDay(from); d.getTime() < to.getTime(); d = addDays(d, 1)) {
+    const dow = localDow(d);
+    if (dow >= 1 && dow <= 5 && isCzHoliday(d)) s.add(dayKey(d));
   }
   return s;
 }
@@ -46,8 +50,8 @@ export async function absenceByUser(userIds: string[], from: Date, to: Date, hol
   });
   const map = new Map<string, AbsenceInfo>();
   for (const r of rows) {
-    const dow = r.date.getUTCDay();
-    const key = ymd(r.date);
+    const dow = localDow(r.date);
+    const key = dayKey(r.date);
     if (dow < 1 || dow > 5 || holidays.has(key)) continue; // víkend/svátek se neřeší
     let info = map.get(r.userId);
     if (!info) { info = { days: new Set(), vacation: 0, sick: 0 }; map.set(r.userId, info); }
@@ -65,11 +69,10 @@ export async function absenceByUser(userIds: string[], from: Date, to: Date, hol
  */
 export function effectiveWorkdays(from: Date, to: Date, holidays: Set<string>, absenceDays?: Set<string>): number {
   let n = 0;
-  for (let t = Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()); t < to.getTime(); t += DAY_MS) {
-    const d = new Date(t);
-    const dow = d.getUTCDay();
+  for (let d = floorToDay(from); d.getTime() < to.getTime(); d = addDays(d, 1)) {
+    const dow = localDow(d);
     if (dow < 1 || dow > 5) continue;
-    const key = ymd(d);
+    const key = dayKey(d);
     if (holidays.has(key)) continue;
     if (absenceDays?.has(key)) continue;
     n++;

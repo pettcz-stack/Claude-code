@@ -5,12 +5,7 @@ import { classifyActivity, getWebRules } from './classify.js';
 import { computeUserScore, monitorHandicapFactor, MULTI_MONITOR_BENEFIT_CATS } from './scoring.js';
 import { getSettings } from './settings.js';
 import { holidayWeekdaySet, absenceByUser, effectiveWorkdays } from './workcal.js';
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-function dayKey(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
+import { dayKey, localDow, localHour, floorToDay, addDays } from './tz.js';
 
 export type TrendPoint = { date: string; score: number; workMinutes: number; nonWorkMinutes: number; idleMinutes: number; absence?: string | null };
 
@@ -53,8 +48,8 @@ export async function trend(from: Date, to: Date, userId?: string, department?: 
   }
 
   const points: TrendPoint[] = [];
-  for (let t = from.getTime(); t < to.getTime(); t += DAY_MS) {
-    const dk = dayKey(new Date(t));
+  for (let d = floorToDay(from); d.getTime() < to.getTime(); d = addDays(d, 1)) {
+    const dk = dayKey(d);
     const absence = absByDay.get(dk) ?? null;
     const users = perDay.get(dk);
     if (!users || users.size === 0) {
@@ -125,11 +120,9 @@ export async function topActivities(
 
 function countWorkdays(from: Date, to: Date): number {
   let n = 0;
-  const d = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()));
-  while (d < to) {
-    const dow = d.getUTCDay();
+  for (let d = floorToDay(from); d.getTime() < to.getTime(); d = addDays(d, 1)) {
+    const dow = localDow(d);
     if (dow >= 1 && dow <= 5) n++;
-    d.setUTCDate(d.getUTCDate() + 1);
   }
   return Math.max(n, 1);
 }
@@ -369,16 +362,15 @@ export async function heatmap(from: Date, to: Date, department?: string, userId?
     select: { intervalStart: true, activeSeconds: true },
   });
 
-  // počet výskytů každého dne v týdnu v období (pro průměr na slot)
+  // počet výskytů každého dne v týdnu v období (pro průměr na slot), místní čas
   const dowCount = new Array(7).fill(0);
-  for (let t = from.getTime(); t < to.getTime(); t += 24 * 60 * 60 * 1000) {
-    dowCount[new Date(t).getUTCDay()]++;
+  for (let d = floorToDay(from); d.getTime() < to.getTime(); d = addDays(d, 1)) {
+    dowCount[localDow(d)]++;
   }
 
   const sum: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
   for (const r of rows) {
-    const d = new Date(r.intervalStart);
-    sum[d.getUTCDay()][d.getUTCHours()] += r.activeSeconds / 60;
+    sum[localDow(r.intervalStart)][localHour(r.intervalStart)] += r.activeSeconds / 60;
   }
 
   let max = 0;
@@ -395,7 +387,7 @@ export async function heatmap(from: Date, to: Date, department?: string, userId?
 
 // --- Home Office vyhodnocení -------------------------------------------------
 
-const dk = (d: Date) => new Date(d).toISOString().slice(0, 10);
+const dk = (d: Date) => dayKey(d);
 
 export type HomeOfficeResult = {
   company: {

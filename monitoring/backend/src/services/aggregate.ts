@@ -3,17 +3,16 @@ import { getCategoryMap } from './categories.js';
 import { classifyActivity, getWebRules } from './classify.js';
 import { computeIntegrity } from './integrity.js';
 import { getSites, resolveSite } from './sites.js';
+import { floorToDay as tzFloorToDay, floorToHour as tzFloorToHour, addDays } from './tz.js';
 
-/** Zarovná čas na začátek hodiny (UTC). */
+/** Zarovná čas na začátek hodiny (místní čas, Europe/Prague). */
 export function floorToHour(d: Date): Date {
-  const x = new Date(d);
-  x.setUTCMinutes(0, 0, 0);
-  return x;
+  return tzFloorToHour(d);
 }
 
-/** Zarovná čas na začátek dne (UTC). */
+/** Zarovná čas na začátek dne (místní čas, Europe/Prague). */
 export function floorToDay(d: Date): Date {
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  return tzFloorToDay(d);
 }
 
 /**
@@ -31,7 +30,7 @@ export async function aggregateDays(pairs: { userId: string; day: Date }[]): Pro
   const sites = await getSites();
   let written = 0;
   for (const { userId, day } of unique.values()) {
-    const dayEnd = new Date(day.getTime() + 24 * 60 * 60 * 1000);
+    const dayEnd = addDays(day, 1); // DST-safe (23/25h dny)
     const intervals = await prisma.activityInterval.findMany({
       where: { userId, intervalStart: { gte: day, lt: dayEnd } },
       select: { activeSeconds: true, idleSeconds: true, foregroundApp: true, windowTitle: true, keystrokeCount: true, monitorCount: true, clientIp: true },

@@ -9,6 +9,7 @@ import { ensureDefaultCategories } from './services/categories.js';
 import { DEFAULT_WEB_RULES } from './services/classify.js';
 import { ensureDefaultTips } from './services/tips.js';
 import { ensureDefaultSites } from './services/sites.js';
+import { floorToDay, addDays, localParts, localDow, zonedToUtc } from './services/tz.js';
 
 // Provozovna podle útvaru (pro lokální IP v demu): 10.30=Hořovice, 10.20=Praha, 10.10=Brno.
 function siteBaseFor(dept: string): string {
@@ -151,17 +152,17 @@ async function main() {
   await prisma.dailyAppStat.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.absence.deleteMany({ where: { userId: { in: userIds } } });
 
-  const now = new Date();
+  const today = floorToDay(new Date()); // začátek dnešního místního dne (ČR)
   const batch: Prisma.ActivityIntervalCreateManyInput[] = [];
   const absences: Prisma.AbsenceCreateManyInput[] = [];
 
   for (const c of created) {
     for (let dayBack = 0; dayBack < 30; dayBack++) {
-      const day = new Date(now);
-      day.setDate(day.getDate() - dayBack);
-      const dow = day.getDay();
+      const dayStart = addDays(today, -dayBack); // místní půlnoc daného dne (UTC instant)
+      const lp = localParts(dayStart);
+      const dow = localDow(dayStart);
       if (dow === 0 || dow === 6) continue;
-      const date = new Date(Date.UTC(day.getFullYear(), day.getMonth(), day.getDate()));
+      const date = dayStart;
 
       // HR absence (OKbase): nemoc/dovolená → ten den bez PC aktivity (mimo podvodníky).
       if (!c.behavior.startsWith('cheater')) {
@@ -181,8 +182,7 @@ async function main() {
 
       for (let hour = 8; hour < 16; hour++) {
         for (let min = 0; min < 60; min += 5) {
-          const intervalStart = new Date(day);
-          intervalStart.setHours(hour, min, 0, 0);
+          const intervalStart = zonedToUtc(lp.year, lp.month, lp.day, hour, min); // místní 8–16 h (ČR)
           const row = makeRow(c, intervalStart, isHO);
           if (row) batch.push(row);
         }

@@ -10,6 +10,7 @@ import { heatmap, exportClassification } from '../services/analytics.js';
 import { computeIntegrity, detectAlerts } from '../services/integrity.js';
 import { getTips } from '../services/tips.js';
 import { cq } from '../services/cachedQueries.js';
+import { floorToHour } from '../services/tz.js';
 
 export const dashboardRouter = Router();
 
@@ -229,8 +230,7 @@ dashboardRouter.get('/hourly-apps', async (req, res) => {
   type Bucket = { apps: Map<string, number>; work: number; nonwork: number; unknown: number; idle: number; locked: number };
   const byHour = new Map<string, Bucket>();
   for (const it of intervals) {
-    const h = new Date(it.intervalStart); h.setUTCMinutes(0, 0, 0);
-    const key = h.toISOString();
+    const key = floorToHour(it.intervalStart).toISOString();
     let b = byHour.get(key);
     if (!b) { b = { apps: new Map(), work: 0, nonwork: 0, unknown: 0, idle: 0, locked: 0 }; byHour.set(key, b); }
     const aMin = it.activeSeconds / 60;

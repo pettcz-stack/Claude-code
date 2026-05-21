@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer';
 import { prisma } from '../db.js';
 import { config } from '../config.js';
 import { minutesLabel } from '../util.js';
+import { floorToDay, addDays, dayKey } from './tz.js';
 
 type ReportRow = {
   displayName: string;
@@ -59,7 +60,7 @@ function renderHtml(rows: ReportRow[], from: Date, to: Date): string {
     .join('');
   return `
     <h2>WorkView – souhrn aktivity</h2>
-    <p>Období: ${from.toISOString().slice(0, 10)} – ${to.toISOString().slice(0, 10)} (UTC)</p>
+    <p>Období: ${dayKey(from)} – ${dayKey(to)}</p>
     <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-family:sans-serif;font-size:13px">
       <thead style="background:#f3f4f6">
         <tr><th align="left">Zaměstnanec</th><th align="left">Oddělení</th><th>Aktivní</th><th>Nečinnost</th><th>Úhozy/min</th></tr>
@@ -73,11 +74,10 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
 }
 
-/** Sestaví a odešle report za posledních `rangeDays` (do začátku dnešního UTC dne). */
+/** Sestaví a odešle report za posledních `rangeDays` (do začátku dnešního místního dne). */
 export async function sendReport(): Promise<{ recipients: number; rows: number }> {
-  const to = new Date();
-  to.setUTCHours(0, 0, 0, 0);
-  const from = new Date(to.getTime() - config.report.rangeDays * 24 * 60 * 60 * 1000);
+  const to = floorToDay(new Date());
+  const from = addDays(to, -config.report.rangeDays);
 
   const rows = await buildReportRows(from, to);
 
@@ -91,7 +91,7 @@ export async function sendReport(): Promise<{ recipients: number; rows: number }
   await transporter.sendMail({
     from: config.smtp.from,
     to: config.report.recipients.join(','),
-    subject: `WorkView souhrn ${from.toISOString().slice(0, 10)} – ${to.toISOString().slice(0, 10)}`,
+    subject: `WorkView souhrn ${dayKey(from)} – ${dayKey(to)}`,
     html: renderHtml(rows, from, to),
   });
 

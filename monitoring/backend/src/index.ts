@@ -10,6 +10,7 @@ import { ensureDefaultWebRules } from './services/classify.js';
 import { ensureDefaultTips } from './services/tips.js';
 import { ensureDefaultSites } from './services/sites.js';
 import { cq } from './services/cachedQueries.js';
+import { floorToDay, addDays } from './services/tz.js';
 import { sendReport } from './services/report.js';
 import { runAlertChecks } from './services/alerts.js';
 
@@ -32,12 +33,11 @@ const server = app.listen(config.port, async () => {
   setInterval(() => void warmCache(), 4 * 60_000);
 });
 
-/** Výchozí období dashboardu (poslední 30 dní), shodné s frontendem. */
+/** Výchozí období dashboardu (poslední 30 dní), shodné s frontendem. Místní čas (ČR). */
 function defaultRange(): { from: string; to: string } {
-  const now = new Date();
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const from = new Date(start); from.setUTCDate(from.getUTCDate() - 29);
-  const to = new Date(start); to.setUTCDate(to.getUTCDate() + 1);
+  const today = floorToDay(new Date());
+  const from = addDays(today, -29);
+  const to = addDays(today, 1);
   return { from: from.toISOString(), to: to.toISOString() };
 }
 
