@@ -16,7 +16,7 @@ proběhne na Windows.
 ## 2. Tichá instalace
 ```
 msiexec /i WorkViewAgent.msi /qn ^
-  BACKENDURL=https://<server> INGESTTOKEN=<token> INTERVALSECONDS=60 CAPTURETITLE=1
+  BACKENDURL=https://<server> INGESTTOKEN=<token> INTERVALSECONDS=60 SENDINTERVALSECONDS=900 CAPTURETITLE=1
 ```
 Ověř:
 - [ ] služba **`MAWin32`** existuje a běží (`services.msc` nebo `sc query MAWin32`),

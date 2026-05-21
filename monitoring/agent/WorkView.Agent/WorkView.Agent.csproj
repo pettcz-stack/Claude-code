@@ -19,6 +19,8 @@
   <ItemGroup>
     <!-- V SDK-style net48 není System.Net.Http implicitně referencováno. -->
     <Reference Include="System.Net.Http" />
+    <!-- GZip komprese odesílané dávky (menší přenos po síti). -->
+    <Reference Include="System.IO.Compression" />
   </ItemGroup>
 
 </Project>

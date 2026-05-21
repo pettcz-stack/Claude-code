@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -51,15 +53,35 @@ namespace WorkView.Agent
 
             try
             {
-                using (StringContent content = new StringContent(sb.ToString(), Encoding.UTF8, "application/json"))
-                using (HttpResponseMessage resp = await _http.PostAsync(_cfg.BackendUrl + "/api/v1/ingest", content))
+                // GZip – JSON se komprimuje řádově 5–10×, šetří přenos po síti.
+                // Backend (body-parser) gzip požadavky transparentně dekomprimuje.
+                byte[] gz = Gzip(sb.ToString());
+                using (ByteArrayContent content = new ByteArrayContent(gz))
                 {
-                    return resp.IsSuccessStatusCode;
+                    content.Headers.ContentType = new MediaTypeHeaderValue("application/json") { CharSet = "utf-8" };
+                    content.Headers.ContentEncoding.Add("gzip");
+                    using (HttpResponseMessage resp = await _http.PostAsync(_cfg.BackendUrl + "/api/v1/ingest", content))
+                    {
+                        return resp.IsSuccessStatusCode;
+                    }
                 }
             }
             catch
             {
                 return false; // síťová chyba – necháme v bufferu na příště
+            }
+        }
+
+        private static byte[] Gzip(string json)
+        {
+            byte[] raw = Encoding.UTF8.GetBytes(json);
+            using (MemoryStream ms = new MemoryStream())
+            {
+                using (GZipStream gzip = new GZipStream(ms, CompressionMode.Compress, true))
+                {
+                    gzip.Write(raw, 0, raw.Length);
+                }
+                return ms.ToArray();
             }
         }
     }

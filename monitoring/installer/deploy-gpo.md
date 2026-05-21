@@ -19,7 +19,10 @@ Cíl: tichá vzdálená instalace `.msi` na firemní Windows PC přes Group Poli
    nezadávaly ručně). Vytvoř transform `config.mst`, který nastaví property:
    - `BACKENDURL = https://workview.firma.cz`
    - `INGESTTOKEN = <token>`
-   - `INTERVALSECONDS = 60`
+   - `INTERVALSECONDS = 60` (délka agregačního intervalu = jeden záznam; granularita)
+   - `SENDINTERVALSECONDS = 900` (jak často se dávka odešle; výchozí 15 min)
+   - `COMPANYNETWORKONLY = 0` (na `1` = odesílat jen z firemní sítě / VPN)
+   - `COMPANYPROBEHOST =` (interní-only jméno k ověření firemní sítě; prázdné = host z BACKENDURL)
 
    Transform lze vyrobit nástrojem Orca (Microsoft) nebo `dark`/`torch` (WiX):
    uprav tabulku `Property` a ulož jako `.mst` vedle MSI na sdílení.

@@ -22,7 +22,7 @@ o obcházení monitoringu. **Nezpracovává obsah** činnosti.
 
 ## 3. Co agent sbírá a co NE
 
-**Sbírá (jen agregované metriky za interval, výchozí po minutě, odesílá se po 5 min):**
+**Sbírá (jen agregované metriky za interval, výchozí po minutě, odesílá se dávkově po 15 min, gzip):**
 - aktivní vs. nečinný čas (nečinnost = 5 min bez vstupu/přepnutí okna),
 - název aktivní **aplikace** (proces, např. `winword.exe`),
 - **titulek aktivního okna** (volitelné; pro rozlišení práce/zábava, např. „Jira" vs „YouTube"),
@@ -40,8 +40,10 @@ zpráv/souborů, zvuk z mikrofonu, obraz z kamery, polohu mimo pracoviště.
                                           [Dashboard] ◄── čte z DB (po přihlášení)
 ```
 
-1. Agent lokálně agreguje metriky a každých ~5 minut je odešle **šifrovaně přes
-   HTTPS** na firemní backend. Při výpadku sítě data drží v lokálním bufferu.
+1. Agent lokálně agreguje metriky (výchozí po minutě) a dávkově je každých ~15 minut
+   odešle **šifrovaně přes HTTPS** na firemní backend. Tělo je **gzip** komprimované
+   (~10× menší přenos). Při výpadku sítě nebo mimo firemní síť data drží v odolném
+   lokálním bufferu (`%ProgramData%\WorkView\spool.ndjson`) a odešle je, až se připojí.
 2. Backend data ověří (token zařízení), uloží do databáze a průběžně agreguje
    (hodinové souhrny, skóre, detekce praktik).
 3. **Dashboard** je webové rozhraní servírované týmž backendem. Oprávněná osoba

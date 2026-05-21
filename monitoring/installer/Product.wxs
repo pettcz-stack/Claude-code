@@ -7,7 +7,8 @@
   spouští do session přihlášeného uživatele a po ukončení ho znovu nahodí.
 
   Konfigurace serveru se předává property:
-    BACKENDURL, INGESTTOKEN, INTERVALSECONDS, CAPTURETITLE
+    BACKENDURL, INGESTTOKEN, INTERVALSECONDS, SENDINTERVALSECONDS, CAPTURETITLE,
+    COMPANYNETWORKONLY, COMPANYPROBEHOST
   buď na příkazové řádce, nebo MST transformem pro GPO (viz deploy-gpo.md).
 
   Build vyžaduje rozšíření WixToolset.Util (kvůli automatickému restartu služby):
@@ -29,7 +30,10 @@
     <Property Id="BACKENDURL" Value="https://workview.firma.cz" />
     <Property Id="INGESTTOKEN" Value="" />
     <Property Id="INTERVALSECONDS" Value="60" />
+    <Property Id="SENDINTERVALSECONDS" Value="900" />
     <Property Id="CAPTURETITLE" Value="0" />
+    <Property Id="COMPANYNETWORKONLY" Value="0" />
+    <Property Id="COMPANYPROBEHOST" Value="" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="WorkView" />
@@ -87,7 +91,10 @@
           <RegistryValue Name="BackendUrl" Type="string" Value="[BACKENDURL]" KeyPath="yes" />
           <RegistryValue Name="IngestToken" Type="string" Value="[INGESTTOKEN]" />
           <RegistryValue Name="IntervalSeconds" Type="string" Value="[INTERVALSECONDS]" />
+          <RegistryValue Name="SendIntervalSeconds" Type="string" Value="[SENDINTERVALSECONDS]" />
           <RegistryValue Name="CaptureWindowTitle" Type="string" Value="[CAPTURETITLE]" />
+          <RegistryValue Name="CompanyNetworkOnly" Type="string" Value="[COMPANYNETWORKONLY]" />
+          <RegistryValue Name="CompanyProbeHost" Type="string" Value="[COMPANYPROBEHOST]" />
         </RegistryKey>
       </Component>
 

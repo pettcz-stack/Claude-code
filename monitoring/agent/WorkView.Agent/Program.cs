@@ -20,6 +20,7 @@ namespace WorkView.Agent
         private static volatile bool _sessionLocked;
         private static LocalBuffer _buffer;
         private static Sender _sender;
+        private static AgentConfig _cfg;
         private static bool _sending;
 
         [STAThread]
@@ -47,6 +48,7 @@ namespace WorkView.Agent
                 try { System.Diagnostics.Process.GetCurrentProcess().PriorityClass = System.Diagnostics.ProcessPriorityClass.BelowNormal; }
                 catch { /* nepodstatné, pokračuj */ }
 
+                _cfg = cfg;
                 _buffer = new LocalBuffer();
                 _sender = new Sender(cfg);
 
@@ -58,9 +60,9 @@ namespace WorkView.Agent
 
                     SystemEvents.SessionSwitch += OnSessionSwitch;
 
-                    // Odesílací smyčka – každých 30 s zkusí odeslat nasbírané dávky.
-                    // Odesílání dávek jednou za 5 minut (mezitím se data bufferují lokálně).
-                    System.Windows.Forms.Timer sendTimer = new System.Windows.Forms.Timer { Interval = 5 * 60 * 1000 };
+                    // Odesílání dávek v konfigurovatelném intervalu (výchozí 15 minut).
+                    // Mezitím se data hromadí v lokálním bufferu (přežijí restart i výpadek sítě).
+                    System.Windows.Forms.Timer sendTimer = new System.Windows.Forms.Timer { Interval = cfg.SendIntervalSeconds * 1000 };
                     sendTimer.Tick += async (s, e) => await TrySendAsync();
                     sendTimer.Start();
 
@@ -97,6 +99,8 @@ namespace WorkView.Agent
         private static async System.Threading.Tasks.Task TrySendAsync()
         {
             if (_sending) return;
+            // Když je zapnuté „jen z firemní sítě" a nejsme v ní, nech data v bufferu.
+            if (_cfg.CompanyNetworkOnly && !NetworkGuard.OnCompanyNetwork(_cfg.CompanyProbeHost)) return;
             _sending = true;
             try
             {
