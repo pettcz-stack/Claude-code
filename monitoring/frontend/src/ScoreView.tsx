@@ -76,7 +76,7 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card title="Tempo psaní" icon={<Keyboard size={13} />}>
           {s.avgKpm} <span className="text-sm font-normal muted">úhozů/min</span>
-          <div className="mt-1 text-xs font-normal text-emerald-500">rychlejší než {s.kpmPercentile} % firmy {s.kpmPercentile >= 50 ? '🎉' : ''}</div>
+          <div className="mt-1 text-xs font-normal text-emerald-500">píše rychleji než {s.kpmPercentile} % firmy {s.kpmPercentile >= 50 ? '🎉' : ''}</div>
         </Card>
         <Card title="Aktivní práce" icon={<Clock size={13} />} accent="text-emerald-500">{minutesToHm(s.workMinutes)}</Card>
         <Card title="Mimopracovní" icon={<AlertTriangle size={13} />} accent="text-red-500">{minutesToHm(s.nonWorkMinutes)}</Card>

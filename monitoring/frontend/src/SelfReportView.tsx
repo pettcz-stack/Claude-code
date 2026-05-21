@@ -36,13 +36,13 @@ function badges(r: SelfReportData): string[] {
   return b.length ? b : ['🌱 Začátečník'];
 }
 
-function Compare({ icon, label, pct, color }: { icon: React.ReactNode; label: string; pct: number; color: string }) {
+function Compare({ icon, label, pct, color, note }: { icon: React.ReactNode; label: string; pct: number; color: string; note: string }) {
   return (
     <div className="card p-4">
       <div className="mb-2 flex items-center gap-2 text-sm">{icon} {label}</div>
       <div className="mb-1 flex items-end justify-between">
         <span className="text-3xl font-bold" style={{ color }}>{pct}%</span>
-        <span className="text-xs muted-2">lepší/rychlejší než tolik kolegů</span>
+        <span className="text-xs muted-2">{note}</span>
       </div>
       <div className="h-2.5 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
         <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
@@ -100,9 +100,9 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
       )}
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Compare icon={<Users size={15} className="text-emerald-600" />} label="Ve firmě" pct={r.companyPercentile} color="#10b981" />
-        <Compare icon={<Building2 size={15} className="text-emerald-600" />} label="Na oddělení" pct={r.deptPercentile} color="#0ea5e9" />
-        <Compare icon={<Keyboard size={15} className="text-emerald-600" />} label="Rychlost psaní" pct={r.kpmPercentile} color="#8b5cf6" />
+        <Compare icon={<Users size={15} className="text-emerald-600" />} label="Ve firmě" pct={r.companyPercentile} color="#10b981" note="efektivnější než tolik kolegů" />
+        <Compare icon={<Building2 size={15} className="text-emerald-600" />} label="Na oddělení" pct={r.deptPercentile} color="#0ea5e9" note="efektivnější než tolik kolegů" />
+        <Compare icon={<Keyboard size={15} className="text-emerald-600" />} label="Rychlost psaní" pct={r.kpmPercentile} color="#8b5cf6" note="píšeš rychleji než tolik kolegů" />
       </div>
 
       <div className="card p-5">
@@ -114,7 +114,7 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
           <Stat label="Monitory" value={r.monitorTypical ? `${r.monitorTypical} ${r.monitorTypical === 1 ? 'obrazovka' : 'obrazovky'}` : '—'} />
         </div>
         <p className="mt-4 flex items-center gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
-          <Trophy size={16} /> V psaní na klávesnici jsi rychlejší než <b>{r.kpmPercentile} %</b> zaměstnanců a celkově lepší než <b>{r.companyPercentile} %</b> firmy. Skvělé!
+          <Trophy size={16} /> V psaní na klávesnici píšeš rychleji než <b>{r.kpmPercentile} %</b> kolegů a celkově jsi efektivnější než <b>{r.companyPercentile} %</b> firmy. Skvělé!
         </p>
       </div>
 
