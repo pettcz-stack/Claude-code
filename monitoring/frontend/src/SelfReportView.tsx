@@ -26,14 +26,29 @@ function rotate<T>(arr: T[], counter: number): T | undefined {
   return arr.length ? arr[counter % arr.length] : undefined;
 }
 
-function badges(r: SelfReportData): string[] {
-  const b: string[] = [];
-  if (r.kpmPercentile >= 80) b.push('🏎️ Rychloprsťák');
-  if (r.score >= 70) b.push('⭐ Tahoun týmu');
-  if (r.companyPercentile >= 75) b.push('🏆 TOP firmy');
-  if (r.appSwitchesPerHour > 0 && r.appSwitchesPerHour <= 8) b.push('🎯 Soustředěný');
-  if (r.nonWorkPct <= 5) b.push('💎 Bez rozptýlení');
-  return b.length ? b : ['🌱 Začátečník'];
+// Sada odznaků pro zábavný režim – hravé ocenění různých stránek práce.
+type Badge = { emoji: string; name: string; desc: string; earned: (r: SelfReportData) => boolean };
+const BADGES: Badge[] = [
+  { emoji: '🚀', name: 'Stroj na výkon', desc: 'Skóre 90 % a více', earned: (r) => r.score >= 90 },
+  { emoji: '⭐', name: 'Tahoun týmu', desc: 'Skóre 75–89 %', earned: (r) => r.score >= 75 && r.score < 90 },
+  { emoji: '🏆', name: 'Šampion firmy', desc: 'Efektivnější než 90 % firmy', earned: (r) => r.companyPercentile >= 90 },
+  { emoji: '🥇', name: 'Hvězda oddělení', desc: 'Mezi nej v oddělení (90 %+)', earned: (r) => r.deptPercentile >= 90 },
+  { emoji: '🏎️', name: 'Rychloprsťák', desc: 'Píše rychleji než 80 % firmy', earned: (r) => r.kpmPercentile >= 80 },
+  { emoji: '⌨️', name: 'Klávesový mág', desc: 'Tempo 200+ úhozů/min', earned: (r) => r.avgKpm >= 200 },
+  { emoji: '🎯', name: 'Soustředěný', desc: 'Málo přepínání oken (≤ 8/h)', earned: (r) => r.appSwitchesPerHour > 0 && r.appSwitchesPerHour <= 8 },
+  { emoji: '🧘', name: 'Mistr fokusu', desc: 'Minimum rozptýlení (≤ 5/h)', earned: (r) => r.appSwitchesPerHour > 0 && r.appSwitchesPerHour <= 5 },
+  { emoji: '💎', name: 'Bez rozptýlení', desc: 'Mimopráce do 5 %', earned: (r) => r.nonWorkPct <= 5 },
+  { emoji: '🛡️', name: 'Čisté triko', desc: 'Žádná mimopráce', earned: (r) => r.nonWorkPct === 0 },
+  { emoji: '🖥️', name: 'Dvojitý výhled', desc: 'Většinu času na 2+ monitorech', earned: (r) => r.multiMonitorPct >= 50 },
+  { emoji: '🐝', name: 'Pracovitá včelka', desc: '140+ hodin aktivní práce', earned: (r) => r.activeHours >= 140 },
+  { emoji: '🔥', name: 'Na plný plyn', desc: '170+ hodin aktivní práce', earned: (r) => r.activeHours >= 170 },
+  { emoji: '🏃', name: 'Maraton prstů', desc: 'Prsty „ušly" přes 5 km', earned: (r) => r.distanceMeters >= 5000 },
+  { emoji: '💪', name: 'Spalovač', desc: '400+ kcal spáleno psaním', earned: (r) => r.caloriesTyping >= 400 },
+  { emoji: '⚡', name: 'Úhozový král', desc: '300 000+ úhozů za období', earned: (r) => r.keystrokeTotal >= 300000 },
+];
+function earnedBadges(r: SelfReportData): Badge[] {
+  const got = BADGES.filter((b) => b.earned(r));
+  return got.length ? got : [{ emoji: '🌱', name: 'Začátečník', desc: 'První odznaky na tebe čekají', earned: () => true }];
 }
 
 function Compare({ icon, label, pct, color, note }: { icon: React.ReactNode; label: string; pct: number; color: string; note: string }) {
@@ -120,12 +135,26 @@ export function SelfReportView({ user, from, to }: { user: User; from: string; t
       {/* Zábavný režim */}
       {funMode && (
         <div className="card p-5">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Sparkles size={16} className="text-amber-500" /> Zábavný režim</h3>
-          <div className="mb-4 flex flex-wrap gap-2">
-            {badges(r).map((b) => (
-              <span key={b} className="rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">{b}</span>
-            ))}
-          </div>
+          <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Sparkles size={16} className="text-amber-500" /> Zábavný režim</h3>
+          {(() => {
+            const got = earnedBadges(r);
+            return (
+              <>
+                <p className="mb-3 text-xs muted-2">Získané odznaky: <b>{got.length}</b> z {BADGES.length}. Sbírej je za výkon, soustředění i vytrvalost.</p>
+                <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {got.map((b) => (
+                    <div key={b.name} className="flex items-center gap-2.5 rounded-lg border border-amber-200 bg-amber-50 p-2.5 dark:border-amber-500/30 dark:bg-amber-500/10">
+                      <span className="shrink-0 text-2xl leading-none">{b.emoji}</span>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-amber-800 dark:text-amber-300">{b.name}</div>
+                        <div className="text-[11px] leading-tight muted-2">{b.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
           {funFact && (
             <div className="mb-4 flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
               <Sparkles size={16} className="mt-0.5 shrink-0" /> <span><b>Věděl jsi?</b> {funFact.text}</span>
