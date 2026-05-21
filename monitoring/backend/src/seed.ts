@@ -176,15 +176,17 @@ async function main() {
   // Demo licence: reálné placené aplikace ALBIXON + seaty/cena (CZK/měsíc/licence).
   // Část je dobře využitá (zelená), část leží ladem (červená = úspora).
   // projectpro.exe nikdo nepoužívá → 100% plýtvání pro ukázku.
+  // Počty licencí naladěné pro ~100 lidí: část je předplacená „do foroty"
+  // (nevyužité licence = úspora), část dobře využitá.
   const LICENSES = [
-    { appName: 'sldworks.exe', category: 'CAD / Konstrukce', type: 'WORK', seats: 6, costPerSeat: 4500 }, // SolidWorks – drahé, málo využité
-    { appName: 'navision.exe', category: 'Podnikový systém', type: 'WORK', seats: 16, costPerSeat: 1500 }, // Microsoft Navision
-    { appName: 'crm.exe', category: 'CRM', type: 'WORK', seats: 12, costPerSeat: 1200 }, // Microsoft Dynamics CRM
-    { appName: 'econ.exe', category: 'Podnikový systém', type: 'WORK', seats: 6, costPerSeat: 800 }, // E-CON
-    { appName: 'excel.exe', category: 'Kancelář', type: 'WORK', seats: 16, costPerSeat: 350 }, // Office – dobře využité
-    { appName: 'code.exe', category: 'Vývoj', type: 'WORK', seats: 5, costPerSeat: 250 },
-    { appName: 'okbase.exe', category: 'Docházka / HR', type: 'WORK', seats: 16, costPerSeat: 120 },
-    { appName: 'projectpro.exe', category: 'Projektové řízení', type: 'WORK', seats: 10, costPerSeat: 900 }, // nikdo nepoužívá
+    { appName: 'sldworks.exe', category: 'CAD / Konstrukce', type: 'WORK', seats: 25, costPerSeat: 4500 }, // SolidWorks – drahé, jen konstrukce
+    { appName: 'navision.exe', category: 'Podnikový systém', type: 'WORK', seats: 90, costPerSeat: 1500 }, // Microsoft Navision
+    { appName: 'crm.exe', category: 'CRM', type: 'WORK', seats: 55, costPerSeat: 1200 }, // Microsoft Dynamics CRM
+    { appName: 'econ.exe', category: 'Podnikový systém', type: 'WORK', seats: 12, costPerSeat: 800 }, // E-CON
+    { appName: 'excel.exe', category: 'Kancelář', type: 'WORK', seats: 110, costPerSeat: 350 }, // Office – téměř všichni
+    { appName: 'code.exe', category: 'Vývoj', type: 'WORK', seats: 10, costPerSeat: 250 },
+    { appName: 'okbase.exe', category: 'Docházka / HR', type: 'WORK', seats: 12, costPerSeat: 120 },
+    { appName: 'projectpro.exe', category: 'Projektové řízení', type: 'WORK', seats: 15, costPerSeat: 900 }, // nikdo nepoužívá → 100% plýtvání
   ];
   // Vyčisti staré licence (ať audit ukazuje jen aktuální sadu).
   await prisma.appCategory.updateMany({ data: { licensed: false, seats: null, costPerSeat: null } });
