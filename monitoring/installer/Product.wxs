@@ -27,14 +27,18 @@
     <MajorUpgrade DowngradeErrorMessage="Je nainstalována novější verze." />
     <MediaTemplate EmbedCab="yes" />
 
-    <Property Id="BACKENDURL" Value="https://workview.firma.cz" />
-    <Property Id="INGESTTOKEN" Value="" />
-    <Property Id="INTERVALSECONDS" Value="60" />
-    <Property Id="SENDINTERVALSECONDS" Value="900" />
-    <Property Id="CAPTURETITLE" Value="0" />
-    <Property Id="IDLESECONDS" Value="300" />
-    <Property Id="COMPANYNETWORKONLY" Value="0" />
-    <Property Id="COMPANYPROBEHOST" Value="" />
+    <!-- Konfigurace serveru. Secure="yes" je nutné, aby se hodnoty z příkazové
+         řádky přenesly i do elevované (per-machine) části instalace, která zapisuje
+         registr. INGESTTOKEN je navíc Hidden (nezaloguje se). Properties bez výchozí
+         hodnoty (token, probe host) nesmí mít prázdný Value (WiX v5 to zakazuje). -->
+    <Property Id="BACKENDURL" Value="https://workview.firma.cz" Secure="yes" />
+    <Property Id="INGESTTOKEN" Secure="yes" Hidden="yes" />
+    <Property Id="INTERVALSECONDS" Value="60" Secure="yes" />
+    <Property Id="SENDINTERVALSECONDS" Value="900" Secure="yes" />
+    <Property Id="CAPTURETITLE" Value="0" Secure="yes" />
+    <Property Id="IDLESECONDS" Value="300" Secure="yes" />
+    <Property Id="COMPANYNETWORKONLY" Value="0" Secure="yes" />
+    <Property Id="COMPANYPROBEHOST" Secure="yes" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="WorkView" />
