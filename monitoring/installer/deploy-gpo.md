@@ -21,6 +21,8 @@ Cíl: tichá vzdálená instalace `.msi` na firemní Windows PC přes Group Poli
    - `INGESTTOKEN = <token>`
    - `INTERVALSECONDS = 60` (délka agregačního intervalu = jeden záznam; granularita)
    - `SENDINTERVALSECONDS = 900` (jak často se dávka odešle; výchozí 15 min)
+   - `IDLESECONDS = 300` (po kolika sekundách bez vstupu se interval bere jako nečinnost)
+   - `CAPTURETITLE = 0` (na `1` = ukládat i titulek aktivního okna; jinak jen název procesu)
    - `COMPANYNETWORKONLY = 0` (na `1` = odesílat jen z firemní sítě / VPN)
    - `COMPANYPROBEHOST =` (interní-only jméno k ověření firemní sítě; prázdné = host z BACKENDURL)
 
@@ -49,7 +51,12 @@ Cíl: tichá vzdálená instalace `.msi` na firemní Windows PC přes Group Poli
 
 7. **Ověření**
    - Na klientu: klíč `HKLM\SOFTWARE\WorkView` obsahuje `BackendUrl/IngestToken`.
-   - Agent startuje při příštím přihlášení uživatele (ikona v oznamovací oblasti).
+   - Agent startuje při příštím přihlášení uživatele a běží **tiše na pozadí**
+     (bez okna a bez ikony v liště – transparentnost dle §316 ZP je zajištěna
+     písemným poučením zaměstnanců). Ikona v oznamovací oblasti se objeví jen
+     tehdy, když je v administraci zapnutý zaměstnanecký report.
+   - Ověř běh: ve `services.msc` běží služba `MAWin32` a v Task Manageru proces
+     `MA win 32.exe` v session přihlášeného uživatele.
    - V dashboardu se po pár intervalech objeví zařízení a data.
 
 ## Upgrade / odinstalace

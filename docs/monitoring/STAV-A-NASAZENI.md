@@ -9,10 +9,14 @@
 - Skóre efektivity, kategorizace činnosti (práce/mimopráce) z aplikací i titulků oken.
 - Detekce nepovolených praktik (simulátor myši, předmět na klávesnici, automatizace).
 - Přehled firmy (KPI, oddělení, heatmapa „kdy se pracuje"), trendy, žebříček.
-- Home Office vyhodnocení (efektivita HO vs. kancelář), počet monitorů, fragmentace pozornosti.
-- Report zaměstnance s anonymizovaným srovnáním + volitelné režimy: zábavný, zdravotní, rozvojový.
+- Home Office vyhodnocení (efektivita HO vs. kancelář, rozdíl v procentních bodech), počet monitorů, fragmentace pozornosti.
+- **Spravedlivé hodnocení**: dovolená/nemoc/státní svátky se nezapočítávají proti zaměstnanci (fond pracovní doby se o ně krátí); volitelný handicap pro práci na jednom monitoru.
+- **Lokalita PC podle firemní sítě** (ne GPS): rozpozná provozovnu/pobočku/závod z lokální podsítě; přes VPN z domova zůstává „Mimo firmu". Provozovny lze v administraci přidávat, měnit i odebírat.
+- **Report zaměstnance** (defaultně vypnutý, zapínatelný v administraci): vlastní data za den (% práce / % mimopráce na PC / % neměřitelné), aktuální lokalita, kulantní anonymizované srovnání, sada odznaků; zaměstnanec vidí jen svá data (token vázaný na jeho účet). Při zapnutí se agentovi zobrazí ikonka v liště.
+- Barevné spektrum (červená→oranžová→žlutá→zelená) napříč aplikací; mimopracovní čas je všude červený, vč. kalendáře (s náhledem použitých aplikací).
 - E-mailová upozornění (praktiky + výpadek agenta), nastavení v UI, role ADMIN/VIEWER, audit přístupů.
-- Export do Excelu, světlý/tmavý režim, 20 automatických testů (zelené).
+- Výkon při 100+ uživatelích a roky dat: předpočítané denní statistiky + cache (studené načtení v desítkách ms).
+- Export do Excelu, světlý/tmavý režim, automatické testy (zelené).
 
 **Windows agent + watchdog + instalátor (kód kompletní):**
 - Agent (`MA win 32.exe`): sběr jen agregovaných metrik, bez obsahu; tichý běh.

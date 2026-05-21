@@ -8,7 +8,7 @@
 
   Konfigurace serveru se předává property:
     BACKENDURL, INGESTTOKEN, INTERVALSECONDS, SENDINTERVALSECONDS, CAPTURETITLE,
-    COMPANYNETWORKONLY, COMPANYPROBEHOST
+    IDLESECONDS, COMPANYNETWORKONLY, COMPANYPROBEHOST
   buď na příkazové řádce, nebo MST transformem pro GPO (viz deploy-gpo.md).
 
   Build vyžaduje rozšíření WixToolset.Util (kvůli automatickému restartu služby):
@@ -32,6 +32,7 @@
     <Property Id="INTERVALSECONDS" Value="60" />
     <Property Id="SENDINTERVALSECONDS" Value="900" />
     <Property Id="CAPTURETITLE" Value="0" />
+    <Property Id="IDLESECONDS" Value="300" />
     <Property Id="COMPANYNETWORKONLY" Value="0" />
     <Property Id="COMPANYPROBEHOST" Value="" />
 
@@ -93,6 +94,7 @@
           <RegistryValue Name="IntervalSeconds" Type="string" Value="[INTERVALSECONDS]" />
           <RegistryValue Name="SendIntervalSeconds" Type="string" Value="[SENDINTERVALSECONDS]" />
           <RegistryValue Name="CaptureWindowTitle" Type="string" Value="[CAPTURETITLE]" />
+          <RegistryValue Name="IdleThresholdSeconds" Type="string" Value="[IDLESECONDS]" />
           <RegistryValue Name="CompanyNetworkOnly" Type="string" Value="[COMPANYNETWORKONLY]" />
           <RegistryValue Name="CompanyProbeHost" Type="string" Value="[COMPANYPROBEHOST]" />
         </RegistryKey>

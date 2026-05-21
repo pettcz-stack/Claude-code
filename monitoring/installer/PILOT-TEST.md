@@ -27,6 +27,10 @@ Ověř:
 - Pracuj ~10 minut (myš, klávesnice, přepínání aplikací, prohlížeč).
 - [ ] V dashboardu se objeví zařízení a po pár minutách aktivita,
 - [ ] sedí počet monitorů, aktivní/nečinný čas, kategorie z titulků oken,
+- [ ] **lokalita**: pokud má testovací PC IP z některé nakonfigurované podsítě
+      provozovny (Nastavení → Provozovny), zobrazí se název pobočky; jinak
+      „Mimo firmu". Přes VPN z domova musí zůstat „Mimo firmu" (čte se lokální
+      adaptér, ne firemní VPN IP),
 - [ ] při odpojení sítě se data nakešují (`%ProgramData%\WorkView\spool.ndjson`)
       a po obnově dorazí.
 
