@@ -224,6 +224,22 @@ model DailyStat {
   @@index([date])
 }
 
+/// Předpočítané denní využití aplikací a webů (pro audit softwaru a „Top aplikace/weby").
+/// Kolabuje stovky intervalů na pár řádků na uživatele a den → rychlé i nad roky dat.
+model DailyAppStat {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime
+  kind      String // APP | SITE
+  label     String // proces (chrome.exe) nebo titulek okna
+  category  String
+  type      String // WORK | NON_WORK | NEUTRAL | UNKNOWN
+  activeMin Float    @default(0)
+
+  @@unique([userId, date, kind, label])
+  @@index([date, kind])
+}
+
 /// Účet pro přístup do dashboardu (role ADMIN | VIEWER).
 model AdminUser {
   id           String   @id @default(cuid())

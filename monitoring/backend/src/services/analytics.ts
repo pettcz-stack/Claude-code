@@ -79,9 +79,6 @@ export async function topActivities(
   userId?: string,
   department?: string,
 ): Promise<{ apps: ActivityItem[]; sites: ActivityItem[] }> {
-  const catMap = await getCategoryMap();
-  const webRules = await getWebRules();
-
   const userIds = userId
     ? [userId]
     : (
@@ -91,31 +88,19 @@ export async function topActivities(
         })
       ).map((u) => u.id);
 
-  const intervals = await prisma.activityInterval.findMany({
-    where: { userId: { in: userIds }, intervalStart: { gte: from, lt: to } },
-    select: { activeSeconds: true, foregroundApp: true, windowTitle: true },
+  // Z předpočítaného denního využití (rychlé i nad roky dat).
+  const rows = await prisma.dailyAppStat.findMany({
+    where: { userId: { in: userIds }, date: { gte: from, lt: to } },
+    select: { kind: true, label: true, category: true, type: true, activeMin: true },
   });
-
   const apps = new Map<string, ActivityItem>();
   const sites = new Map<string, ActivityItem>();
-  const BROWSERS = new Set(['chrome.exe', 'msedge.exe', 'firefox.exe']);
-
-  for (const it of intervals) {
-    const m = it.activeSeconds / 60;
-    if (m <= 0 || !it.foregroundApp) continue;
-    const info = classifyActivity(catMap, webRules, it.foregroundApp, it.windowTitle);
-
-    const a = apps.get(it.foregroundApp) ?? { label: it.foregroundApp, category: info.category, type: info.type, minutes: 0 };
-    a.minutes += m;
-    apps.set(it.foregroundApp, a);
-
-    if (BROWSERS.has(it.foregroundApp) && it.windowTitle) {
-      const s = sites.get(it.windowTitle) ?? { label: it.windowTitle, category: info.category, type: info.type, minutes: 0 };
-      s.minutes += m;
-      sites.set(it.windowTitle, s);
-    }
+  for (const r of rows) {
+    const target = r.kind === 'SITE' ? sites : apps;
+    const cur = target.get(r.label) ?? { label: r.label, category: r.category, type: r.type as CatType, minutes: 0 };
+    cur.minutes += r.activeMin;
+    target.set(r.label, cur);
   }
-
   const round = (x: ActivityItem) => ({ ...x, minutes: Math.round(x.minutes) });
   const top = (map: Map<string, ActivityItem>, n: number) =>
     Array.from(map.values()).sort((a, b) => b.minutes - a.minutes).slice(0, n).map(round);
@@ -391,8 +376,6 @@ export async function homeOffice(from: Date, to: Date, department?: string): Pro
   const ids = users.map((u) => u.id);
   const expectedPerDay = config.expectedWorkHoursPerDay * 60;
   const totalWorkdays = countWorkdays(from, to);
-  const catMap = await getCategoryMap();
-  const webRules = await getWebRules();
 
   // HO dny z OKbase (Absence type HOME_OFFICE)
   const abs = await prisma.absence.findMany({
@@ -406,25 +389,21 @@ export async function homeOffice(from: Date, to: Date, department?: string): Pro
     s.add(dk(a.date));
   }
 
-  const intervals = await prisma.activityInterval.findMany({
-    where: { userId: { in: ids }, intervalStart: { gte: from, lt: to } },
-    select: { userId: true, intervalStart: true, activeSeconds: true, foregroundApp: true, windowTitle: true },
+  // Z denních souhrnů: práce/mimopráce na den → rozdělíme dle HO/kancelář.
+  const daily = await prisma.dailyStat.findMany({
+    where: { userId: { in: ids }, date: { gte: from, lt: to } },
+    select: { userId: true, date: true, workMin: true, nonWorkMin: true },
   });
-
   type B = { work: number; nonwork: number };
   const acc = new Map<string, { ho: B; office: B }>();
   for (const u of ids) acc.set(u, { ho: { work: 0, nonwork: 0 }, office: { work: 0, nonwork: 0 } });
-  for (const it of intervals) {
-    const m = it.activeSeconds / 60;
-    if (m <= 0) continue;
-    const set = hoDaysByUser.get(it.userId);
-    const isHO = set ? set.has(dk(it.intervalStart)) : false;
-    const info = classifyActivity(catMap, webRules, it.foregroundApp, it.windowTitle);
-    const a = acc.get(it.userId)!;
+  for (const r of daily) {
+    const set = hoDaysByUser.get(r.userId);
+    const isHO = set ? set.has(dk(r.date)) : false;
+    const a = acc.get(r.userId)!;
     const b = isHO ? a.ho : a.office;
-    if (info.type === 'NON_WORK') b.nonwork += m;
-    else if (info.type === 'UNKNOWN') { /* nezařazeno – vyjmuto */ }
-    else b.work += m;
+    b.work += r.workMin;
+    b.nonwork += r.nonWorkMin;
   }
 
   const score = (work: number, days: number) => (days > 0 ? clampPct((work / (days * expectedPerDay)) * 100) : 0);
@@ -564,17 +543,24 @@ export async function monitorsComparison(from: Date, to: Date, department?: stri
   const expected = countWorkdays(from, to) * config.expectedWorkHoursPerDay * 60;
   const scores = await perUser(ids, from, to);
 
-  // typický počet monitorů na uživatele (vážený aktivním časem)
-  const rows = await prisma.activityInterval.findMany({
-    where: { userId: { in: ids }, intervalStart: { gte: from, lt: to }, monitorCount: { not: null } },
-    select: { userId: true, activeSeconds: true, monitorCount: true },
+  // typický počet monitorů + dominantní pracovní kategorie z denních souhrnů
+  const daily = await prisma.dailyStat.findMany({
+    where: { userId: { in: ids }, date: { gte: from, lt: to } },
+    select: { userId: true, workMin: true, monitorTop: true, domWorkCat: true },
   });
   const monByUser = new Map<string, Map<number, number>>();
-  for (const r of rows) {
-    if (!r.monitorCount || r.activeSeconds <= 0) continue;
-    let m = monByUser.get(r.userId);
-    if (!m) (m = new Map()), monByUser.set(r.userId, m);
-    m.set(r.monitorCount, (m.get(r.monitorCount) ?? 0) + r.activeSeconds);
+  const catByUser = new Map<string, Map<string, number>>();
+  for (const r of daily) {
+    if (r.monitorTop > 0) {
+      let m = monByUser.get(r.userId);
+      if (!m) (m = new Map()), monByUser.set(r.userId, m);
+      m.set(r.monitorTop, (m.get(r.monitorTop) ?? 0) + 1); // počet dní
+    }
+    if (r.domWorkCat) {
+      let cm = catByUser.get(r.userId);
+      if (!cm) (cm = new Map()), catByUser.set(r.userId, cm);
+      cm.set(r.domWorkCat, (cm.get(r.domWorkCat) ?? 0) + r.workMin);
+    }
   }
   const typicalOf = (id: string): number => {
     const m = monByUser.get(id);
@@ -601,25 +587,9 @@ export async function monitorsComparison(from: Date, to: Date, department?: stri
   const singleIds = perUserOut.filter((u) => u.monitors <= 1).map((u) => u.userId);
   const candidates: MonitorAdvice[] = [];
   if (singleIds.length > 0) {
-    const catMap = await getCategoryMap();
-    const webRules = await getWebRules();
-    const appRows = await prisma.activityInterval.findMany({
-      where: { userId: { in: singleIds }, intervalStart: { gte: from, lt: to } },
-      select: { userId: true, foregroundApp: true, windowTitle: true, activeSeconds: true },
-    });
-    // dominantní WORK kategorie podle aktivních sekund
-    const byUser = new Map<string, Map<string, number>>();
-    for (const r of appRows) {
-      if (r.activeSeconds <= 0) continue;
-      const { category, type } = classifyActivity(catMap, webRules, r.foregroundApp, r.windowTitle);
-      if (type !== 'WORK') continue;
-      let m = byUser.get(r.userId);
-      if (!m) (m = new Map()), byUser.set(r.userId, m);
-      m.set(category, (m.get(category) ?? 0) + r.activeSeconds);
-    }
     for (const u of perUserOut) {
       if (u.monitors > 1) continue;
-      const m = byUser.get(u.userId);
+      const m = catByUser.get(u.userId);
       if (!m) continue;
       let domCat = '', domSec = 0;
       for (const [c, s] of m) if (s > domSec) ((domSec = s), (domCat = c));
@@ -679,18 +649,18 @@ export async function softwareAudit(from: Date, to: Date, department?: string): 
   const ids = users.map((u) => u.id);
   const workforce = Math.max(users.length, 1);
 
-  const rows = await prisma.activityInterval.findMany({
-    where: { userId: { in: ids }, intervalStart: { gte: from, lt: to }, foregroundApp: { not: null } },
-    select: { userId: true, activeSeconds: true, foregroundApp: true },
+  // Z předpočítaného denního využití aplikací (rychlé i nad roky dat).
+  const rows = await prisma.dailyAppStat.findMany({
+    where: { userId: { in: ids }, date: { gte: from, lt: to }, kind: 'APP' },
+    select: { userId: true, label: true, activeMin: true },
   });
-
-  // app → { sekundy, set uživatelů }
+  // app → { minuty, set uživatelů }
   const usage = new Map<string, { sec: number; users: Set<string> }>();
   for (const r of rows) {
-    if (!r.foregroundApp || r.activeSeconds <= 0) continue;
-    let u = usage.get(r.foregroundApp);
-    if (!u) (u = { sec: 0, users: new Set() }), usage.set(r.foregroundApp, u);
-    u.sec += r.activeSeconds;
+    if (r.activeMin <= 0) continue;
+    let u = usage.get(r.label);
+    if (!u) (u = { sec: 0, users: new Set() }), usage.set(r.label, u);
+    u.sec += r.activeMin * 60;
     u.users.add(r.userId);
   }
 

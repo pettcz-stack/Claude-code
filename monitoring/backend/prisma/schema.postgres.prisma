@@ -202,6 +202,20 @@ model DailyStat {
   @@index([date])
 }
 
+model DailyAppStat {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime
+  kind      String
+  label     String
+  category  String
+  type      String
+  activeMin Float    @default(0)
+
+  @@unique([userId, date, kind, label])
+  @@index([date, kind])
+}
+
 model AdminUser {
   id           String   @id @default(cuid())
   username     String   @unique

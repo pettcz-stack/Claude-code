@@ -136,6 +136,7 @@ async function main() {
   await prisma.activityInterval.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.activityHourly.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.dailyStat.deleteMany({ where: { userId: { in: userIds } } });
+  await prisma.dailyAppStat.deleteMany({ where: { userId: { in: userIds } } });
   await prisma.absence.deleteMany({ where: { userId: { in: userIds } } });
 
   const now = new Date();

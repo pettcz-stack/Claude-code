@@ -36,12 +36,17 @@ export async function aggregateDays(pairs: { userId: string; day: Date }[]): Pro
     });
     if (intervals.length === 0) {
       await prisma.dailyStat.deleteMany({ where: { userId, date: day } });
+      await prisma.dailyAppStat.deleteMany({ where: { userId, date: day } });
       continue;
     }
 
     let work = 0, nonwork = 0, idle = 0, unknown = 0, keystroke = 0, multiMon = 0;
     const catMin = new Map<string, number>();
     const monMin = new Map<number, number>();
+    type AppAgg = { category: string; type: string; min: number };
+    const appAgg = new Map<string, AppAgg>();
+    const siteAgg = new Map<string, AppAgg>();
+    const BROWSERS = new Set(['chrome.exe', 'msedge.exe', 'firefox.exe']);
     for (const it of intervals) {
       const aMin = it.activeSeconds / 60;
       idle += it.idleSeconds / 60;
@@ -55,6 +60,15 @@ export async function aggregateDays(pairs: { userId: string; day: Date }[]): Pro
       if (info.type === 'NON_WORK') nonwork += aMin;
       else if (info.type === 'UNKNOWN') unknown += aMin;
       else { work += aMin; catMin.set(info.category, (catMin.get(info.category) ?? 0) + aMin); }
+      // využití aplikací / webů
+      if (it.foregroundApp) {
+        const a = appAgg.get(it.foregroundApp) ?? { category: info.category, type: info.type, min: 0 };
+        a.min += aMin; appAgg.set(it.foregroundApp, a);
+        if (BROWSERS.has(it.foregroundApp) && it.windowTitle) {
+          const s = siteAgg.get(it.windowTitle) ?? { category: info.category, type: info.type, min: 0 };
+          s.min += aMin; siteAgg.set(it.windowTitle, s);
+        }
+      }
     }
     let monitorTop = 0, mb = -1; for (const [c, m] of monMin) if (m > mb) { mb = m; monitorTop = c; }
     let domWorkCat: string | null = null, db = -1; for (const [c, m] of catMin) if (m > db) { db = m; domWorkCat = c; }
@@ -66,6 +80,13 @@ export async function aggregateDays(pairs: { userId: string; day: Date }[]): Pro
       create: { userId, date: day, ...data },
       update: data,
     });
+    // přepiš denní využití aplikací/webů
+    await prisma.dailyAppStat.deleteMany({ where: { userId, date: day } });
+    const appRows = [
+      ...Array.from(appAgg.entries()).map(([label, a]) => ({ userId, date: day, kind: 'APP', label, category: a.category, type: a.type, activeMin: a.min })),
+      ...Array.from(siteAgg.entries()).map(([label, a]) => ({ userId, date: day, kind: 'SITE', label, category: a.category, type: a.type, activeMin: a.min })),
+    ];
+    if (appRows.length) await prisma.dailyAppStat.createMany({ data: appRows });
     written++;
   }
   return written;
