@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Plus, Trash2, Download, Upload } from 'lucide-react';
 import { api, type AppCategoryRow, type WebRuleRow } from './api.js';
 import { chipClass, typeLabel } from './util.js';
+import { useToast } from './Toast.js';
 
 const TYPES = ['WORK', 'NON_WORK', 'NEUTRAL', 'UNKNOWN'];
 
@@ -10,7 +11,7 @@ export function CategoryAdmin({ canEdit, from, to }: { canEdit: boolean; from: s
   const [rules, setRules] = useState<WebRuleRow[]>([]);
   const [newCat, setNewCat] = useState({ appName: '', category: '', type: 'WORK' });
   const [newRule, setNewRule] = useState({ keyword: '', category: '', type: 'NON_WORK' });
-  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const toast = useToast();
 
   function load() {
     api.adminCategories().then(setCats).catch(() => undefined);
@@ -31,10 +32,11 @@ export function CategoryAdmin({ canEdit, from, to }: { canEdit: boolean; from: s
     if (!text) return;
     try {
       const r = await api.classificationImport(JSON.parse(text));
-      setImportMsg(r.ok ? `Importováno: ${r.categories} aplikací, ${r.webRules} pravidel.` : `Chyba: ${r.error}`);
+      if (r.ok) toast(`Importováno: ${r.categories} aplikací, ${r.webRules} pravidel`);
+      else toast('Import selhal: ' + r.error, 'error');
       load();
     } catch {
-      setImportMsg('Neplatný JSON.');
+      toast('Neplatný JSON', 'error');
     }
   }
 
@@ -45,7 +47,6 @@ export function CategoryAdmin({ canEdit, from, to }: { canEdit: boolean; from: s
           <span className="text-sm font-medium">Dávková klasifikace:</span>
           <button onClick={doExport} className="btn-ghost"><Download size={15} /> Export nezařazených</button>
           <button onClick={doImport} className="btn-ghost"><Upload size={15} /> Import zařazení</button>
-          {importMsg && <span className="text-sm muted">{importMsg}</span>}
           <span className="text-xs muted-2">Vyexportuj nezařazené položky, nech je zařadit (např. asistentem) a naimportuj zpět.</span>
         </div>
       )}

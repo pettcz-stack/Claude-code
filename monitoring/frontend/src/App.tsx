@@ -25,21 +25,43 @@ import { isoDate, startOfLocalDay } from './util.js';
 type Tab = 'overview' | 'homeoffice' | 'detail' | 'selfreport' | 'scoreboard' | 'alerts' | 'trends' | 'apps' | 'software' | 'calendar' | 'summary' | 'admin' | 'settings';
 type PeriodMode = 'day' | 'week' | 'month' | 'custom';
 
-const NAV: { id: Tab; label: string; Icon: typeof UserIcon }[] = [
-  { id: 'overview', label: 'Přehled firmy', Icon: LayoutDashboard },
-  { id: 'homeoffice', label: 'Home Office', Icon: House },
-  { id: 'detail', label: 'Detail uživatele', Icon: UserIcon },
-  { id: 'selfreport', label: 'Report zaměstnance', Icon: BadgeCheck },
-  { id: 'scoreboard', label: 'Žebříček', Icon: Trophy },
-  { id: 'alerts', label: 'Upozornění', Icon: ShieldAlert },
-  { id: 'trends', label: 'Trendy', Icon: TrendingUp },
-  { id: 'apps', label: 'Aplikace & weby', Icon: AppWindow },
-  { id: 'software', label: 'Software & licence', Icon: KeyRound },
-  { id: 'calendar', label: 'Kalendář', Icon: CalendarDays },
-  { id: 'summary', label: 'Firemní přehled', Icon: Table2 },
-  { id: 'admin', label: 'Správa', Icon: Shield },
-  { id: 'settings', label: 'Nastavení', Icon: SlidersHorizontal },
+type NavItem = { id: Tab; label: string; Icon: typeof UserIcon };
+const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
+  {
+    title: 'Přehled',
+    items: [
+      { id: 'overview', label: 'Přehled firmy', Icon: LayoutDashboard },
+      { id: 'scoreboard', label: 'Žebříček', Icon: Trophy },
+      { id: 'trends', label: 'Trendy', Icon: TrendingUp },
+      { id: 'alerts', label: 'Upozornění', Icon: ShieldAlert },
+    ],
+  },
+  {
+    title: 'Zaměstnanci',
+    items: [
+      { id: 'detail', label: 'Detail uživatele', Icon: UserIcon },
+      { id: 'selfreport', label: 'Report zaměstnance', Icon: BadgeCheck },
+      { id: 'homeoffice', label: 'Home Office', Icon: House },
+      { id: 'calendar', label: 'Kalendář', Icon: CalendarDays },
+    ],
+  },
+  {
+    title: 'Náklady & software',
+    items: [
+      { id: 'software', label: 'Software & náklady', Icon: KeyRound },
+      { id: 'apps', label: 'Aplikace & weby', Icon: AppWindow },
+      { id: 'summary', label: 'Firemní přehled', Icon: Table2 },
+    ],
+  },
+  {
+    title: 'Systém',
+    items: [
+      { id: 'admin', label: 'Správa', Icon: Shield },
+      { id: 'settings', label: 'Nastavení', Icon: SlidersHorizontal },
+    ],
+  },
 ];
+const NAV: NavItem[] = NAV_SECTIONS.flatMap((s) => s.items);
 
 export default function App() {
   const [theme, toggleTheme] = useTheme();
@@ -88,6 +110,12 @@ export default function App() {
   const needsDept = tab === 'overview' || tab === 'homeoffice' || tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'software' || tab === 'trends' || tab === 'alerts';
   const title = NAV.find((n) => n.id === tab)?.label ?? '';
 
+  // čitelný rozsah období do hlavičky (to je exkluzivní konec → −1 den)
+  const fmt = (iso: string) => new Date(iso).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric' });
+  const rangeLabel = tab === 'calendar'
+    ? isoDate(day)
+    : `${fmt(from)} – ${fmt(new Date(new Date(to).getTime() - 86400000).toISOString())}`;
+
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
@@ -99,14 +127,23 @@ export default function App() {
             <div className="text-[11px] muted-2">práce na firemním PC</div>
           </div>
         </div>
-        <nav className="flex-1 space-y-1 px-3">
-          {NAV.map(({ id, label, Icon }) => (
-            <button key={id} onClick={() => setTab(id)}
-              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-                tab === id ? 'bg-emerald-50 font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
-                : 'muted hover:bg-gray-100 dark:hover:bg-slate-700/50'}`}>
-              <Icon size={18} /> {label}
-            </button>
+        <nav className="flex-1 space-y-4 overflow-y-auto px-3 py-1">
+          {NAV_SECTIONS.map((section) => (
+            <div key={section.title} className="space-y-1">
+              <div className="px-3 text-[10px] font-semibold uppercase tracking-wider muted-2">{section.title}</div>
+              {section.items.map(({ id, label, Icon }) => {
+                const activeItem = tab === id;
+                return (
+                  <button key={id} onClick={() => setTab(id)} aria-current={activeItem ? 'page' : undefined}
+                    className={`relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm ${
+                      activeItem ? 'bg-emerald-50 font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+                      : 'muted hover:bg-gray-100 dark:hover:bg-slate-700/50'}`}>
+                    {activeItem && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r bg-emerald-500" />}
+                    <Icon size={18} /> {label}
+                  </button>
+                );
+              })}
+            </div>
           ))}
         </nav>
         <div className="space-y-2 border-t border-gray-200 p-3 dark:border-slate-700/70">
@@ -123,7 +160,10 @@ export default function App() {
       {/* Obsah */}
       <div className="flex-1 overflow-x-hidden">
         <header className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-gray-200 bg-gray-50/80 px-6 py-3 backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/80">
-          <h1 className="text-lg font-semibold">{title}</h1>
+          <div>
+            <h1 className="text-lg font-semibold leading-tight">{title}</h1>
+            {(needsPeriod || tab === 'calendar') && <div className="text-xs muted-2">{rangeLabel}</div>}
+          </div>
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {needsUser && (
               <select value={userId} onChange={(e) => setUserId(e.target.value)} className="field">
@@ -172,7 +212,7 @@ export default function App() {
           </div>
         </header>
 
-        <main className="p-6">
+        <main key={tab} className="fade-in p-6">
           {tab === 'overview' && <OverviewView from={from} to={to} department={department || undefined} dark={dark} onOpenUser={(id) => { setUserId(id); setTab('detail'); }} />}
           {tab === 'homeoffice' && <HomeOfficeView from={from} to={to} department={department || undefined} onOpenUser={(id) => { setUserId(id); setTab('detail'); }} />}
           {tab === 'selfreport' && selectedUser && <SelfReportView user={selectedUser} from={from} to={to} />}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Bell, Save, Play, AlertTriangle, Smile, HeartPulse, Quote } from 'lucide-react';
 import { api } from './api.js';
+import { useToast } from './Toast.js';
 
 export function SettingsView({ canEdit }: { canEdit: boolean }) {
   const [enabled, setEnabled] = useState(true);
@@ -11,6 +12,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
   const [growthMode, setGrowthMode] = useState(false);
   const [smtp, setSmtp] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
+  const toast = useToast();
 
   function load() {
     api.getSettings().then((d) => {
@@ -27,14 +29,17 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
 
   async function save() {
     setMsg('Ukládám…');
-    await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline, funMode, healthMode, growthMode }).catch((e) => setMsg('Chyba: ' + e));
-    setMsg('Uloženo.');
+    try {
+      await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline, funMode, healthMode, growthMode });
+      setMsg(null); toast('Nastavení uloženo');
+    } catch (e) { toast('Uložení selhalo: ' + e, 'error'); }
     load();
   }
   async function runNow() {
     setMsg('Spouštím kontrolu…');
     const r = await api.runAlerts();
-    setMsg(r.skipped ? `Přeskočeno: ${r.skipped}` : `Hotovo – praktiky: ${r.integritySent}, offline: ${r.offlineSent}`);
+    setMsg(null);
+    toast(r.skipped ? `Přeskočeno: ${r.skipped}` : `Hotovo – praktiky: ${r.integritySent}, offline: ${r.offlineSent}`, r.skipped ? 'info' : 'success');
   }
 
   return (

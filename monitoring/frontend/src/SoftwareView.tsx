@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Boxes, KeyRound, Wallet, Save, Coins, AlertTriangle } from 'lucide-react';
 import { api, type SoftwareAudit, type SoftwareItem, type CostResult } from './api.js';
+import { PageSkeleton } from './Skeleton.js';
+import { useToast } from './Toast.js';
 
 export function SoftwareView({ from, to, department, canEdit }: { from: string; to: string; department?: string; canEdit: boolean }) {
   const [data, setData] = useState<SoftwareAudit | null>(null);
   const [cost, setCost] = useState<CostResult | null>(null);
   const [edit, setEdit] = useState<Record<string, { licensed: boolean; seats: string; cost: string }>>({});
+  const toast = useToast();
 
   function load() {
     api.software(from, to, department).then((d) => {
@@ -18,7 +21,7 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
     if (canEdit) api.cost(from, to, department).then(setCost).catch(() => setCost(null));
   }
   useEffect(load, [from, to, department]);
-  if (!data) return <p className="muted-2">Načítám…</p>;
+  if (!data) return <PageSkeleton kpi={3} />;
 
   async function saveLicense(it: SoftwareItem) {
     const e = edit[it.app];
@@ -29,7 +32,7 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
       licensed: e.licensed,
       seats: e.seats ? Number(e.seats) : null,
       costPerSeat: e.cost ? Number(e.cost) : null,
-    }).catch(() => undefined);
+    }).then(() => toast(`Uloženo: ${it.app}`)).catch(() => toast('Uložení selhalo', 'error'));
     load();
   }
 

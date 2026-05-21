@@ -4,6 +4,7 @@ import { api, type Overview, type MonitorsData } from './api.js';
 import { Donut } from './Donut.js';
 import { TrendChart } from './TrendChart.js';
 import { HeatmapView } from './HeatmapView.js';
+import { PageSkeleton } from './Skeleton.js';
 import { TYPE_COLORS } from './util.js';
 
 function Kpi({ icon, label, value, sub, accent }: { icon: React.ReactNode; label: string; value: string; sub?: React.ReactNode; accent?: string }) {
@@ -34,7 +35,7 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
   const [mon, setMon] = useState<MonitorsData | null>(null);
   useEffect(() => { api.overview(from, to, department).then(setO).catch(() => setO(null)); }, [from, to, department]);
   useEffect(() => { api.monitors(from, to, department).then(setMon).catch(() => setMon(null)); }, [from, to, department]);
-  if (!o) return <p className="muted-2">Načítám…</p>;
+  if (!o) return <PageSkeleton />;
 
   const scoreColor = o.kpi.avgScore >= 70 ? 'text-emerald-500' : o.kpi.avgScore >= 45 ? 'text-amber-500' : 'text-red-500';
   const maxDept = Math.max(1, ...o.departments.map((d) => d.avgScore));

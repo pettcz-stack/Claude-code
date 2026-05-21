@@ -62,3 +62,35 @@
     @apply chip bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-slate-300;
   }
 }
+
+/* --- UX vyladění (profi vzhled) ------------------------------------------- */
+@layer base {
+  button, a, input, select { transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s; }
+  *:focus-visible { outline: 2px solid #10b981; outline-offset: 2px; border-radius: 6px; }
+  /* jemný scrollbar */
+  * { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.5) transparent; }
+  *::-webkit-scrollbar { width: 9px; height: 9px; }
+  *::-webkit-scrollbar-thumb { background: rgba(148,163,184,.45); border-radius: 9999px; }
+  *::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,.7); }
+}
+
+@layer components {
+  /* zvýraznění řádku tabulky při najetí */
+  tbody tr.divide-row { transition: background-color .12s; }
+  tbody tr.divide-row:hover { @apply bg-gray-50 dark:bg-slate-700/30; }
+  .card { transition: box-shadow .2s; }
+  /* skeleton */
+  .skeleton { @apply rounded-md bg-gray-200 dark:bg-slate-700; position: relative; overflow: hidden; }
+  .skeleton::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent);
+    transform: translateX(-100%); animation: shimmer 1.3s infinite;
+  }
+  .dark .skeleton::after { background: linear-gradient(90deg, transparent, rgba(255,255,255,.06), transparent); }
+}
+
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+
+/* nenápadné objevení obsahu */
+.fade-in { animation: fadeIn .25s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
