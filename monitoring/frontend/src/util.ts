@@ -83,7 +83,7 @@ export function chipClass(type: string): string {
 }
 
 export function typeLabel(type: string): string {
-  if (type === 'NON_WORK') return 'mimo';
+  if (type === 'NON_WORK') return 'zábava';
   if (type === 'WORK') return 'práce';
   if (type === 'UNKNOWN') return 'nezařazeno';
   return 'neutrál';

@@ -100,7 +100,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
           <input type="checkbox" checked={employeeReportEnabled} disabled={!canEdit} onChange={(e) => setEmployeeReportEnabled(e.target.checked)} className="mt-1" />
           <span>
             <span className="flex items-center gap-1.5 font-medium"><BadgeCheck size={15} className="text-emerald-600" /> Zpřístupnit report přímo zaměstnancům</span>
-            <span className="muted-2">Výchozí stav je vypnuto. Po zapnutí uvidí každý zaměstnanec svůj vlastní report (ikonka v liště PC) – svůj dnešní rozpad: kolik % času pracoval, kolik % dělal mimopracovní aktivity na PC a kolik % byly neměřitelné aktivity. Vidí jen sám sebe, ne kolegy.</span>
+            <span className="muted-2">Výchozí stav je vypnuto. Po zapnutí uvidí každý zaměstnanec svůj vlastní report (ikonka v liště PC) – svůj dnešní rozpad: kolik % času pracoval, kolik % byla zábava na PC a kolik % byly neměřitelné aktivity. Vidí jen sám sebe, ne kolegy.</span>
           </span>
         </label>
 

@@ -71,7 +71,7 @@ export function CalendarView({ user, day }: Props) {
                 <td className="td font-mono muted-2">{String(h).padStart(2, '0')}:00</td>
                 <td className="td">
                   <div className="flex h-4 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700"
-                    title={(work + nonwork + unknown + idle + locked) > 0 ? `Práce ${minutesToHm(work)} · Mimopráce ${minutesToHm(nonwork)} · Neměřitelné ${minutesToHm(unknown)} · Nečinnost ${minutesToHm(idle)} · Zamčeno ${minutesToHm(locked)}` : 'Bez dat'}>
+                    title={(work + nonwork + unknown + idle + locked) > 0 ? `Práce ${minutesToHm(work)} · Zábava ${minutesToHm(nonwork)} · Neměřitelné ${minutesToHm(unknown)} · Nečinnost ${minutesToHm(idle)} · Zamčeno ${minutesToHm(locked)}` : 'Bez dat'}>
                     <div style={{ width: pct(work), background: TYPE_COLORS.work }} />
                     <div style={{ width: pct(nonwork), background: TYPE_COLORS.nonwork }} />
                     <div style={{ width: pct(unknown), background: '#f59e0b' }} />
@@ -109,7 +109,7 @@ export function CalendarView({ user, day }: Props) {
       </table>
       <div className="mt-3 flex flex-wrap gap-4 text-xs muted">
         <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: TYPE_COLORS.work }} /> Práce</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: TYPE_COLORS.nonwork }} /> Mimopracovní</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: TYPE_COLORS.nonwork }} /> Zábava</span>
         <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: '#f59e0b' }} /> Neměřitelné</span>
         <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: TYPE_COLORS.idle }} /> Nečinnost</span>
         <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: TYPE_COLORS.off }} /> Zamčeno</span>

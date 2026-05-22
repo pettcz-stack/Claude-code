@@ -81,7 +81,7 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
         </div>
         <div className="flex flex-col justify-center gap-3">
           <Legend color={TYPE_COLORS.work} label="Pracoval" value={`${s.workPct}% · ${minutesToHm(s.workMinutes)}`} />
-          <Legend color={TYPE_COLORS.nonwork} label="Mimopracovní aktivity" value={`${s.nonWorkPct}% · ${minutesToHm(s.nonWorkMinutes)}`} />
+          <Legend color={TYPE_COLORS.nonwork} label="Zábava" value={`${s.nonWorkPct}% · ${minutesToHm(s.nonWorkMinutes)}`} />
           <Legend color={TYPE_COLORS.idle} label="U PC, ale nečinný" value={`${s.idlePct}% · ${minutesToHm(s.idleOnMinutes)}`} />
           <Legend color={TYPE_COLORS.off} label="Mimo PC (měl pracovat)" value={`${s.pcOffPct}% · ${minutesToHm(s.pcOffMinutes)}`} />
           <p className="mt-1 text-xs muted-2">Z času mimo PC bylo odhadem ~{minutesToHm(s.meetingMinutes)} na poradách (demo – nahradí napojení Outlooku).</p>
@@ -94,7 +94,7 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
           <div className="mt-1 text-xs font-normal text-emerald-500">píše rychleji než {s.kpmPercentile} % firmy {s.kpmPercentile >= 50 ? '🎉' : ''}</div>
         </Card>
         <Card title="Aktivní práce (hodiny:minuty)" icon={<Clock size={13} />} accent="text-emerald-500">{minutesToHm(s.workMinutes)}</Card>
-        <Card title="Mimopracovní aktivity (hodiny:minuty)" icon={<AlertTriangle size={13} />} accent="text-red-500">{minutesToHm(s.nonWorkMinutes)}</Card>
+        <Card title="Zábava (hodiny:minuty)" icon={<AlertTriangle size={13} />} accent="text-red-500">{minutesToHm(s.nonWorkMinutes)}</Card>
         <Card title="Nejpoužívanější aplikace" icon={<AppWindow size={13} />}>
           {s.topApp
             ? <span className="flex items-center gap-2"><AppIcon app={s.topApp} size={16} /> {appName(s.topApp)}</span>

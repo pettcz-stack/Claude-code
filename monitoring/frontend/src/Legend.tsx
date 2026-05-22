@@ -32,12 +32,12 @@ export function ScoreScaleLegend({ className = '' }: { className?: string }) {
   );
 }
 
-/** Vysvětlivka rozdělení času (práce / mimopráce / nečinnost / mimo PC). */
+/** Vysvětlivka rozdělení času (práce / zábava / nečinnost / mimo PC). */
 export function ActivityLegend({ className = '' }: { className?: string }) {
   return (
     <div className={`flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-gray-600 dark:text-slate-300 ${className}`}>
-      <Item color={TYPE_COLORS.work} text="Pracoval" />
-      <Item color={TYPE_COLORS.nonwork} text="Mimopracovní" />
+      <Item color={TYPE_COLORS.work} text="Práce" />
+      <Item color={TYPE_COLORS.nonwork} text="Zábava" />
       <Item color={TYPE_COLORS.idle} text="U PC, nečinný" />
       <Item color={TYPE_COLORS.off} text="Mimo PC" />
     </div>

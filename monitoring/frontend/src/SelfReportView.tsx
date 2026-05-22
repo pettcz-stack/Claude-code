@@ -38,8 +38,8 @@ const BADGES: Badge[] = [
   { emoji: '⌨️', name: 'Klávesový mág', desc: 'Tempo 200+ úhozů/min', earned: (r) => r.avgKpm >= 200 },
   { emoji: '🎯', name: 'Soustředěný', desc: 'Málo přepínání oken (≤ 8/h)', earned: (r) => r.appSwitchesPerHour > 0 && r.appSwitchesPerHour <= 8 },
   { emoji: '🧘', name: 'Mistr fokusu', desc: 'Minimum rozptýlení (≤ 5/h)', earned: (r) => r.appSwitchesPerHour > 0 && r.appSwitchesPerHour <= 5 },
-  { emoji: '💎', name: 'Bez rozptýlení', desc: 'Mimopráce do 5 %', earned: (r) => r.nonWorkPct <= 5 },
-  { emoji: '🛡️', name: 'Čisté triko', desc: 'Žádná mimopráce', earned: (r) => r.nonWorkPct === 0 },
+  { emoji: '💎', name: 'Bez rozptýlení', desc: 'Zábava do 5 %', earned: (r) => r.nonWorkPct <= 5 },
+  { emoji: '🛡️', name: 'Čisté triko', desc: 'Žádná zábava', earned: (r) => r.nonWorkPct === 0 },
   { emoji: '🖥️', name: 'Dvojitý výhled', desc: 'Většinu času na 2+ monitorech', earned: (r) => r.multiMonitorPct >= 50 },
   { emoji: '🐝', name: 'Pracovitá včelka', desc: '140+ hodin aktivní práce', earned: (r) => r.activeHours >= 140 },
   { emoji: '🔥', name: 'Na plný plyn', desc: '170+ hodin aktivní práce', earned: (r) => r.activeHours >= 170 },
@@ -151,14 +151,14 @@ export function SelfReportView({ user, from, to, preloaded }: { user?: User; fro
       <div className="card p-5">
         <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Sparkles size={16} className="text-emerald-500" /> Rozpad času u počítače</h3>
         <p className="mb-3 text-xs muted-2">Z naměřeného času na PC za zvolené období.</p>
-        <div className="mb-3 flex h-5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700" title="Práce / Mimopracovní / Neměřitelné">
+        <div className="mb-3 flex h-5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700" title="Práce / Zábava / Neměřitelné">
           <div style={{ width: `${r.pcWorkPct}%`, background: TYPE_COLORS.work }} />
           <div style={{ width: `${r.pcNonWorkPct}%`, background: TYPE_COLORS.nonwork }} />
           <div style={{ width: `${r.pcUnknownPct}%`, background: '#f59e0b' }} />
         </div>
         <div className="grid grid-cols-3 gap-3 text-center">
           <div><div className="text-2xl font-bold" style={{ color: TYPE_COLORS.work }}>{r.pcWorkPct} %</div><div className="text-xs muted-2">Pracoval</div></div>
-          <div><div className="text-2xl font-bold" style={{ color: TYPE_COLORS.nonwork }}>{r.pcNonWorkPct} %</div><div className="text-xs muted-2">Mimopracovní aktivity na PC</div></div>
+          <div><div className="text-2xl font-bold" style={{ color: TYPE_COLORS.nonwork }}>{r.pcNonWorkPct} %</div><div className="text-xs muted-2">Zábava na PC</div></div>
           <div><div className="text-2xl font-bold" style={{ color: '#f59e0b' }}>{r.pcUnknownPct} %</div><div className="text-xs muted-2">Neměřitelné aktivity</div></div>
         </div>
       </div>

@@ -57,10 +57,10 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
         </div>
       </div>
 
-      {/* Mimopracovní podíl */}
+      {/* Podíl zábavy */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="card p-4"><div className="text-xs uppercase muted-2">Podíl mimopracovních aktivit – Home Office (%)</div><div className="text-2xl font-bold text-red-500">{d.company.hoNonWorkPct} %</div></div>
-        <div className="card p-4"><div className="text-xs uppercase muted-2">Podíl mimopracovních aktivit – kancelář (%)</div><div className="text-2xl font-bold">{d.company.officeNonWorkPct} %</div></div>
+        <div className="card p-4"><div className="text-xs uppercase muted-2">Podíl zábavy – Home Office (%)</div><div className="text-2xl font-bold text-red-500">{d.company.hoNonWorkPct} %</div></div>
+        <div className="card p-4"><div className="text-xs uppercase muted-2">Podíl zábavy – kancelář (%)</div><div className="text-2xl font-bold">{d.company.officeNonWorkPct} %</div></div>
       </div>
 
       {/* Oddělení */}

@@ -66,7 +66,7 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
           />
           <div className="mt-3 grid w-full grid-cols-2 gap-1 text-xs">
             <span className="flex items-center gap-1"><i className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: TYPE_COLORS.work }} /> Práce: {o.split.work} h</span>
-            <span className="flex items-center gap-1"><i className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: TYPE_COLORS.nonwork }} /> Mimopráce: {o.split.nonwork} h</span>
+            <span className="flex items-center gap-1"><i className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: TYPE_COLORS.nonwork }} /> Zábava: {o.split.nonwork} h</span>
             <span className="flex items-center gap-1"><i className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: TYPE_COLORS.idle }} /> Nečinnost u PC: {o.split.idle} h</span>
             <span className="flex items-center gap-1"><i className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: TYPE_COLORS.off }} /> Mimo PC: {o.split.pcoff} h</span>
           </div>

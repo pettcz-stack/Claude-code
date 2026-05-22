@@ -22,7 +22,7 @@ export function AdminView({ role }: { role: string }) {
   useEffect(loadAll, [role]);
 
   async function resolveClaim(c: ClaimRow, type: string) {
-    await api.resolveClaim(c.id, { type, category: type === 'NON_WORK' ? 'Mimopracovní' : 'Pracovní' }).catch(() => undefined);
+    await api.resolveClaim(c.id, { type, category: type === 'NON_WORK' ? 'Zábava' : 'Pracovní' }).catch(() => undefined);
     loadAll();
   }
 
@@ -89,14 +89,14 @@ export function AdminView({ role }: { role: string }) {
                 <tr key={c.id} className="divide-row">
                   <td className="td font-mono text-xs">{c.target}</td>
                   <td className="td muted">{c.targetKind === 'TITLE' ? 'web/titulek' : 'aplikace'}</td>
-                  <td className="td">{c.suggested === 'WORK' ? 'práce' : 'mimopráce'}</td>
+                  <td className="td">{c.suggested === 'WORK' ? 'práce' : 'zábava'}</td>
                   <td className="td muted">{c.note ?? '—'}</td>
                   <td className="td">{c.status === 'OPEN' ? 'otevřená' : 'vyřízená'}</td>
                   <td className="td text-right">
                     {c.status === 'OPEN' && (
                       <span className="flex justify-end gap-1">
                         <button onClick={() => resolveClaim(c, 'WORK')} className="chip-work">práce</button>
-                        <button onClick={() => resolveClaim(c, 'NON_WORK')} className="chip-nonwork">mimo</button>
+                        <button onClick={() => resolveClaim(c, 'NON_WORK')} className="chip-nonwork">zábava</button>
                       </span>
                     )}
                   </td>

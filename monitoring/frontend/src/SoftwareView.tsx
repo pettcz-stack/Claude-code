@@ -73,7 +73,7 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
           <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Coins size={16} className="text-red-500" /> Cena neproduktivního času (Kč)</h3>
           <p className="mb-3 text-xs muted-2">Kolik firmu stojí čas, kdy se nepracuje (hrubá mzda × neproduktivní hodiny). Mzdu má zadanou {cost.withRate} z {cost.workforce} zaměstnanců.</p>
           <div className="mb-4 grid gap-3 sm:grid-cols-4">
-            <CostCard label="Mimopracovní aktivity – soc. sítě, hry… (Kč)" value={cost.totals.nonworkCost} />
+            <CostCard label="Zábava – soc. sítě, hry… (Kč)" value={cost.totals.nonworkCost} />
             <CostCard label="Nečinnost u zapnutého PC (Kč)" value={cost.totals.idleCost} />
             <CostCard label="Mimo PC v pracovní době (Kč)" value={cost.totals.pcoffCost} />
             <CostCard label="Celkem za období (Kč)" value={cost.totals.wastedCost} big />
@@ -88,7 +88,7 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
               <th className="th">Zaměstnanec</th>
               <th className="th">Oddělení</th>
               <th className="th text-right">Hrubá mzda (Kč/h)</th>
-              <th className="th text-right">Mimopracovní čas (h)</th>
+              <th className="th text-right">Zábava (h)</th>
               <th className="th text-right">Nečinnost u PC (h)</th>
               <th className="th text-right">Mimo PC v prac. době (h)</th>
               <th className="th text-right">Náklad celkem (Kč)</th>
