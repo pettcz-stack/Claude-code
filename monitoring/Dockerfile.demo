@@ -10,6 +10,8 @@ COPY frontend/ ./
 RUN npm run build
 
 FROM node:20-alpine
+# Prisma na Alpine potřebuje OpenSSL (jinak selže schema engine při migraci).
+RUN apk add --no-cache openssl libc6-compat
 WORKDIR /app/backend
 COPY backend/package*.json ./
 RUN npm ci

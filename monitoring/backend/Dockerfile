@@ -1,5 +1,7 @@
 # WorkView backend – produkční image (PostgreSQL).
 FROM node:20-alpine AS build
+# Prisma na Alpine potřebuje OpenSSL (jinak selže schema engine).
+RUN apk add --no-cache openssl libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -10,6 +12,8 @@ COPY src ./src
 RUN npx prisma generate --schema=prisma/schema.postgres.prisma && npm run build
 
 FROM node:20-alpine
+# Prisma na Alpine potřebuje OpenSSL (jinak selže schema engine za běhu).
+RUN apk add --no-cache openssl libc6-compat
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json package-lock.json ./
