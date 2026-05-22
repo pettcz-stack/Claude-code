@@ -245,6 +245,33 @@ adminRouter.delete('/webrules/:keyword', requireRole('ADMIN'), async (req, res) 
   res.json({ ok: true });
 });
 
+// --- Pravidla podle oddělení (přepis práce/zábava pro kategorii) -------------
+const deptRuleSchema = z.object({
+  department: z.string().min(1).max(128),
+  category: z.string().min(1).max(64),
+  type: z.enum(['WORK', 'NON_WORK', 'NEUTRAL', 'UNKNOWN']),
+});
+adminRouter.get('/dept-rules', async (_req, res) => {
+  const rows = await prisma.deptClassification.findMany({ orderBy: [{ department: 'asc' }, { category: 'asc' }] });
+  res.json({ rules: rows });
+});
+adminRouter.post('/dept-rules', requireRole('ADMIN'), async (req, res) => {
+  const p = deptRuleSchema.safeParse(req.body);
+  if (!p.success) return void res.status(400).json({ error: 'invalid_payload' });
+  const row = await prisma.deptClassification.upsert({
+    where: { department_category: { department: p.data.department, category: p.data.category } },
+    create: p.data,
+    update: { type: p.data.type },
+  });
+  clearCache();
+  res.json({ rule: row });
+});
+adminRouter.delete('/dept-rules/:id', requireRole('ADMIN'), async (req, res) => {
+  await prisma.deptClassification.deleteMany({ where: { id: req.params.id } });
+  clearCache();
+  res.json({ ok: true });
+});
+
 /** Audit log přístupů (GDPR) – jen ADMIN. */
 adminRouter.get('/audit', requireRole('ADMIN'), async (req, res) => {
   const limit = Math.min(Number(req.query.limit ?? 200), 1000);

@@ -42,7 +42,7 @@ export const DEFAULT_WEB_RULES: { keyword: string; category: string; type: CatTy
   { keyword: 'reddit', category: 'Sociální sítě', type: 'NON_WORK' },
   { keyword: 'snapchat', category: 'Sociální sítě', type: 'NON_WORK' },
   { keyword: 'pinterest', category: 'Sociální sítě', type: 'NON_WORK' },
-  { keyword: 'linkedin', category: 'Sociální sítě', type: 'NON_WORK' }, // u recruiterů zvaž změnu na WORK
+  { keyword: 'linkedin', category: 'LinkedIn', type: 'NON_WORK' }, // pro HR/nábor přepiš na práci přes „pravidla podle oddělení"
   // Zpravodajství
   { keyword: 'novinky', category: 'Zpravodajství', type: 'NON_WORK' },
   { keyword: 'idnes', category: 'Zpravodajství', type: 'NON_WORK' },
@@ -147,6 +147,23 @@ export async function getWebRules(): Promise<WebRule[]> {
  * 3) Fallback = kategorie procesu, jinak Ostatní/NEUTRAL.
  */
 export function classifyActivity(
+  catMap: Record<string, CategoryInfo>,
+  webRules: WebRule[],
+  app: string | null,
+  windowTitle: string | null,
+  deptRules?: Map<string, Map<string, CatType>>,
+  department?: string | null,
+): CategoryInfo {
+  const base = baseClassify(catMap, webRules, app, windowTitle);
+  // Přepis typu podle oddělení (např. LinkedIn = práce pro HR).
+  if (deptRules && department) {
+    const t = deptRules.get(department)?.get(base.category);
+    if (t) return { category: base.category, type: t };
+  }
+  return base;
+}
+
+function baseClassify(
   catMap: Record<string, CategoryInfo>,
   webRules: WebRule[],
   app: string | null,

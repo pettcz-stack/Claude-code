@@ -10,6 +10,7 @@ import { heatmap, exportClassification } from '../services/analytics.js';
 import { computeIntegrity, detectAlerts } from '../services/integrity.js';
 import { getTips } from '../services/tips.js';
 import { cq } from '../services/cachedQueries.js';
+import { getDeptRules } from '../services/deptrules.js';
 import { floorToHour } from '../services/tz.js';
 
 export const dashboardRouter = Router();
@@ -222,7 +223,11 @@ dashboardRouter.get('/hourly-apps', async (req, res) => {
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
   const { from, to, userId } = parsed.data;
   if (!userId) return void res.status(400).json({ error: 'userId_required' });
-  const [catMap, webRules] = await Promise.all([getCategoryMap(), getWebRules()]);
+  const [catMap, webRules, deptRules, mu] = await Promise.all([
+    getCategoryMap(), getWebRules(), getDeptRules(),
+    prisma.monitoredUser.findUnique({ where: { id: userId }, select: { department: true } }),
+  ]);
+  const department = mu?.department ?? null;
   const intervals = await prisma.activityInterval.findMany({
     where: { userId, intervalStart: { gte: new Date(from), lt: new Date(to) } },
     select: { intervalStart: true, foregroundApp: true, windowTitle: true, activeSeconds: true, idleSeconds: true, sessionLocked: true, intervalSeconds: true },
@@ -237,7 +242,7 @@ dashboardRouter.get('/hourly-apps', async (req, res) => {
     b.idle += it.idleSeconds / 60;
     if (it.sessionLocked) b.locked += it.intervalSeconds / 60;
     if (aMin > 0) {
-      const info = classifyActivity(catMap, webRules, it.foregroundApp, it.windowTitle);
+      const info = classifyActivity(catMap, webRules, it.foregroundApp, it.windowTitle, deptRules, department);
       if (info.type === 'NON_WORK') b.nonwork += aMin;
       else if (info.type === 'UNKNOWN') b.unknown += aMin;
       else b.work += aMin;

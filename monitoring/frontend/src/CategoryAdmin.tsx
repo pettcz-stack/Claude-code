@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Plus, Trash2, Download, Upload } from 'lucide-react';
-import { api, type AppCategoryRow, type WebRuleRow } from './api.js';
+import { api, type AppCategoryRow, type WebRuleRow, type DeptRuleRow } from './api.js';
 import { chipClass, typeLabel } from './util.js';
 import { useToast } from './Toast.js';
 
@@ -9,13 +9,16 @@ const TYPES = ['WORK', 'NON_WORK', 'NEUTRAL', 'UNKNOWN'];
 export function CategoryAdmin({ canEdit, from, to }: { canEdit: boolean; from: string; to: string }) {
   const [cats, setCats] = useState<AppCategoryRow[]>([]);
   const [rules, setRules] = useState<WebRuleRow[]>([]);
+  const [deptRules, setDeptRules] = useState<DeptRuleRow[]>([]);
   const [newCat, setNewCat] = useState({ appName: '', category: '', type: 'WORK' });
   const [newRule, setNewRule] = useState({ keyword: '', category: '', type: 'NON_WORK' });
+  const [newDept, setNewDept] = useState({ department: '', category: '', type: 'WORK' });
   const toast = useToast();
 
   function load() {
     api.adminCategories().then(setCats).catch(() => undefined);
     api.adminWebRules().then(setRules).catch(() => undefined);
+    api.adminDeptRules().then(setDeptRules).catch(() => undefined);
   }
   useEffect(load, []);
 
@@ -121,6 +124,43 @@ export function CategoryAdmin({ canEdit, from, to }: { canEdit: boolean; from: s
           </table>
         </div>
       </div>
+      </div>
+
+      {/* Pravidla podle oddělení */}
+      <div className="card p-5">
+        <h3 className="mb-1 text-sm font-semibold">Pravidla podle oddělení</h3>
+        <p className="mb-3 text-xs muted-2">Přepíše, zda je kategorie pro dané oddělení práce nebo zábava. Např. <b>LinkedIn</b> je pro „Personalistika"/„HR" práce (nábor), pro ostatní zábava. Název oddělení musí přesně odpovídat tomu v datech.</p>
+        {canEdit && (
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <input placeholder="oddělení (napr. Personalistika)" value={newDept.department} onChange={(e) => setNewDept({ ...newDept, department: e.target.value })} className="field w-48" />
+            <input placeholder="kategorie (napr. LinkedIn)" value={newDept.category} onChange={(e) => setNewDept({ ...newDept, category: e.target.value })} className="field w-40" />
+            <select value={newDept.type} onChange={(e) => setNewDept({ ...newDept, type: e.target.value })} className="field">
+              {TYPES.map((t) => <option key={t} value={t}>{typeLabel(t)}</option>)}
+            </select>
+            <button
+              className="btn-primary"
+              onClick={async () => { if (newDept.department && newDept.category) { await api.saveDeptRule(newDept); setNewDept({ department: '', category: '', type: 'WORK' }); load(); } }}
+            >
+              <Plus size={15} /> Přidat
+            </button>
+          </div>
+        )}
+        <div className="max-h-80 overflow-auto">
+          <table className="w-full">
+            <thead><tr><th className="th">Oddělení</th><th className="th">Kategorie</th><th className="th">Typ</th>{canEdit && <th className="th"></th>}</tr></thead>
+            <tbody>
+              {deptRules.map((r) => (
+                <tr key={r.id} className="divide-row">
+                  <td className="td">{r.department}</td>
+                  <td className="td">{r.category}</td>
+                  <td className="td"><span className={chipClass(r.type)}>{typeLabel(r.type)}</span></td>
+                  {canEdit && <td className="td text-right"><button onClick={async () => { await api.deleteDeptRule(r.id); load(); }} className="muted-2 hover:text-red-500"><Trash2 size={15} /></button></td>}
+                </tr>
+              ))}
+              {deptRules.length === 0 && <tr><td className="td muted-2" colSpan={canEdit ? 4 : 3}>Zatím žádné pravidlo.</td></tr>}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

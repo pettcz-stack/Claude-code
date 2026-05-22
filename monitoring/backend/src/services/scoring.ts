@@ -2,6 +2,7 @@ import { prisma } from '../db.js';
 import { config } from '../config.js';
 import { getCategoryMap, type CatType } from './categories.js';
 import { classifyActivity, getWebRules } from './classify.js';
+import { getDeptRules } from './deptrules.js';
 import { getSettings } from './settings.js';
 import { holidayWeekdaySet, absenceByUser, effectiveWorkdays } from './workcal.js';
 
@@ -162,6 +163,8 @@ export async function computeUserScore(userId: string, from: Date, to: Date, opt
   });
   const catMap = await getCategoryMap();
   const webRules = await getWebRules();
+  const deptRules = await getDeptRules();
+  const department = user?.department ?? null;
 
   // Počítáme z intervalů – klasifikace podle aplikace + titulku okna je přesnější
   // a rozliší práci/zábavu i uvnitř prohlížeče.
@@ -195,7 +198,7 @@ export async function computeUserScore(userId: string, from: Date, to: Date, opt
       prevApp = it.foregroundApp;
     }
 
-    const info = classifyActivity(catMap, webRules, it.foregroundApp, it.windowTitle);
+    const info = classifyActivity(catMap, webRules, it.foregroundApp, it.windowTitle, deptRules, department);
     if (info.type === 'NON_WORK') nonWorkMinutes += activeMin;
     else if (info.type === 'UNKNOWN') unknownMinutes += activeMin; // vyjmuto
     else workMinutes += activeMin; // WORK + NEUTRAL

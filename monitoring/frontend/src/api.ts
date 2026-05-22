@@ -130,6 +130,7 @@ export type TrendPoint = { date: string; score: number; workMinutes: number; non
 export type ActivityItem = { label: string; category: string; type: 'WORK' | 'NON_WORK' | 'NEUTRAL'; minutes: number };
 export type AppCategoryRow = { id: string; appName: string; category: string; type: string };
 export type WebRuleRow = { id: string; keyword: string; category: string; type: string };
+export type DeptRuleRow = { id: string; department: string; category: string; type: string };
 export type CostResult = {
   workforce: number; withRate: number;
   totals: { nonworkCost: number; idleCost: number; pcoffCost: number; wastedCost: number };
@@ -325,6 +326,11 @@ export const api = {
     fetch('/api/v1/admin/webrules', { method: 'POST', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   deleteWebRule: (keyword: string) =>
     fetch(`/api/v1/admin/webrules/${encodeURIComponent(keyword)}`, { method: 'DELETE', headers: authHeader() }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
+  adminDeptRules: () => getJson<{ rules: DeptRuleRow[] }>('/api/v1/admin/dept-rules').then((d) => d.rules),
+  saveDeptRule: (data: { department: string; category: string; type: string }) =>
+    fetch('/api/v1/admin/dept-rules', { method: 'POST', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
+  deleteDeptRule: (id: string) =>
+    fetch(`/api/v1/admin/dept-rules/${encodeURIComponent(id)}`, { method: 'DELETE', headers: authHeader() }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   getSettings: () => getJson<{ settings: AppSettings; smtpConfigured: boolean }>('/api/v1/admin/settings'),
   saveSettings: (data: { alertsEnabled?: boolean; alertRecipients?: string; offlineMinutes?: number; funMode?: boolean; healthMode?: boolean; growthMode?: boolean; interpretMonitors?: boolean; employeeReportEnabled?: boolean }) =>
     fetch('/api/v1/admin/settings', { method: 'PUT', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),

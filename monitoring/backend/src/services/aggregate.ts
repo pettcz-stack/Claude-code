@@ -3,6 +3,7 @@ import { getCategoryMap } from './categories.js';
 import { classifyActivity, getWebRules } from './classify.js';
 import { computeIntegrity } from './integrity.js';
 import { getSites, resolveSite } from './sites.js';
+import { getDeptRules } from './deptrules.js';
 import { floorToDay as tzFloorToDay, floorToHour as tzFloorToHour, addDays } from './tz.js';
 
 /** Zarovná čas na začátek hodiny (místní čas, Europe/Prague). */
@@ -28,8 +29,16 @@ export async function aggregateDays(pairs: { userId: string; day: Date }[]): Pro
   const catMap = await getCategoryMap();
   const webRules = await getWebRules();
   const sites = await getSites();
+  const deptRules = await getDeptRules();
+  // Oddělení každého dotčeného uživatele (kvůli přepisu typu podle oddělení).
+  const userIds = [...new Set([...unique.values()].map((p) => p.userId))];
+  const deptOf = new Map<string, string | null>(
+    (await prisma.monitoredUser.findMany({ where: { id: { in: userIds } }, select: { id: true, department: true } }))
+      .map((u) => [u.id, u.department]),
+  );
   let written = 0;
   for (const { userId, day } of unique.values()) {
+    const department = deptOf.get(userId) ?? null;
     const dayEnd = addDays(day, 1); // DST-safe (23/25h dny)
     const intervals = await prisma.activityInterval.findMany({
       where: { userId, intervalStart: { gte: day, lt: dayEnd } },
@@ -60,7 +69,7 @@ export async function aggregateDays(pairs: { userId: string; day: Date }[]): Pro
       }
       const loc = resolveSite(it.clientIp, sites) ?? '';
       locMin.set(loc, (locMin.get(loc) ?? 0) + aMin);
-      const info = classifyActivity(catMap, webRules, it.foregroundApp, it.windowTitle);
+      const info = classifyActivity(catMap, webRules, it.foregroundApp, it.windowTitle, deptRules, department);
       if (info.type === 'NON_WORK') nonwork += aMin;
       else if (info.type === 'UNKNOWN') unknown += aMin;
       else { work += aMin; catMin.set(info.category, (catMin.get(info.category) ?? 0) + aMin); }

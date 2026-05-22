@@ -133,6 +133,17 @@ model WebRule {
   updatedAt DateTime @updatedAt
 }
 
+model DeptClassification {
+  id         String   @id @default(cuid())
+  department String
+  category   String
+  type       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([department, category])
+}
+
 model Absence {
   id        String   @id @default(cuid())
   userId    String

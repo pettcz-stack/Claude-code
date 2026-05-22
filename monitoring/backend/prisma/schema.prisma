@@ -146,6 +146,19 @@ model WebRule {
   updatedAt DateTime @updatedAt
 }
 
+/// Přepis typu (práce/zábava) pro kategorii podle oddělení. Např. LinkedIn je
+/// pro „Personalistika"/„HR" práce, pro ostatní zábava.
+model DeptClassification {
+  id         String   @id @default(cuid())
+  department String
+  category   String
+  type       String // WORK | NON_WORK | NEUTRAL | UNKNOWN
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([department, category])
+}
+
 /// Absence importovaná z OKbase (Fáze 2). Legitimizuje nečinnost v daný den.
 model Absence {
   id        String   @id @default(cuid())
