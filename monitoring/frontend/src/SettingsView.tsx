@@ -16,6 +16,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
   const [showDemoDevices, setShowDemoDevices] = useState(true);
   const [privacyStoreDomainOnly, setPrivacyStoreDomainOnly] = useState(false);
   const [retentionDays, setRetentionDays] = useState(90);
+  const [selfAuditEnabled, setSelfAuditEnabled] = useState(false);
   const [smtp, setSmtp] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
   const toast = useToast();
@@ -33,6 +34,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
       setShowDemoDevices(d.settings.showDemoDevices);
       setPrivacyStoreDomainOnly(d.settings.privacyStoreDomainOnly);
       setRetentionDays(d.settings.retentionDaysIntervals);
+      setSelfAuditEnabled(d.settings.selfAuditEnabled);
       setSmtp(d.smtpConfigured);
     }).catch(() => undefined);
   }
@@ -41,7 +43,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
   async function save() {
     setMsg('Ukládám…');
     try {
-      await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline, funMode, healthMode, growthMode, interpretMonitors, employeeReportEnabled, showDemoDevices, privacyStoreDomainOnly, retentionDaysIntervals: retentionDays });
+      await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline, funMode, healthMode, growthMode, interpretMonitors, employeeReportEnabled, showDemoDevices, privacyStoreDomainOnly, retentionDaysIntervals: retentionDays, selfAuditEnabled });
       setMsg(null); toast('Nastavení uloženo');
     } catch (e) { toast('Uložení selhalo: ' + e, 'error'); }
     load();
@@ -106,15 +108,29 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
           <input type="checkbox" checked={privacyStoreDomainOnly} disabled={!canEdit} onChange={(e) => setPrivacyStoreDomainOnly(e.target.checked)} className="mt-1" />
           <span>
             <span className="font-medium">Ukládat z prohlížeče jen doménu, ne celý titulek</span>
-            <span className="muted-2"> Místo „Schůzka 14:00 – Outlook" se uloží jen „outlook.com". Méně osobních dat, lepší soukromí. Klasifikace (práce/zábava) funguje dál podle pravidel domén.</span>
+            <span className="muted-2"> Místo „Schůzka 14:00 – Outlook" se uloží jen „outlook.com". Méně osobních dat, lepší soukromí (vhodné pro DE/expanzi). Klasifikace (práce/zábava/sázky) funguje dál podle pravidel domén.</span>
           </span>
         </label>
 
-        <label className="mb-1 block text-sm muted">Mazat syrové detaily aktivity starší než (dní)</label>
+        <label className="mb-1 block text-sm muted">Mazat detail aktivity starší než (dní)</label>
         <div className="mb-1 flex items-center gap-2">
           <input type="number" min={7} max={3650} value={retentionDays} disabled={!canEdit} onChange={(e) => setRetentionDays(Number(e.target.value))} className="field w-32" />
-          <span className="text-xs muted-2">denní/hodinové agregáty zůstávají – statistika je zachována, jen mizí detail titulků oken</span>
+          <span className="text-xs muted-2">{retentionDays >= 1825 ? '≈ 5 let i víc – maximum, drží detail navždy' : retentionDays >= 365 ? '≈ rok i víc – CZ standard' : '< rok – privacy-first (DE)'}</span>
         </div>
+        <div className="mb-2 flex flex-wrap gap-1.5 text-xs">
+          <span className="muted-2">Rychlá volba:</span>
+          {[
+            { v: 90, l: '90 dní (privacy-first)' },
+            { v: 365, l: '1 rok' },
+            { v: 1095, l: '3 roky' },
+            { v: 1825, l: '5 let (drží vše)' },
+          ].map(({ v, l }) => (
+            <button key={v} disabled={!canEdit} onClick={() => setRetentionDays(v)} className={`rounded-full border px-2 py-0.5 text-xs ${retentionDays === v ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'border-gray-300 dark:border-slate-600'}`}>{l}</button>
+          ))}
+        </div>
+        <p className="mb-3 text-xs muted-2">
+          Maže se jen <b>syrový detail</b> (minutové intervaly s titulky oken). <b>Denní agregáty</b> (kolik % byla práce / zábava / sázky / sítě, kolik hodin) <b>zůstávají navždy</b> – historickou statistiku neztratíš. Když chceš mít detail typu „přesně 14. 1. 2025 ve 14:32 byl na sazka.cz" navždy, dej 5 let; když chceš mít přísný privacy režim, nech 90 dní.
+        </p>
 
         {canEdit && (
           <div className="mt-3">
@@ -146,7 +162,15 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
           <input type="checkbox" checked={employeeReportEnabled} disabled={!canEdit} onChange={(e) => setEmployeeReportEnabled(e.target.checked)} className="mt-1" />
           <span>
             <span className="flex items-center gap-1.5 font-medium"><BadgeCheck size={15} className="text-emerald-600" /> Zpřístupnit report přímo zaměstnancům</span>
-            <span className="muted-2">Výchozí stav je vypnuto. Po zapnutí uvidí každý zaměstnanec svůj vlastní report (ikonka v liště PC) – svůj dnešní rozpad: kolik % času pracoval, kolik % byla zábava na PC a kolik % byly neměřitelné aktivity. Vidí jen sám sebe, ne kolegy.</span>
+            <span className="muted-2">Výchozí stav je vypnuto. Po zapnutí uvidí každý zaměstnanec svůj vlastní report (ikonka v liště PC) – svůj dnešní rozpad: kolik % času pracoval, kolik % byla zábava na PC a kolik % byly neměřitelné aktivity. Vidí jen sám sebe, ne kolegy. Když je vypnuto, do aplikace má přístup jen vedení / HR / IT podle rolí.</span>
+          </span>
+        </label>
+
+        <label className={`mb-4 flex items-start gap-3 text-sm ${!employeeReportEnabled ? 'opacity-50' : ''}`}>
+          <input type="checkbox" checked={selfAuditEnabled} disabled={!canEdit || !employeeReportEnabled} onChange={(e) => setSelfAuditEnabled(e.target.checked)} className="mt-1" />
+          <span>
+            <span className="font-medium">Ukázat zaměstnanci „kdo se na moje data díval"</span>
+            <span className="muted-2"> Doplňkový panel v reportu zaměstnance s výpisem přístupů (kdo a kdy se na něj koukal). <b>Defaultně vypnuto.</b> Doporučeno spíš pro firmy s odbory / pro německý trh (Betriebsrat to vyžaduje) nebo pro maximální transparentnost. {!employeeReportEnabled && <i>Aktivuje se jen pokud je zapnutý report zaměstnance výše.</i>}</span>
           </span>
         </label>
 

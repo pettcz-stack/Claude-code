@@ -184,7 +184,7 @@ export type TipsData = {
   fun: { text: string }[];
 };
 
-export type AppSettings = { alertsEnabled: boolean; alertRecipients: string[]; offlineMinutes: number; funMode: boolean; healthMode: boolean; growthMode: boolean; interpretMonitors: boolean; employeeReportEnabled: boolean; showDemoDevices: boolean; privacyStoreDomainOnly: boolean; retentionDaysIntervals: number };
+export type AppSettings = { alertsEnabled: boolean; alertRecipients: string[]; offlineMinutes: number; funMode: boolean; healthMode: boolean; growthMode: boolean; interpretMonitors: boolean; employeeReportEnabled: boolean; showDemoDevices: boolean; privacyStoreDomainOnly: boolean; retentionDaysIntervals: number; selfAuditEnabled: boolean };
 
 export type Me = { username: string; role: string };
 
@@ -291,7 +291,7 @@ export const api = {
   selfAudit: (token: string) =>
     fetch(`/api/v1/self/audit?token=${encodeURIComponent(token)}`).then((r) => {
       if (!r.ok) throw new Error(`${r.status}`);
-      return r.json() as Promise<{ rows: { id: string; adminIdentity: string; action: string; detail: string | null; createdAt: string }[] }>;
+      return r.json() as Promise<{ enabled: boolean; rows: { id: string; adminIdentity: string; action: string; detail: string | null; createdAt: string }[] }>;
     }),
   trend: (from: string, to: string, opts: { userId?: string; department?: string } = {}) => {
     const q = new URLSearchParams({ from, to });
@@ -357,7 +357,7 @@ export const api = {
   deviceHealth: () => getJson<{ rows: DeviceHealthRow[]; summary: { critical: number; warn: number; ok: number; unreported: number } }>('/api/v1/admin/devices/health'),
   deviceHealthDetail: (id: string) => getJson<{ detail: DeviceHealthDetail }>(`/api/v1/admin/devices/health/${encodeURIComponent(id)}`).then((d) => d.detail),
   getSettings: () => getJson<{ settings: AppSettings; smtpConfigured: boolean }>('/api/v1/admin/settings'),
-  saveSettings: (data: { alertsEnabled?: boolean; alertRecipients?: string; offlineMinutes?: number; funMode?: boolean; healthMode?: boolean; growthMode?: boolean; interpretMonitors?: boolean; employeeReportEnabled?: boolean; showDemoDevices?: boolean; privacyStoreDomainOnly?: boolean; retentionDaysIntervals?: number }) =>
+  saveSettings: (data: { alertsEnabled?: boolean; alertRecipients?: string; offlineMinutes?: number; funMode?: boolean; healthMode?: boolean; growthMode?: boolean; interpretMonitors?: boolean; employeeReportEnabled?: boolean; showDemoDevices?: boolean; privacyStoreDomainOnly?: boolean; retentionDaysIntervals?: number; selfAuditEnabled?: boolean }) =>
     fetch('/api/v1/admin/settings', { method: 'PUT', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   runAlerts: () =>
     fetch('/api/v1/admin/alerts/run', { method: 'POST', headers: authHeader() }).then((r) => r.json()),

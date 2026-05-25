@@ -60,12 +60,13 @@ selfRouter.get('/report', async (req, res) => {
   res.json({ report, tips, modes: { funMode, healthMode, growthMode } });
 });
 
-/** „Kdo se na moje data díval" – transparentní výpis pro zaměstnance. */
+/** „Kdo se na moje data díval" – transparentní výpis pro zaměstnance (volitelná funkce). */
 selfRouter.get('/audit', async (req, res) => {
-  const { employeeReportEnabled } = await getSettings();
+  const { employeeReportEnabled, selfAuditEnabled } = await getSettings();
   if (!employeeReportEnabled) return void res.status(403).json({ error: 'disabled' });
   const p = verify(req.query.token);
   if (!p) return void res.status(401).json({ error: 'invalid_token' });
+  if (!selfAuditEnabled) return void res.json({ enabled: false, rows: [] });
   const user = await prisma.monitoredUser.findUnique({ where: { sid: p.sid }, select: { id: true } });
   if (!user) return void res.status(404).json({ error: 'not_found' });
   const rows = await prisma.accessAudit.findMany({
@@ -74,5 +75,5 @@ selfRouter.get('/audit', async (req, res) => {
     take: 200,
     select: { id: true, adminIdentity: true, action: true, detail: true, createdAt: true },
   });
-  res.json({ rows });
+  res.json({ enabled: true, rows });
 });

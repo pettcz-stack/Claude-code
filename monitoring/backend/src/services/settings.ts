@@ -13,9 +13,10 @@ export type AppSettings = {
   showDemoDevices: boolean; // zobrazovat ukázková (demo) zařízení a uživatele; default zap.
   privacyStoreDomainOnly: boolean; // pro prohlížeč ukládat jen doménu místo titulku okna; default vyp.
   retentionDaysIntervals: number; // mazat syrové intervaly starší než N dní (agregáty zůstávají)
+  selfAuditEnabled: boolean; // ukázat zaměstnanci panel „kdo se na moje data díval"; default vyp.
 };
 
-const KEYS = { enabled: 'alertsEnabled', recipients: 'alertRecipients', offline: 'offlineMinutes', fun: 'funMode', health: 'healthMode', growth: 'growthMode', interpretMon: 'interpretMonitors', empReport: 'employeeReportEnabled', showDemo: 'showDemoDevices', domainOnly: 'privacyStoreDomainOnly', retention: 'retentionDaysIntervals' };
+const KEYS = { enabled: 'alertsEnabled', recipients: 'alertRecipients', offline: 'offlineMinutes', fun: 'funMode', health: 'healthMode', growth: 'growthMode', interpretMon: 'interpretMonitors', empReport: 'employeeReportEnabled', showDemo: 'showDemoDevices', domainOnly: 'privacyStoreDomainOnly', retention: 'retentionDaysIntervals', selfAudit: 'selfAuditEnabled' };
 
 export async function getSettings(): Promise<AppSettings> {
   const rows = await prisma.setting.findMany();
@@ -39,10 +40,11 @@ export async function getSettings(): Promise<AppSettings> {
     showDemoDevices: (map.get(KEYS.showDemo) ?? 'true') !== 'false',
     privacyStoreDomainOnly: (map.get(KEYS.domainOnly) ?? 'false') === 'true',
     retentionDaysIntervals: Number(map.get(KEYS.retention) ?? 90),
+    selfAuditEnabled: (map.get(KEYS.selfAudit) ?? 'false') === 'true',
   };
 }
 
-export async function saveSettings(s: Partial<{ alertsEnabled: boolean; alertRecipients: string; offlineMinutes: number; funMode: boolean; healthMode: boolean; growthMode: boolean; interpretMonitors: boolean; employeeReportEnabled: boolean; showDemoDevices: boolean; privacyStoreDomainOnly: boolean; retentionDaysIntervals: number }>): Promise<void> {
+export async function saveSettings(s: Partial<{ alertsEnabled: boolean; alertRecipients: string; offlineMinutes: number; funMode: boolean; healthMode: boolean; growthMode: boolean; interpretMonitors: boolean; employeeReportEnabled: boolean; showDemoDevices: boolean; privacyStoreDomainOnly: boolean; retentionDaysIntervals: number; selfAuditEnabled: boolean }>): Promise<void> {
   const ups: { key: string; value: string }[] = [];
   if (s.alertsEnabled !== undefined) ups.push({ key: KEYS.enabled, value: String(s.alertsEnabled) });
   if (s.alertRecipients !== undefined) ups.push({ key: KEYS.recipients, value: s.alertRecipients });
@@ -55,6 +57,7 @@ export async function saveSettings(s: Partial<{ alertsEnabled: boolean; alertRec
   if (s.showDemoDevices !== undefined) ups.push({ key: KEYS.showDemo, value: String(s.showDemoDevices) });
   if (s.privacyStoreDomainOnly !== undefined) ups.push({ key: KEYS.domainOnly, value: String(s.privacyStoreDomainOnly) });
   if (s.retentionDaysIntervals !== undefined) ups.push({ key: KEYS.retention, value: String(s.retentionDaysIntervals) });
+  if (s.selfAuditEnabled !== undefined) ups.push({ key: KEYS.selfAudit, value: String(s.selfAuditEnabled) });
   for (const u of ups) {
     await prisma.setting.upsert({ where: { key: u.key }, create: u, update: { value: u.value } });
   }
