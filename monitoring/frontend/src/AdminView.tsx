@@ -61,13 +61,27 @@ export function AdminView({ role }: { role: string }) {
       {isAdmin && (
         <div className="card p-5">
           <h3 className="mb-3 text-sm font-semibold">Sledovaní uživatelé</h3>
+          <p className="mb-2 text-xs muted-2">Zařazení do oddělení ovlivňuje filtrování v dashboardu a pravidla podle oddělení (např. LinkedIn = práce jen pro HR). Klikni do pole „Oddělení" a vyber z nabídky nebo napiš vlastní název.</p>
+          {/* Sjednocený seznam: přednastavené + již používané oddělení (bez duplikátů). */}
+          <datalist id="dept-list">
+            {Array.from(new Set([
+              'HR', 'Personalistika', 'Nábor',
+              'IT', 'Vývoj', 'Konstrukce',
+              'Výroba', 'Údržba', 'Kvalita / QA',
+              'Marketing', 'Obchod', 'Obchod Export',
+              'Nákup', 'Logistika', 'Sklad',
+              'Ekonomika', 'Účetnictví', 'Finance',
+              'Vedení', 'Asistence', 'Právní',
+              ...users.map((u) => u.department ?? '').filter(Boolean),
+            ])).sort((a, b) => a.localeCompare(b, 'cs')).map((d) => <option key={d} value={d} />)}
+          </datalist>
           <table className="w-full">
             <thead><tr><th className="th">Jméno</th><th className="th">Oddělení</th><th className="th">Mzda Kč/h</th><th className="th">Aktivní</th><th className="th"></th></tr></thead>
             <tbody>
               {users.map((u) => (
                 <tr key={u.id} className="divide-row">
                   <td className="td"><input value={u.displayName ?? ''} onChange={(e) => patchLocalUser(u.id, { displayName: e.target.value })} className="field w-full" /></td>
-                  <td className="td"><input value={u.department ?? ''} onChange={(e) => patchLocalUser(u.id, { department: e.target.value })} className="field w-full" /></td>
+                  <td className="td"><input list="dept-list" value={u.department ?? ''} placeholder="vyber nebo napiš…" onChange={(e) => patchLocalUser(u.id, { department: e.target.value })} className="field w-full" /></td>
                   <td className="td"><input type="number" value={u.hourlyRate ?? ''} onChange={(e) => patchLocalUser(u.id, { hourlyRate: e.target.value ? Number(e.target.value) : null })} className="field w-24 text-right" /></td>
                   <td className="td"><input type="checkbox" checked={u.active} onChange={(e) => patchLocalUser(u.id, { active: e.target.checked })} /></td>
                   <td className="td text-right"><button onClick={() => saveUser(u)} className="btn-ghost"><Save size={14} /> Uložit</button></td>
