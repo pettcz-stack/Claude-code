@@ -3,6 +3,7 @@ import { prisma } from '../db.js';
 import { config } from '../config.js';
 import { minutesLabel } from '../util.js';
 import { floorToDay, addDays, dayKey } from './tz.js';
+import { demoUserWhere } from './demoFilter.js';
 
 type ReportRow = {
   displayName: string;
@@ -15,7 +16,7 @@ type ReportRow = {
 /** Sestaví souhrn aktivity za zadané období (agregace hodinových řádků na uživatele). */
 export async function buildReportRows(from: Date, to: Date): Promise<ReportRow[]> {
   const users = await prisma.monitoredUser.findMany({
-    where: { active: true },
+    where: { active: true, ...(await demoUserWhere()) },
     select: { id: true, displayName: true, department: true },
   });
   const userMap = new Map(users.map((u) => [u.id, u]));

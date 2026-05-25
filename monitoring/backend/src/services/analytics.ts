@@ -1,5 +1,6 @@
 import { prisma } from '../db.js';
 import { config } from '../config.js';
+import { demoUserWhere, demoDeviceWhere } from './demoFilter.js';
 import { getCategoryMap, type CatType } from './categories.js';
 import { classifyActivity, getWebRules } from './classify.js';
 import { computeUserScore, monitorHandicapFactor, MULTI_MONITOR_BENEFIT_CATS } from './scoring.js';
@@ -17,7 +18,7 @@ export async function trend(from: Date, to: Date, userId?: string, department?: 
     ? [userId]
     : (
         await prisma.monitoredUser.findMany({
-          where: { active: true, ...(department ? { department } : {}) },
+          where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
           select: { id: true },
         })
       ).map((u) => u.id);
@@ -91,7 +92,7 @@ export async function topActivities(
     ? [userId]
     : (
         await prisma.monitoredUser.findMany({
-          where: { active: true, ...(department ? { department } : {}) },
+          where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
           select: { id: true },
         })
       ).map((u) => u.id);
@@ -226,7 +227,7 @@ export type OverviewResult = {
 
 export async function overview(from: Date, to: Date, department?: string): Promise<OverviewResult> {
   const users = await prisma.monitoredUser.findMany({
-    where: { active: true, ...(department ? { department } : {}) },
+    where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
     select: { id: true, displayName: true, department: true },
   });
   const ids = users.map((u) => u.id);
@@ -282,7 +283,7 @@ export async function overview(from: Date, to: Date, department?: string): Promi
   const flagged = susp.length;
 
   const now = Date.now();
-  const devices = await prisma.device.findMany({ where: { active: true }, select: { lastSeen: true } });
+  const devices = await prisma.device.findMany({ where: { active: true, ...(await demoDeviceWhere()) }, select: { lastSeen: true } });
   const onlineCount = devices.filter((d) => d.lastSeen && now - new Date(d.lastSeen).getTime() < 5 * 60 * 1000).length;
 
   // Kde se pracuje: pro každého převažující provozovna v období → počet lidí.
@@ -352,7 +353,7 @@ export async function heatmap(from: Date, to: Date, department?: string, userId?
     ? [userId]
     : (
         await prisma.monitoredUser.findMany({
-          where: { active: true, ...(department ? { department } : {}) },
+          where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
           select: { id: true },
         })
       ).map((u) => u.id);
@@ -403,7 +404,7 @@ export type HomeOfficeResult = {
 
 export async function homeOffice(from: Date, to: Date, department?: string): Promise<HomeOfficeResult> {
   const users = await prisma.monitoredUser.findMany({
-    where: { active: true, ...(department ? { department } : {}) },
+    where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
     select: { id: true, displayName: true, department: true },
   });
   const ids = users.map((u) => u.id);
@@ -512,7 +513,7 @@ export type SelfReport = {
 };
 
 export async function selfReport(userId: string, from: Date, to: Date): Promise<SelfReport> {
-  const users = await prisma.monitoredUser.findMany({ where: { active: true }, select: { id: true, department: true } });
+  const users = await prisma.monitoredUser.findMany({ where: { active: true, ...(await demoUserWhere()) }, select: { id: true, department: true } });
   const ids = users.map((u) => u.id);
   const expected = countWorkdays(from, to) * config.expectedWorkHoursPerDay * 60;
 
@@ -593,7 +594,7 @@ export type MonitorsResult = {
 
 export async function monitorsComparison(from: Date, to: Date, department?: string): Promise<MonitorsResult> {
   const users = await prisma.monitoredUser.findMany({
-    where: { active: true, ...(department ? { department } : {}) },
+    where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
     select: { id: true, displayName: true, department: true },
   });
   const ids = users.map((u) => u.id);
@@ -700,7 +701,7 @@ export type SoftwareAudit = {
 
 export async function softwareAudit(from: Date, to: Date, department?: string): Promise<SoftwareAudit> {
   const users = await prisma.monitoredUser.findMany({
-    where: { active: true, ...(department ? { department } : {}) },
+    where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
     select: { id: true },
   });
   const ids = users.map((u) => u.id);
@@ -784,7 +785,7 @@ export type CostResult = {
 
 export async function costAudit(from: Date, to: Date, department?: string): Promise<CostResult> {
   const users = await prisma.monitoredUser.findMany({
-    where: { active: true, ...(department ? { department } : {}) },
+    where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
     select: { id: true, displayName: true, department: true, hourlyRate: true },
   });
   const ids = users.map((u) => u.id);

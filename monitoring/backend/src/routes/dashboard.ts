@@ -11,6 +11,7 @@ import { computeIntegrity, detectAlerts } from '../services/integrity.js';
 import { getTips } from '../services/tips.js';
 import { cq } from '../services/cachedQueries.js';
 import { getDeptRules } from '../services/deptrules.js';
+import { demoUserWhere } from '../services/demoFilter.js';
 import { floorToHour } from '../services/tz.js';
 
 export const dashboardRouter = Router();
@@ -190,7 +191,7 @@ const rangeSchema = z.object({
 /** Seznam sledovaných uživatelů (pro filtry a výběr v dashboardu). */
 dashboardRouter.get('/users', async (_req, res) => {
   const users = await prisma.monitoredUser.findMany({
-    where: { active: true },
+    where: { active: true, ...(await demoUserWhere()) },
     orderBy: [{ department: 'asc' }, { displayName: 'asc' }],
     select: { id: true, displayName: true, department: true, sid: true },
   });
@@ -271,7 +272,7 @@ dashboardRouter.get('/summary', async (req, res) => {
   const { from, to, department } = parsed.data;
 
   const users = await prisma.monitoredUser.findMany({
-    where: { active: true, ...(department ? { department } : {}) },
+    where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
     select: { id: true, displayName: true, department: true },
   });
   const userIds = users.map((u) => u.id);

@@ -3,6 +3,7 @@ import { config } from '../config.js';
 import { getCategoryMap, type CatType } from './categories.js';
 import { classifyActivity, getWebRules } from './classify.js';
 import { getDeptRules } from './deptrules.js';
+import { demoUserWhere } from './demoFilter.js';
 import { getSettings } from './settings.js';
 import { holidayWeekdaySet, absenceByUser, effectiveWorkdays } from './workcal.js';
 
@@ -74,7 +75,7 @@ function pct(part: number, whole: number): number {
 
 /** Rozdělení tempa psaní (úhozy/min) všech aktivních lidí za období – spočítá se jednou. */
 export async function kpmCohort(from: Date, to: Date): Promise<number[]> {
-  const activeUsers = await prisma.monitoredUser.findMany({ where: { active: true }, select: { id: true } });
+  const activeUsers = await prisma.monitoredUser.findMany({ where: { active: true, ...(await demoUserWhere()) }, select: { id: true } });
   const activeIds = new Set(activeUsers.map((u) => u.id));
   const grouped = await prisma.activityHourly.groupBy({
     by: ['userId'],
@@ -105,7 +106,7 @@ export type ScoreboardRow = {
 /** Žebříček skóre všech aktivních uživatelů – čte z denních souhrnů (rychlé nad roky dat). */
 export async function scoreboardRows(from: Date, to: Date, department?: string): Promise<ScoreboardRow[]> {
   const users = await prisma.monitoredUser.findMany({
-    where: { active: true, ...(department ? { department } : {}) },
+    where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
     select: { id: true, displayName: true, department: true },
   });
   const ids = users.map((u) => u.id);

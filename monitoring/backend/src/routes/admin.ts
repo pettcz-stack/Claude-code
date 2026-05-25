@@ -8,6 +8,7 @@ import { getSettings, saveSettings } from '../services/settings.js';
 import { runAlertChecks } from '../services/alerts.js';
 import { clearCache } from '../services/cache.js';
 import { getSites } from '../services/sites.js';
+import { demoUserWhere, demoDeviceWhere } from '../services/demoFilter.js';
 
 /** Provozovny / pobočky – číselník pro určení pracoviště podle lokální sítě. */
 const siteSchema = z.object({
@@ -60,6 +61,7 @@ const settingsSchema = z.object({
   growthMode: z.boolean().optional(),
   interpretMonitors: z.boolean().optional(),
   employeeReportEnabled: z.boolean().optional(),
+  showDemoDevices: z.boolean().optional(),
 });
 adminRouter.put('/settings', requireRole('ADMIN'), async (req, res) => {
   const p = settingsSchema.safeParse(req.body);
@@ -91,6 +93,7 @@ adminRouter.post('/report/send', requireRole('ADMIN'), async (_req, res) => {
 /** Centrální přehled zařízení (stav agentů). */
 adminRouter.get('/devices', async (_req, res) => {
   const devices = await prisma.device.findMany({
+    where: await demoDeviceWhere(),
     orderBy: { lastSeen: 'desc' },
     select: { id: true, machineId: true, hostname: true, os: true, agentVersion: true, active: true, lastSeen: true },
   });
@@ -118,6 +121,7 @@ adminRouter.patch('/devices/:id', requireRole('ADMIN'), async (req, res) => {
 /** Výpis sledovaných uživatelů (obsahuje mzdy → CITLIVÉ, jen ADMIN). */
 adminRouter.get('/users', requireRole('ADMIN'), async (_req, res) => {
   const users = await prisma.monitoredUser.findMany({
+    where: await demoUserWhere(),
     orderBy: [{ active: 'desc' }, { department: 'asc' }, { displayName: 'asc' }],
     select: { id: true, sid: true, displayName: true, department: true, active: true, hourlyRate: true },
   });

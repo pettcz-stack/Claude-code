@@ -3,6 +3,7 @@ import { z } from 'zod';
 import ExcelJS from 'exceljs';
 import { prisma } from '../db.js';
 import { logAccess } from '../auth.js';
+import { demoUserWhere } from '../services/demoFilter.js';
 
 export const exportRouter = Router();
 
@@ -23,7 +24,7 @@ exportRouter.get('/hourly.xlsx', async (req, res) => {
   const { from, to, userId, department } = parsed.data;
 
   const users = await prisma.monitoredUser.findMany({
-    where: { ...(department ? { department } : {}), ...(userId ? { id: userId } : {}) },
+    where: { ...(department ? { department } : {}), ...(userId ? { id: userId } : {}), ...(await demoUserWhere()) },
     select: { id: true, displayName: true, department: true },
   });
   const userMap = new Map(users.map((u) => [u.id, u]));

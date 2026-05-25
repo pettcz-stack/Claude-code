@@ -1,6 +1,7 @@
 import { prisma } from '../db.js';
 import { config } from '../config.js';
 import { getSettings } from './settings.js';
+import { demoUserWhere, demoDeviceWhere } from './demoFilter.js';
 import { computeIntegrity } from './integrity.js';
 import { sendMail, escapeHtml } from './mailer.js';
 
@@ -45,7 +46,7 @@ export async function runAlertChecks(): Promise<AlertRunResult> {
   // 1) Pirátské praktiky – okno posledních 72 h
   const to72 = new Date();
   const from72 = new Date(to72.getTime() - 72 * 60 * 60 * 1000);
-  const users = await prisma.monitoredUser.findMany({ where: { active: true }, select: { id: true, displayName: true, department: true } });
+  const users = await prisma.monitoredUser.findMany({ where: { active: true, ...(await demoUserWhere()) }, select: { id: true, displayName: true, department: true } });
   for (const u of users) {
     const r = await computeIntegrity(u.id, from72, to72);
     if (!r.suspicious) {
@@ -70,7 +71,7 @@ export async function runAlertChecks(): Promise<AlertRunResult> {
   // 2) Výpadek agenta – jen v pracovní době, ať nehlásíme noci/víkendy
   if (isWorkHours()) {
     const cutoff = new Date(Date.now() - settings.offlineMinutes * 60 * 1000);
-    const devices = await prisma.device.findMany({ where: { active: true }, select: { id: true, hostname: true, lastSeen: true } });
+    const devices = await prisma.device.findMany({ where: { active: true, ...(await demoDeviceWhere()) }, select: { id: true, hostname: true, lastSeen: true } });
     for (const d of devices) {
       const offline = !d.lastSeen || new Date(d.lastSeen) < cutoff;
       if (!offline) {

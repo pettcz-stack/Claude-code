@@ -13,6 +13,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
   const [growthMode, setGrowthMode] = useState(false);
   const [interpretMonitors, setInterpretMonitors] = useState(false);
   const [employeeReportEnabled, setEmployeeReportEnabled] = useState(false);
+  const [showDemoDevices, setShowDemoDevices] = useState(true);
   const [smtp, setSmtp] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
   const toast = useToast();
@@ -27,6 +28,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
       setGrowthMode(d.settings.growthMode);
       setInterpretMonitors(d.settings.interpretMonitors);
       setEmployeeReportEnabled(d.settings.employeeReportEnabled);
+      setShowDemoDevices(d.settings.showDemoDevices);
       setSmtp(d.smtpConfigured);
     }).catch(() => undefined);
   }
@@ -35,7 +37,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
   async function save() {
     setMsg('Ukládám…');
     try {
-      await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline, funMode, healthMode, growthMode, interpretMonitors, employeeReportEnabled });
+      await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline, funMode, healthMode, growthMode, interpretMonitors, employeeReportEnabled, showDemoDevices });
       setMsg(null); toast('Nastavení uloženo');
     } catch (e) { toast('Uložení selhalo: ' + e, 'error'); }
     load();
@@ -89,6 +91,22 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
             <button onClick={save} className="btn-primary"><Save size={15} /> Uložit</button>
             <button onClick={runNow} className="btn-ghost"><Play size={15} /> Spustit kontrolu teď</button>
             {msg && <span className="text-sm muted">{msg}</span>}
+          </div>
+        )}
+      </div>
+
+      <div className="card p-5">
+        <h3 className="mb-3 text-sm font-semibold">Ukázková (demo) data</h3>
+        <label className="flex items-start gap-3 text-sm">
+          <input type="checkbox" checked={showDemoDevices} disabled={!canEdit} onChange={(e) => setShowDemoDevices(e.target.checked)} className="mt-1" />
+          <span>
+            <span className="font-medium">Zobrazovat ukázková zařízení a uživatele</span>
+            <span className="muted-2"> Pro produkční provoz vypněte – v přehledech, žebříčcích, exportech ani v upozorněních se pak ukázková data (vygenerovaná pro demo) nebudou objevovat. Záznamy v databázi zůstávají, jen jsou skryté – kdykoli můžete přepínač zase zapnout.</span>
+          </span>
+        </label>
+        {canEdit && (
+          <div className="mt-3">
+            <button onClick={save} className="btn-primary"><Save size={15} /> Uložit</button>
           </div>
         )}
       </div>
