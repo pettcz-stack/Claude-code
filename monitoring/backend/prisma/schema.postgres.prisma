@@ -24,9 +24,45 @@ model Device {
   updatedAt           DateTime @updatedAt
 
   intervals ActivityInterval[]
+  health    DeviceHealth?
 
   @@index([active])
   @@index([lastSeen])
+}
+
+model DeviceHealth {
+  id          String   @id @default(cuid())
+  deviceId    String   @unique
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  reportedAt  DateTime
+  osName       String?
+  osVersion    String?
+  uptimeSec    Int?
+  manufacturer String?
+  model        String?
+  serial       String?
+  biosVersion  String?
+  biosDate     DateTime?
+  cpuModel    String?
+  cpuLoadPct  Int?
+  ramTotalMB  Int?
+  ramUsedPct  Int?
+  batteryPresent   Boolean @default(false)
+  batteryChargePct Int?
+  batteryHealthPct Int?
+  batteryCycles    Int?
+  onAcPower        Boolean?
+  disksJson String?
+  antivirusEnabled Boolean?
+  antivirusUpdated Boolean?
+  pendingUpdates   Int?
+  rebootPending    Boolean?
+  status     String
+  issuesJson String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
 }
 
 model MonitoredUser {

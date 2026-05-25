@@ -29,9 +29,59 @@ model Device {
   updatedAt           DateTime @updatedAt
 
   intervals ActivityInterval[]
+  health    DeviceHealth?
 
   @@index([active])
   @@index([lastSeen])
+}
+
+/// HW telemetrie zařízení (poslední snapshot). Slouží IT pro prediktivní údržbu.
+model DeviceHealth {
+  id          String   @id @default(cuid())
+  deviceId    String   @unique
+  device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  reportedAt  DateTime
+
+  // OS / systém
+  osName       String?
+  osVersion    String?
+  uptimeSec    Int?
+  manufacturer String?
+  model        String?
+  serial       String?
+  biosVersion  String?
+  biosDate     DateTime?
+
+  // CPU / RAM
+  cpuModel    String?
+  cpuLoadPct  Int? // 0-100
+  ramTotalMB  Int?
+  ramUsedPct  Int? // 0-100
+
+  // Baterie
+  batteryPresent   Boolean @default(false)
+  batteryChargePct Int? // 0-100
+  batteryHealthPct Int? // 0-100 (fullCharge / designCapacity)
+  batteryCycles    Int?
+  onAcPower        Boolean?
+
+  // Disky – JSON: [{name,totalGB,freeGB,smartStatus,reallocSectors,pendingSectors,powerOnHours,tempC}]
+  disksJson String?
+
+  // Bezpečnost / aktualizace
+  antivirusEnabled Boolean?
+  antivirusUpdated Boolean?
+  pendingUpdates   Int?
+  rebootPending    Boolean?
+
+  // Spočítané
+  status     String // OK | WARN | CRITICAL
+  issuesJson String // JSON pole hlášek
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
 }
 
 /// Sledovaný uživatel (zaměstnanec). Identifikován Windows SID.

@@ -131,6 +131,24 @@ export type ActivityItem = { label: string; category: string; type: 'WORK' | 'NO
 export type AppCategoryRow = { id: string; appName: string; category: string; type: string };
 export type WebRuleRow = { id: string; keyword: string; category: string; type: string };
 export type DeptRuleRow = { id: string; department: string; category: string; type: string };
+export type HealthStatus = 'OK' | 'WARN' | 'CRITICAL' | 'UNREPORTED';
+export type DiskInfo = { name: string; totalGB?: number; freeGB?: number; smartStatus?: string; reallocSectors?: number; pendingSectors?: number; powerOnHours?: number; tempC?: number };
+export type DeviceHealthRow = {
+  deviceId: string; hostname: string; machineId: string;
+  reportedAt: string | null; lastSeen: string | null;
+  status: HealthStatus; issues: string[];
+  osName: string | null; manufacturer: string | null; model: string | null;
+  batteryHealthPct: number | null; ramUsedPct: number | null; diskTopUsedPct: number | null;
+  pendingUpdates: number | null; antivirusEnabled: boolean | null;
+};
+export type DeviceHealthDetail = DeviceHealthRow & {
+  osVersion: string | null; uptimeSec: number | null; serial: string | null;
+  biosVersion: string | null; biosDate: string | null;
+  cpuModel: string | null; cpuLoadPct: number | null;
+  ramTotalMB: number | null; batteryPresent: boolean;
+  batteryChargePct: number | null; batteryCycles: number | null; onAcPower: boolean | null;
+  disks: DiskInfo[]; antivirusUpdated: boolean | null; rebootPending: boolean | null;
+};
 export type CostResult = {
   workforce: number; withRate: number;
   totals: { nonworkCost: number; idleCost: number; pcoffCost: number; wastedCost: number };
@@ -331,6 +349,8 @@ export const api = {
     fetch('/api/v1/admin/dept-rules', { method: 'POST', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   deleteDeptRule: (id: string) =>
     fetch(`/api/v1/admin/dept-rules/${encodeURIComponent(id)}`, { method: 'DELETE', headers: authHeader() }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
+  deviceHealth: () => getJson<{ rows: DeviceHealthRow[]; summary: { critical: number; warn: number; ok: number; unreported: number } }>('/api/v1/admin/devices/health'),
+  deviceHealthDetail: (id: string) => getJson<{ detail: DeviceHealthDetail }>(`/api/v1/admin/devices/health/${encodeURIComponent(id)}`).then((d) => d.detail),
   getSettings: () => getJson<{ settings: AppSettings; smtpConfigured: boolean }>('/api/v1/admin/settings'),
   saveSettings: (data: { alertsEnabled?: boolean; alertRecipients?: string; offlineMinutes?: number; funMode?: boolean; healthMode?: boolean; growthMode?: boolean; interpretMonitors?: boolean; employeeReportEnabled?: boolean; showDemoDevices?: boolean }) =>
     fetch('/api/v1/admin/settings', { method: 'PUT', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),

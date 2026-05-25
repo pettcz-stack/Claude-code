@@ -10,6 +10,7 @@ import { ensureDefaultWebRules } from './services/classify.js';
 import { ensureDefaultTips } from './services/tips.js';
 import { ensureDefaultSites } from './services/sites.js';
 import { ensureDefaultDeptRules } from './services/deptrules.js';
+import { ensureDemoDeviceHealth } from './services/healthDemo.js';
 import { cq } from './services/cachedQueries.js';
 import { floorToDay, addDays } from './services/tz.js';
 import { sendReport } from './services/report.js';
@@ -27,6 +28,7 @@ const server = app.listen(config.port, async () => {
   await ensureDefaultTips();
   await ensureDefaultSites();
   await ensureDefaultDeptRules();
+  await ensureDemoDeviceHealth();
   // eslint-disable-next-line no-console
   console.log(`WorkView backend naslouchá na portu ${config.port}`);
   // Předehřej cache pro výchozí období (poslední měsíc) → první načtení je rychlé.

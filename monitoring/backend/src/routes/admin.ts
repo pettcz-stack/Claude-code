@@ -9,6 +9,7 @@ import { runAlertChecks } from '../services/alerts.js';
 import { clearCache } from '../services/cache.js';
 import { getSites } from '../services/sites.js';
 import { demoUserWhere, demoDeviceWhere } from '../services/demoFilter.js';
+import { listDeviceHealth, getDeviceHealthDetail } from '../services/health.js';
 
 /** Provozovny / pobočky – číselník pro určení pracoviště podle lokální sítě. */
 const siteSchema = z.object({
@@ -274,6 +275,19 @@ adminRouter.delete('/dept-rules/:id', requireRole('ADMIN'), async (req, res) => 
   await prisma.deptClassification.deleteMany({ where: { id: req.params.id } });
   clearCache();
   res.json({ ok: true });
+});
+
+// --- HW telemetrie pro IT ----------------------------------------------------
+adminRouter.get('/devices/health', async (_req, res) => {
+  const rows = await listDeviceHealth();
+  const summary = { critical: 0, warn: 0, ok: 0, unreported: 0 };
+  for (const r of rows) summary[r.status === 'CRITICAL' ? 'critical' : r.status === 'WARN' ? 'warn' : r.status === 'OK' ? 'ok' : 'unreported']++;
+  res.json({ rows, summary });
+});
+adminRouter.get('/devices/health/:deviceId', async (req, res) => {
+  const detail = await getDeviceHealthDetail(req.params.deviceId);
+  if (!detail) return void res.status(404).json({ error: 'not_found' });
+  res.json({ detail });
 });
 
 /** Audit log přístupů (GDPR) – jen ADMIN. */

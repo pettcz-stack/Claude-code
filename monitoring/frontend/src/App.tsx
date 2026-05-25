@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Gauge, LayoutDashboard, User as UserIcon, Trophy, TrendingUp, AppWindow, CalendarDays, Table2, Shield,
   ShieldAlert, SlidersHorizontal, House, BadgeCheck, KeyRound, Sun, Moon, LogOut, ChevronLeft, ChevronRight,
-  Menu, Search,
+  Menu, Search, HeartPulse,
 } from 'lucide-react';
 import { api, auth, type Me, type User } from './api.js';
 import { CommandPalette, type Command } from './CommandPalette.js';
@@ -14,6 +14,7 @@ import { CalendarView } from './CalendarView.js';
 import { Scoreboard } from './Scoreboard.js';
 import { SummaryView } from './SummaryView.js';
 import { AdminView } from './AdminView.js';
+import { HardwareHealthView } from './HardwareHealthView.js';
 import { TrendChart } from './TrendChart.js';
 import { TopActivities } from './TopActivities.js';
 import { CategoryAdmin } from './CategoryAdmin.js';
@@ -25,7 +26,7 @@ import { Login } from './Login.js';
 import { useTheme } from './theme.js';
 import { isoDate, startOfLocalDay } from './util.js';
 
-type Tab = 'overview' | 'homeoffice' | 'detail' | 'selfreport' | 'scoreboard' | 'alerts' | 'trends' | 'apps' | 'software' | 'calendar' | 'summary' | 'admin' | 'settings';
+type Tab = 'overview' | 'homeoffice' | 'detail' | 'selfreport' | 'scoreboard' | 'alerts' | 'trends' | 'apps' | 'software' | 'calendar' | 'summary' | 'admin' | 'settings' | 'health';
 type PeriodMode = 'day' | 'week' | 'month' | 'custom';
 
 type NavItem = { id: Tab; label: string; Icon: typeof UserIcon };
@@ -60,6 +61,7 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
     title: 'Systém',
     items: [
       { id: 'admin', label: 'Správa', Icon: Shield },
+      { id: 'health', label: 'IT – zdraví zařízení', Icon: HeartPulse },
       { id: 'settings', label: 'Nastavení', Icon: SlidersHorizontal },
     ],
   },
@@ -308,6 +310,7 @@ export default function App() {
           {tab === 'calendar' && selectedUser && <CalendarView user={selectedUser} day={day} />}
           {tab === 'summary' && <SummaryView from={from} to={to} department={department || undefined} />}
           {tab === 'admin' && <AdminView role={me.role} />}
+          {tab === 'health' && <HardwareHealthView />}
           {tab === 'settings' && <SettingsView canEdit={me.role === 'ADMIN'} />}
         </main>
       </div>

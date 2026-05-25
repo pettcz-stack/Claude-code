@@ -5,8 +5,70 @@ import { requireIngestToken } from '../middleware/auth.js';
 import { aggregateForIntervals } from '../services/aggregate.js';
 import { clearCache } from '../services/cache.js';
 import { getSettings } from '../services/settings.js';
+import { saveHealthSnapshot } from '../services/health.js';
 
 export const ingestRouter = Router();
+
+const diskSchema = z.object({
+  name: z.string().max(64),
+  totalGB: z.number().nonnegative().optional(),
+  freeGB: z.number().nonnegative().optional(),
+  smartStatus: z.enum(['OK', 'WARN', 'CRITICAL', 'UNKNOWN']).optional(),
+  reallocSectors: z.number().int().nonnegative().optional(),
+  pendingSectors: z.number().int().nonnegative().optional(),
+  powerOnHours: z.number().int().nonnegative().optional(),
+  tempC: z.number().optional(),
+});
+
+const healthSchema = z.object({
+  machineId: z.string().min(1).max(128),
+  reportedAt: z.string().datetime().optional(),
+  osName: z.string().max(64).optional(),
+  osVersion: z.string().max(64).optional(),
+  uptimeSec: z.number().int().nonnegative().optional(),
+  manufacturer: z.string().max(128).optional(),
+  model: z.string().max(128).optional(),
+  serial: z.string().max(128).optional(),
+  biosVersion: z.string().max(64).optional(),
+  biosDate: z.string().datetime().optional(),
+  cpuModel: z.string().max(128).optional(),
+  cpuLoadPct: z.number().int().min(0).max(100).optional(),
+  ramTotalMB: z.number().int().nonnegative().optional(),
+  ramUsedPct: z.number().int().min(0).max(100).optional(),
+  batteryPresent: z.boolean().optional(),
+  batteryChargePct: z.number().int().min(0).max(100).optional(),
+  batteryHealthPct: z.number().int().min(0).max(100).optional(),
+  batteryCycles: z.number().int().nonnegative().optional(),
+  onAcPower: z.boolean().optional(),
+  disks: z.array(diskSchema).max(16).optional(),
+  antivirusEnabled: z.boolean().optional(),
+  antivirusUpdated: z.boolean().optional(),
+  pendingUpdates: z.number().int().nonnegative().optional(),
+  rebootPending: z.boolean().optional(),
+});
+
+/**
+ * POST /api/v1/ingest/health
+ * Agent posílá HW telemetrii (typicky 1× za hodinu / při bootu).
+ * Server spočítá stav (OK/WARN/CRITICAL) a uloží jako poslední snapshot.
+ */
+export function registerHealthIngest(router: Router) {
+  router.post('/health', requireIngestToken, async (req, res) => {
+    const parsed = healthSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'invalid_payload', detail: parsed.error.flatten() });
+      return;
+    }
+    const { machineId, ...payload } = parsed.data;
+    const device = await prisma.device.findUnique({ where: { machineId }, select: { id: true } });
+    if (!device) {
+      res.status(404).json({ error: 'device_not_found' });
+      return;
+    }
+    await saveHealthSnapshot(device.id, payload);
+    res.json({ ok: true });
+  });
+}
 
 const intervalSchema = z.object({
   intervalStart: z.string().datetime(),
@@ -116,3 +178,5 @@ ingestRouter.post('/', requireIngestToken, async (req, res) => {
   const { employeeReportEnabled } = await getSettings();
   res.json({ accepted, hoursUpdated, deviceId: device.id, userId: user.id, employeeReportEnabled });
 });
+
+registerHealthIngest(ingestRouter);
