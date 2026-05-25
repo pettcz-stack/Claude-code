@@ -1,4 +1,4 @@
-# WorkView Agent (Windows)
+# Device Monitor Agent (Windows)
 
 Lehký agent sbírající **agregované** metriky pracovní aktivity a odesílající je
 na backend. Běží v interaktivní session přihlášeného uživatele.
@@ -10,7 +10,7 @@ Sbírá: aktivní/nečinný čas, název aktivní aplikace (proces), **počet** 
 **titulek aktivního okna** (pro klasifikaci práce/zábava – viz `CaptureWindowTitle`).
 
 **Nesbírá:** obsah kláves (žádný keylogging), souřadnice myši, screenshoty,
-mikrofon, kameru. Soulad s §316 ZP a GDPR (viz `../../docs/monitoring/NAVRH.md`).
+mikrofon, kameru. Soulad s §316 ZP a GDPR (viz `../docs/NAVRH.md`).
 Titulek okna je osobní údaj – při zapnutí musí být pokryt informací pro
 zaměstnance a DPIA (`docs/monitoring/pravni/`).
 
@@ -28,7 +28,7 @@ Z registru `HKLM\SOFTWARE\WorkView` (plní MSI / GPO – Blok 1.5):
 
 | Hodnota | Význam | Příklad |
 |---|---|---|
-| `BackendUrl` | URL backendu | `https://workview.firma.cz` |
+| `BackendUrl` | URL backendu | `https://device-monitor.firma.cz` |
 | `IngestToken` | token pro ingest | `…` |
 | `IntervalSeconds` | délka intervalu | `60` |
 | `CaptureWindowTitle` | sbírat titulek okna (`1`/`0`) | `0` |
@@ -69,7 +69,7 @@ administrátorských práv zastavit ani zakázat. Instalaci, registraci služby
 (vč. automatického restartu při selhání) a konfiguraci řeší MSI – viz `../installer`.
 
 Agent běží **tiše na pozadí** (bez okna a ikony). Transparentnost dle §316 ZP
-zajišťuje písemné poučení zaměstnanců (`../../docs/monitoring/pravni`).
+zajišťuje písemné poučení zaměstnanců (`../docs/pravni/`).
 
 ## Výkon a nenáročnost
 

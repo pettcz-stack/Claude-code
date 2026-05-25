@@ -26,7 +26,7 @@ export const config = {
     secure: (process.env.SMTP_SECURE ?? 'false') === 'true',
     user: process.env.SMTP_USER ?? '',
     pass: process.env.SMTP_PASS ?? '',
-    from: process.env.SMTP_FROM ?? 'workview@firma.cz',
+    from: process.env.SMTP_FROM ?? 'device-monitor@firma.cz',
   },
   report: {
     recipients: (process.env.REPORT_RECIPIENTS ?? '').split(',').map((s) => s.trim()).filter(Boolean),

@@ -1,11 +1,11 @@
-# WorkView Agent – instalátor (MSI / WiX)
+# Device Monitor Agent – instalátor (MSI / WiX)
 
 MSI balíček pro vzdálené nasazení agenta přes Active Directory (GPO).
 
 ## Co MSI udělá
 
 - Nainstaluje agenta `MA win 32.exe` a hlídací službu `MA win 32 Service.exe`
-  do `C:\Program Files\WorkView\`.
+  do `C:\Program Files\Device Monitor\`.
 - Zaregistruje **službu `MAWin32`** (LocalSystem, auto-start) s **automatickým
   restartem při selhání**. Služba spouští agenta do session přihlášeného uživatele
   a po jeho ukončení ho znovu nahodí (odolnost proti vypnutí).
@@ -31,12 +31,12 @@ MSI balíček pro vzdálené nasazení agenta přes Active Directory (GPO).
      -AgentExePath    "..\agent\WorkView.Agent\bin\Release\net48\MA win 32.exe" `
      -WatchdogExePath "..\agent\WorkView.Watchdog\bin\Release\net48\MA win 32 Service.exe"
    ```
-   Výstup: `WorkViewAgent.msi`.
+   Výstup: `DeviceMonitorAgent.msi`.
 
 ## Konfigurace serveru
 
 Property lze nastavit:
-- na CLI: `msiexec /i WorkViewAgent.msi /qn BACKENDURL=https://… INGESTTOKEN=… INTERVALSECONDS=60`
+- na CLI: `msiexec /i DeviceMonitorAgent.msi /qn BACKENDURL=https://… INGESTTOKEN=… INTERVALSECONDS=60`
 - nebo MST transformem pro GPO (viz `deploy-gpo.md`).
 
 ## Nasazení přes AD

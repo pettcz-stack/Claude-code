@@ -1,97 +1,114 @@
-# WorkView – monitoring pracovní aktivity
+# Device Monitor
 
-Interní nástroj pro sledování využití firemních **Windows** zařízení v souladu
-s § 316 zákoníku práce. Sbírá **pouze agregované metriky** (aktivní/nečinný čas,
-aktivní aplikace, počet úhozů a pohybů myši) — **žádné screenshoty, žádný
-keylogging obsahu, žádný mikrofon/kamera**. Plný návrh: [`../docs/monitoring/NAVRH.md`](../docs/monitoring/NAVRH.md).
+**Férový přehled o efektivitě práce na firemních počítačích — v souladu s GDPR a §316 zákoníku práce.**
 
-## Struktura
+Device Monitor sbírá z firemních Windows zařízení **pouze agregované metriky**
+(aktivní/nečinný čas, název aktivní aplikace, počet úhozů a pohybů myši) a
+ukazuje je v jednom přehledném dashboardu — pro vedení, HR i samotné
+zaměstnance. **Žádné screenshoty, žádný keylogging obsahu, žádný mikrofon
+ani kamera.**
+
+> ⚠️ **Soukromý projekt.** Tento repozitář je proprietární. Není určen pro
+> veřejnou distribuci. Viz [`LICENSE`](LICENSE) a [`EULA.md`](EULA.md).
+
+---
+
+## 📚 Dokumentace — kde co najdeš
+
+| Dokument | Komu | Co obsahuje |
+|---|---|---|
+| [README.md](README.md) ← tady jsi | Všichni | Přehled, struktura, rychlý start |
+| [INSTALL.md](INSTALL.md) | IT / nasazení | Instalace serveru (Docker, on-prem) + GPO rollout agenta |
+| [USAGE.md](USAGE.md) | Vedení / HR | Jak číst dashboard, klasifikace, výjimky podle oddělení |
+| [SECURITY.md](SECURITY.md) | Bezpečnost / DPO | Bezpečnostní model, šifrování, role, GDPR |
+| [CHANGELOG.md](CHANGELOG.md) | Vývoj | Historie verzí |
+| [EULA.md](EULA.md) | Zákazníci | Koncová licenční smlouva (vzor – pro úpravu právníkem) |
+| [docs/NAVRH.md](docs/NAVRH.md) | Architekti | Návrh systému (datový model, API, integrace) |
+| [docs/DOKUMENTACE.md](docs/DOKUMENTACE.md) | Pokročilí | Detailní technická dokumentace |
+| [docs/BEZPECNOST.md](docs/BEZPECNOST.md) | Bezpečnost | Hardening doporučení |
+| [docs/STAV-A-NASAZENI.md](docs/STAV-A-NASAZENI.md) | Provoz | Co je hotové, co plánováno |
+| [docs/NAPADY-BACKLOG.md](docs/NAPADY-BACKLOG.md) | Produkt | Roadmapa / backlog |
+| [docs/pravni/](docs/pravni/) | Právní / DPO | Šablony: poučení zaměstnanců, DPIA, balanční test |
+| [agent/README.md](agent/README.md) | Vývoj agenta | Windows agent (C#) — build a chování |
+| [installer/README.md](installer/README.md) | IT | MSI instalátor + Active Directory GPO |
+| [installer/PILOT-TEST.md](installer/PILOT-TEST.md) | IT | Pilotní test na 1–2 PC |
+| [TEST-NA-JEDNOM-PC.md](TEST-NA-JEDNOM-PC.md) | IT / netechnik | Nejjednodušší test celé sestavy na 1 PC |
+
+---
+
+## Struktura repozitáře
 
 ```
-monitoring/
-  backend/      Node.js + TypeScript + Prisma (ingest, agregace, API)
-  frontend/     React + TypeScript (dashboard) – Blok 1.3
-  agent/        C#/.NET Windows agent – Blok 1.4
-  installer/    WiX .msi + GPO dokumentace – Blok 1.5
+backend/        Node.js + Prisma + Express API (ingest, agregace, dashboard data)
+frontend/       React + Vite dashboard (admin, HR, vedení)
+agent/          C# Windows agent (.NET 4.8) + watchdog služba
+installer/      WiX MSI instalátor + skripty pro GPO rollout
+docs/           Návrh, bezpečnost, právní šablony
+.github/        CI workflowy (Linux backend/frontend + Windows agent/MSI)
+docker-compose.yml         On-premise nasazení (PostgreSQL + backend + frontend)
+docker-compose.demo.yml    Lokální demo (vše v jednom kontejneru, SQLite)
+dev.sh                     Vývojový start (jeden port, automatický seed)
 ```
 
-## Backend – rychlý start (dev, SQLite)
+---
+
+## Rychlý start — lokální vývoj
+
+**Předpoklady:** Node.js 20+, na Windows pro build agenta i .NET SDK 8 + Framework 4.8 Dev Pack.
 
 ```bash
-cd monitoring/backend
-cp .env.example .env
-npm install
-npm run prisma:migrate -- --name init   # vytvoří dev.db + migrace
-npm run seed                            # demo data pro dashboard
-npm run dev                             # http://localhost:4000/api/v1/health
+# Vše naráz (backend + frontend + demo data + admin/admin)
+./dev.sh
+# Otevři http://localhost:8080
 ```
 
-Produkce běží na PostgreSQL — viz `prisma/schema.postgres.prisma`.
+Detailní možnosti viz [`INSTALL.md`](INSTALL.md).
 
-### Simulátor agenta (bez Windows)
+---
 
-Pošle realistická data jako skutečný agent – pro vyzkoušení celého řetězce:
+## Co Device Monitor dělá
 
-```bash
-WORKVIEW_BACKEND_URL=http://localhost:4000 INGEST_TOKEN=dev-token \
-  npm run simulate -- --machine SIM-PC-1 --sid S-1-5-21-SIM-1 --minutes 120
+- ✅ **Skóre efektivity** týmu i jednotlivců — férové: dovolená/nemoc/svátky se nepočítají proti.
+- ✅ **Práce vs. zábava** (sítě, sázení, hry…) rozpoznané automaticky podle aplikací + pravidel webů.
+- ✅ **Per-oddělení výjimky** — např. LinkedIn = práce pro HR, zábava pro ostatní.
+- ✅ **Home Office vs. kancelář**, lokality poboček (podle sítě), počet monitorů.
+- ✅ **Cena neproduktivního času v Kč** — pro management.
+- ✅ **Report přímo zaměstnanci** (volitelné) — focus sessions, nejproduktivnější hodina, trend tento týden vs minulý.
+- ✅ **IT prediktivní HW monitoring** — SMART, baterie, RAM, BIOS, antivirus — IT vidí problém dřív než nastane.
+- ✅ **Audit přístupů** — pro management; volitelně i pro zaměstnance (GDPR čl. 15).
+
+## Co NEdělá (záměrně)
+
+- ❌ Žádné screenshoty / obsah klávesnice / kamera / mikrofon.
+- ❌ Žádné čtení obsahu souborů ani komunikace.
+- ❌ Žádná GPS / sledování polohy mimo firmu.
+
+---
+
+## Architektura ve zkratce
+
+```
+[Windows PC]                       [Server]                        [Browser]
+ ┌─────────────────┐                ┌────────────────┐              ┌──────────┐
+ │ Agent (C#)      │  HTTPS         │ Backend        │  HTTPS       │ Dashboard│
+ │ + Watchdog svc  │ ──ingest──▶   │ Node + Prisma  │  ◀──────────│ React    │
+ │ %ProgramData%   │                │ PostgreSQL/    │              │ Vite     │
+ └─────────────────┘                │ SQLite (demo)  │              └──────────┘
+                                    └────────────────┘
 ```
 
-## Stav (roadmap viz NAVRH.md §13)
+Detaily v [`docs/NAVRH.md`](docs/NAVRH.md).
 
-- [x] **Blok 1.1** — kostra + datový model + migrace
-- [x] **Blok 1.2** — ingest API + hodinová agregace + retence
-- [x] **Blok 1.3** — dashboard (kalendář, firemní přehled, export do Excelu)
-- [x] **Blok 1.4** — Windows agent (C#/.NET 4.8) — build/běh na Windows
-- [x] **Blok 1.5** — MSI instalátor (WiX) + GPO nasazení + .bat fallback
-- [x] **Blok 1.6** — právní šablony (informace, DPIA, balanční test) → `../docs/monitoring/pravni/`
-- [x] **Blok 1.7** — role/přístup (ADMIN/VIEWER), audit log, centrální správa agentů
-- [x] **Blok 1.8** — e-mailové reporty (nodemailer, cron, ruční spuštění)
+---
 
-**Fáze 1 (MVP) hotová.**
+## CI / build
 
-Vylepšení MVP:
-- [x] lokální čas v dashboardu (časové pásmo prohlížeče, řeší letní čas)
-- [x] kategorizace aplikací (Práce/Komunikace/Web) – „v čem pracoval"
-- [x] automatické testy backendu (vitest – unit + integrace) → `npm test`
+- **Linux backend + frontend:** [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — typecheck, lint, build, testy.
+- **Windows agent + MSI:** [`.github/workflows/agent-build.yml`](.github/workflows/agent-build.yml) — staví agenta a MSI na Windows runneru, artefakt **`DeviceMonitorAgent.msi`**.
 
-Rozšíření:
-- [x] e-mailová upozornění (pirátské praktiky + výpadek agenta) + Nastavení v UI
-- [x] bezpečnostní hardening (tokeny, rate limit, CSP) – viz `../docs/monitoring/BEZPECNOST.md`
-- [x] Přehled firmy (KPI, srovnání oddělení, heatmapa „kdy se pracuje")
-- [x] Home Office vyhodnocení (efektivita HO vs. kancelář)
-- [x] počet monitorů + efektivita dle monitorů, fragmentace pozornosti
-- [x] Report zaměstnance: anonymizované srovnání + zábavný a zdravotní režim
+---
 
-Nápady do budoucna:
-- self-service přístup pro zaměstnance (vlastní login) + soutěž „Zaměstnanec měsíce"
-- AD/SSO přihlášení + manažerské role (jen své oddělení)
-- 2FA pro admina, per-device tokeny, Teams notifikace, PDF reporty
-- flat ESLint config (eslint v9+), code-splitting dalších stránek
+## Licence
 
-Další fáze (čeká na přístupy):
-- [ ] Blok 2.1 — adaptér OKbase (absence/HO/dovolená)
-- [ ] Blok 3.1 — adaptér Outlook/Exchange (meetingy)
-
-## Testy
-
-```bash
-cd monitoring/backend && npm test   # vitest (vlastní SQLite test.db)
-```
-
-## Nasazení on-premise (Docker)
-
-PostgreSQL + backend + frontend přes docker-compose:
-
-```bash
-cd monitoring
-# nastav tajemství (jinak se použijí defaulty)
-export ADMIN_PASSWORD=... INGEST_TOKEN=... DB_PASSWORD=...
-docker compose up -d --build
-# dashboard: http://localhost:8080
-```
-
-Backend při startu synchronizuje schéma do PostgreSQL (`prisma db push` proti
-`schema.postgres.prisma`). Agent posílá data na `http(s)://<server>/api` (přes
-nginx proxy frontendu, nebo přímo na backend:4000).
-
+Proprietární, viz [`LICENSE`](LICENSE) a [`EULA.md`](EULA.md). Distribuce mimo
+oprávněné zákazníky není povolena.

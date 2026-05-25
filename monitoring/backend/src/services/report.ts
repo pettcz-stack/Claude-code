@@ -60,7 +60,7 @@ function renderHtml(rows: ReportRow[], from: Date, to: Date): string {
     )
     .join('');
   return `
-    <h2>WorkView – souhrn aktivity</h2>
+    <h2>Device Monitor – souhrn aktivity</h2>
     <p>Období: ${dayKey(from)} – ${dayKey(to)}</p>
     <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-family:sans-serif;font-size:13px">
       <thead style="background:#f3f4f6">
@@ -92,7 +92,7 @@ export async function sendReport(): Promise<{ recipients: number; rows: number }
   await transporter.sendMail({
     from: config.smtp.from,
     to: config.report.recipients.join(','),
-    subject: `WorkView souhrn ${dayKey(from)} – ${dayKey(to)}`,
+    subject: `Device Monitor souhrn ${dayKey(from)} – ${dayKey(to)}`,
     html: renderHtml(rows, from, to),
   });
 

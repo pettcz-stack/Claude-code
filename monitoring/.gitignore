@@ -1,0 +1,61 @@
+# Node / npm
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build výstupy
+backend/dist/
+frontend/dist/
+backend/build/
+*.tsbuildinfo
+
+# Prisma (vygenerovaný klient)
+backend/node_modules/.prisma/
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+
+# Lokální DB / cache
+*.sqlite
+*.sqlite3
+backend/dev.db*
+
+# .NET / agent build
+agent/**/bin/
+agent/**/obj/
+agent/**/*.user
+
+# Installer build
+installer/*.msi
+installer/*.wixobj
+installer/*.wixpdb
+
+# Env / tajemství
+.env
+.env.local
+.env.*.local
+backend/.env
+backend/.env.local
+frontend/.env
+frontend/.env.local
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logy
+*.log
+logs/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Dočasné soubory
+tmp/
+*.tmp
+*.swp
+*.swo

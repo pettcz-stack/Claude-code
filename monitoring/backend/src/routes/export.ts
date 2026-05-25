@@ -38,7 +38,7 @@ exportRouter.get('/hourly.xlsx', async (req, res) => {
   });
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'WorkView';
+  wb.creator = 'Device Monitor';
   const ws = wb.addWorksheet('Hodinové agregáty');
   ws.columns = [
     { header: 'Zaměstnanec', key: 'name', width: 24 },
@@ -72,7 +72,7 @@ exportRouter.get('/hourly.xlsx', async (req, res) => {
   await logAccess(req.admin?.username ?? 'unknown', 'EXPORT', `hourly.xlsx ${from}..${to} rows=${rows.length}`);
 
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', 'attachment; filename="workview-hourly.xlsx"');
+  res.setHeader('Content-Disposition', 'attachment; filename="device-monitor-hourly.xlsx"');
   await wb.xlsx.write(res);
   res.end();
 });
@@ -94,7 +94,7 @@ exportRouter.get('/intervals.xlsx', async (req, res) => {
   });
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'WorkView';
+  wb.creator = 'Device Monitor';
   const ws = wb.addWorksheet('Intervaly');
   ws.columns = [
     { header: 'Zaměstnanec', key: 'name', width: 24 },
@@ -127,7 +127,7 @@ exportRouter.get('/intervals.xlsx', async (req, res) => {
   await logAccess(req.admin?.username ?? 'unknown', 'EXPORT', `intervals.xlsx ${from}..${to} rows=${rows.length}`);
 
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', 'attachment; filename="workview-intervals.xlsx"');
+  res.setHeader('Content-Disposition', 'attachment; filename="device-monitor-intervals.xlsx"');
   await wb.xlsx.write(res);
   res.end();
 });

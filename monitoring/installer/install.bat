@@ -1,10 +1,10 @@
 @echo off
-REM Fallback instalace WorkView Agenta (pokud nelze přes GPO Software Installation).
+REM Fallback instalace Device Monitor Agenta (pokud nelze přes GPO Software Installation).
 REM Tichá per-machine instalace s předáním konfigurace serveru.
 REM Spouštět s právy administrátora (např. přes GPO startup script / SCCM).
 
-set MSI=%~dp0WorkViewAgent.msi
-set BACKENDURL=https://workview.firma.cz
+set MSI=%~dp0DeviceMonitorAgent.msi
+set BACKENDURL=https://device-monitor.firma.cz
 set INGESTTOKEN=ZMEN_ME
 REM Délka jednoho měřeného intervalu (s). Výchozí 60 = jeden záznam za minutu.
 set INTERVALSECONDS=60
@@ -28,6 +28,6 @@ msiexec /i "%MSI%" /qn /norestart ^
   CAPTURETITLE=%CAPTURETITLE% ^
   COMPANYNETWORKONLY=%COMPANYNETWORKONLY% ^
   COMPANYPROBEHOST=%COMPANYPROBEHOST% ^
-  /l*v "%TEMP%\WorkViewAgent-install.log"
+  /l*v "%TEMP%\DeviceMonitorAgent-install.log"
 
 exit /b %ERRORLEVEL%

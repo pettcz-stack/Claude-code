@@ -1,4 +1,4 @@
-# WorkView – on-premise nasazení (PostgreSQL + backend + frontend).
+# Device Monitor – on-premise nasazení (PostgreSQL + backend + frontend).
 # Spuštění:  docker compose up -d --build
 # Dashboard: http://localhost:8080   (přihlášení: ADMIN_USER / ADMIN_PASSWORD)
 
@@ -6,13 +6,13 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: workview
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-workview}
-      POSTGRES_DB: workview
+      POSTGRES_USER: devicemonitor
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-devicemonitor}
+      POSTGRES_DB: devicemonitor
     volumes:
-      - workview-db:/var/lib/postgresql/data
+      - device-monitor-db:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U workview']
+      test: ['CMD-SHELL', 'pg_isready -U devicemonitor']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -20,7 +20,7 @@ services:
   backend:
     build: ./backend
     environment:
-      DATABASE_URL: postgresql://workview:${DB_PASSWORD:-workview}@db:5432/workview?schema=public
+      DATABASE_URL: postgresql://devicemonitor:${DB_PASSWORD:-devicemonitor}@db:5432/devicemonitor?schema=public
       PORT: 4000
       INGEST_TOKEN: ${INGEST_TOKEN:-zmente-me}
       ADMIN_USER: ${ADMIN_USER:-admin}
@@ -32,7 +32,7 @@ services:
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
-      SMTP_FROM: ${SMTP_FROM:-workview@firma.cz}
+      SMTP_FROM: ${SMTP_FROM:-device-monitor@firma.cz}
       REPORT_RECIPIENTS: ${REPORT_RECIPIENTS:-}
     depends_on:
       db:
@@ -46,4 +46,4 @@ services:
       - backend
 
 volumes:
-  workview-db:
+  device-monitor-db:

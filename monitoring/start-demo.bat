@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM  WorkView - spusteni testovaciho serveru (demo, vse na 1 PC)
+REM  Device Monitor - spusteni testovaciho serveru (demo, vse na 1 PC)
 REM  Staci 2x kliknout. Vyzaduje spusteny Docker Desktop.
 REM ============================================================
 cd /d "%~dp0"

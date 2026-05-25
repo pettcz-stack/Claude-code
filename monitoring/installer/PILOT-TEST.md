@@ -6,7 +6,7 @@ proběhne na Windows.
 
 ## 0. Build MSI
 - Automaticky: GitHub Actions workflow **„Monitoring Agent (Windows build)"** →
-  stáhni artefakt `monitoring-windows-build` (obsahuje `WorkViewAgent.msi`).
+  stáhni artefakt `monitoring-windows-build` (obsahuje `DeviceMonitorAgent.msi`).
 - Nebo lokálně: `pwsh monitoring/agent/build-all.ps1` (vyžaduje .NET SDK).
 
 ## 1. Příprava serveru (dev/test)
@@ -15,7 +15,7 @@ proběhne na Windows.
 
 ## 2. Tichá instalace
 ```
-msiexec /i WorkViewAgent.msi /qn ^
+msiexec /i DeviceMonitorAgent.msi /qn ^
   BACKENDURL=https://<server> INGESTTOKEN=<token> INTERVALSECONDS=60 SENDINTERVALSECONDS=900 CAPTURETITLE=1
 ```
 Ověř:
@@ -42,10 +42,10 @@ Ověř:
 ## 5. Antivirus / EDR
 - [ ] Defender/EDR agenta neoznačí. Pokud ano: podepiš `.exe`/`.msi`
       code-signing certifikátem a přidej výjimku (globální hook klávesnice/myši
-      bývá heuristicky hlídán). Viz `../../docs/monitoring/DOKUMENTACE.md`.
+      bývá heuristicky hlídán). Viz `../docs/DOKUMENTACE.md`.
 
 ## 6. Odinstalace / upgrade
-- [ ] `msiexec /x WorkViewAgent.msi /qn` službu zastaví, odebere a uklidí,
+- [ ] `msiexec /x DeviceMonitorAgent.msi /qn` službu zastaví, odebere a uklidí,
 - [ ] upgrade vyšší verzí MSI proběhne (MajorUpgrade).
 
 ## Co hlásit zpět

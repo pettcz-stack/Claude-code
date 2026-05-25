@@ -32,7 +32,7 @@
          řádky přenesly i do elevované (per-machine) části instalace, která zapisuje
          registr. INGESTTOKEN je navíc Hidden (nezaloguje se). Properties bez výchozí
          hodnoty (token, probe host) nesmí mít prázdný Value (WiX v5 to zakazuje). -->
-    <Property Id="BACKENDURL" Value="https://workview.firma.cz" Secure="yes" />
+    <Property Id="BACKENDURL" Value="https://device-monitor.firma.cz" Secure="yes" />
     <Property Id="INGESTTOKEN" Secure="yes" Hidden="yes" />
     <Property Id="INTERVALSECONDS" Value="60" Secure="yes" />
     <Property Id="SENDINTERVALSECONDS" Value="900" Secure="yes" />

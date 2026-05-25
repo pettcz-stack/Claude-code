@@ -22,7 +22,7 @@ export function TrendChart({ from, to, userId, department, dark }: {
   dark: boolean;
 }) {
   const [points, setPoints] = useState<TrendPoint[]>([]);
-  const [type, setType] = useState<ChartType>(() => (localStorage.getItem('workview_chart') as ChartType) || 'area');
+  const [type, setType] = useState<ChartType>(() => (localStorage.getItem('device_monitor_chart') as ChartType) || 'area');
 
   useEffect(() => {
     api.trend(from, to, { userId, department }).then(setPoints).catch(() => setPoints([]));
@@ -30,7 +30,7 @@ export function TrendChart({ from, to, userId, department, dark }: {
 
   function choose(t: ChartType) {
     setType(t);
-    localStorage.setItem('workview_chart', t);
+    localStorage.setItem('device_monitor_chart', t);
   }
 
   const grid = dark ? '#334155' : '#e5e7eb';

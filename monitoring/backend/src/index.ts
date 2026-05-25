@@ -32,7 +32,7 @@ const server = app.listen(config.port, async () => {
   await ensureDemoDeviceHealth();
   scheduleRetentionPruning();
   // eslint-disable-next-line no-console
-  console.log(`WorkView backend naslouchá na portu ${config.port}`);
+  console.log(`Device Monitor backend naslouchá na portu ${config.port}`);
   // Předehřej cache pro výchozí období (poslední měsíc) → první načtení je rychlé.
   void warmCache();
   // Drž cache výchozího pohledu teplou (TTL 5 min) i pro pozdější první otevření.

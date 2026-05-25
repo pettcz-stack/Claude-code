@@ -1,0 +1,57 @@
+name: Agent (Windows build)
+
+# Sestaví Windows agenta, watchdog službu a MSI instalátor na skutečném
+# Windows runneru a vystaví hotové artefakty ke stažení.
+# Spouští se při změně Windows částí nebo ručně (workflow_dispatch).
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "agent/**"
+      - "installer/**"
+      - ".github/workflows/agent-build.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Build agent (net48)
+        run: dotnet build "agent/WorkView.Agent/WorkView.Agent.csproj" -c Release
+
+      - name: Build watchdog service (net48)
+        run: dotnet build "agent/WorkView.Watchdog/WorkView.Watchdog.csproj" -c Release
+
+      - name: Install WiX toolset
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          wix extension add -g WixToolset.Util.wixext/5.0.2
+
+      - name: Build MSI
+        working-directory: installer
+        shell: pwsh
+        run: |
+          wix build Product.wxs -ext WixToolset.Util.wixext `
+            -d "AgentExePath=..\agent\WorkView.Agent\bin\Release\net48\MA win 32.exe" `
+            -d "WatchdogExePath=..\agent\WorkView.Watchdog\bin\Release\net48\MA win 32 Service.exe" `
+            -o DeviceMonitorAgent.msi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-monitor-windows-build
+          path: |
+            agent/WorkView.Agent/bin/Release/net48/MA win 32.exe
+            agent/WorkView.Watchdog/bin/Release/net48/MA win 32 Service.exe
+            installer/DeviceMonitorAgent.msi
+          if-no-files-found: error
