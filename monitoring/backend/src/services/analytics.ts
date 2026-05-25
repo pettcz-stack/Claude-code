@@ -8,6 +8,86 @@ import { getSettings } from './settings.js';
 import { holidayWeekdaySet, absenceByUser, effectiveWorkdays } from './workcal.js';
 import { dayKey, localDow, localHour, floorToDay, addDays } from './tz.js';
 
+const FOCUS_MIN_MINUTES = 25;
+
+/** Spočítá počet souvislých bloků soustředění (>=25 min stejné aplikace, bez locku, s aktivitou). */
+async function computeFocusSessions(userId: string, from: Date, to: Date): Promise<{ sessions: number; minutes: number }> {
+  const intervals = await prisma.activityInterval.findMany({
+    where: { userId, intervalStart: { gte: from, lt: to } },
+    orderBy: { intervalStart: 'asc' },
+    select: { intervalStart: true, foregroundApp: true, activeSeconds: true, sessionLocked: true, intervalSeconds: true },
+  });
+  let sessions = 0;
+  let totalMinutes = 0;
+  let runApp: string | null = null;
+  let runStart: Date | null = null;
+  let runMin = 0;
+  const flush = () => {
+    if (runMin >= FOCUS_MIN_MINUTES) { sessions++; totalMinutes += runMin; }
+    runApp = null; runStart = null; runMin = 0;
+  };
+  let prevEnd: Date | null = null;
+  for (const it of intervals) {
+    const active = it.activeSeconds / 60;
+    const isFocused = !it.sessionLocked && active >= 0.3 && it.foregroundApp;
+    const sameApp = runApp !== null && it.foregroundApp === runApp;
+    const gapOk = !prevEnd || (it.intervalStart.getTime() - prevEnd.getTime()) <= 5 * 60_000;
+    if (isFocused && sameApp && gapOk) {
+      runMin += active;
+    } else {
+      flush();
+      if (isFocused) { runApp = it.foregroundApp; runStart = it.intervalStart; runMin = active; }
+    }
+    prevEnd = new Date(it.intervalStart.getTime() + it.intervalSeconds * 1000);
+  }
+  flush();
+  return { sessions, minutes: Math.round(totalMinutes) };
+}
+
+/** Hodina dne (0–23) s nejvyšší průměrnou aktivitou za posledních 14 dní. */
+async function computeBestHour(userId: string, anchor: Date): Promise<string | null> {
+  const from = addDays(anchor, -14);
+  const rows = await prisma.activityHourly.findMany({
+    where: { userId, hourStart: { gte: from, lt: anchor } },
+    select: { hourStart: true, activeMinutes: true },
+  });
+  if (rows.length === 0) return null;
+  const sum = new Map<number, { mins: number; n: number }>();
+  for (const r of rows) {
+    const h = localHour(r.hourStart);
+    const s = sum.get(h) ?? { mins: 0, n: 0 };
+    s.mins += r.activeMinutes; s.n++;
+    sum.set(h, s);
+  }
+  let bestHour = -1; let bestAvg = 0;
+  for (const [h, s] of sum) {
+    const avg = s.n > 0 ? s.mins / s.n : 0;
+    if (avg > bestAvg) { bestAvg = avg; bestHour = h; }
+  }
+  if (bestHour < 0 || bestAvg < 1) return null;
+  return `${bestHour}–${(bestHour + 1) % 24}`;
+}
+
+/** Porovnání tento týden vs minulý týden – % naplnění očekávaných hodin (workMin / expected). */
+async function computeWeekTrend(userId: string, anchor: Date): Promise<{ last: number | null; prior: number | null; delta: number | null }> {
+  const thisFrom = addDays(anchor, -7);
+  const priorFrom = addDays(anchor, -14);
+  const stats = await prisma.dailyStat.findMany({
+    where: { userId, date: { gte: priorFrom, lt: anchor } },
+    select: { date: true, workMin: true },
+  });
+  let lastW = 0, priorW = 0;
+  for (const s of stats) {
+    if (s.date >= thisFrom) lastW += s.workMin; else priorW += s.workMin;
+  }
+  const expectedPerWeek = countWorkdays(thisFrom, anchor) * config.expectedWorkHoursPerDay * 60;
+  const expectedPrior = countWorkdays(priorFrom, thisFrom) * config.expectedWorkHoursPerDay * 60;
+  const last = expectedPerWeek > 0 ? Math.round((lastW / expectedPerWeek) * 100) : null;
+  const prior = expectedPrior > 0 ? Math.round((priorW / expectedPrior) * 100) : null;
+  const delta = last !== null && prior !== null ? last - prior : null;
+  return { last, prior, delta };
+}
+
 export type TrendPoint = { date: string; score: number; workMinutes: number; nonWorkMinutes: number; idleMinutes: number; absence?: string | null };
 
 /** Denní trend skóre pro uživatele (nebo průměr firmy, když userId chybí). */
@@ -510,6 +590,13 @@ export type SelfReport = {
   pcWorkPct: number; // pracoval
   pcNonWorkPct: number; // mimopracovní aktivity na PC
   pcUnknownPct: number; // neměřitelné / nezařazené aktivity
+  // Osobní trendy (nesoutěží s kolegy, jen sám se sebou).
+  focusSessions: number; // počet souvislých 25+ min bloků soustředění v období
+  focusMinutes: number; // celkový čas v takových blocích
+  bestHourLabel: string | null; // např. „9–10" (hodina dne s nejvyšší prací)
+  trendDeltaPct: number | null; // skóre tento týden − minulý týden (záporné = horší)
+  lastWeekScore: number | null;
+  priorWeekScore: number | null;
 };
 
 export async function selfReport(userId: string, from: Date, to: Date): Promise<SelfReport> {
@@ -546,6 +633,13 @@ export async function selfReport(userId: string, from: Date, to: Date): Promise<
   const pcNonWorkPct = measured > 0 ? Math.round((me.nonWorkMinutes / measured) * 100) : 0;
   const pcUnknownPct = measured > 0 ? Math.max(0, 100 - pcWorkPct - pcNonWorkPct) : 0;
 
+  // Osobní trendy
+  const [focus, bestHourLabel, trend] = await Promise.all([
+    computeFocusSessions(userId, from, to),
+    computeBestHour(userId, to),
+    computeWeekTrend(userId, to),
+  ]);
+
   return {
     displayName: me.displayName,
     department: me.department,
@@ -567,6 +661,12 @@ export async function selfReport(userId: string, from: Date, to: Date): Promise<
     pcWorkPct,
     pcNonWorkPct,
     pcUnknownPct,
+    focusSessions: focus.sessions,
+    focusMinutes: focus.minutes,
+    bestHourLabel,
+    trendDeltaPct: trend.delta,
+    lastWeekScore: trend.last,
+    priorWeekScore: trend.prior,
   };
 }
 

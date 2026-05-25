@@ -6,6 +6,7 @@ import { aggregateForIntervals } from '../services/aggregate.js';
 import { clearCache } from '../services/cache.js';
 import { getSettings } from '../services/settings.js';
 import { saveHealthSnapshot } from '../services/health.js';
+import { sanitizeWindowTitle } from '../services/domain.js';
 
 export const ingestRouter = Router();
 
@@ -131,8 +132,10 @@ ingestRouter.post('/', requireIngestToken, async (req, res) => {
 
   let accepted = 0;
   const touched: { userId: string; intervalStart: Date }[] = [];
+  const { privacyStoreDomainOnly } = await getSettings();
   for (const iv of intervals) {
     const intervalStart = new Date(iv.intervalStart);
+    const storedTitle = sanitizeWindowTitle(iv.foregroundApp, iv.windowTitle, privacyStoreDomainOnly);
     await prisma.activityInterval.upsert({
       where: {
         deviceId_userId_intervalStart: { deviceId: device.id, userId: user.id, intervalStart },
@@ -145,7 +148,7 @@ ingestRouter.post('/', requireIngestToken, async (req, res) => {
         activeSeconds: iv.activeSeconds,
         idleSeconds: iv.idleSeconds,
         foregroundApp: iv.foregroundApp,
-        windowTitle: iv.windowTitle,
+        windowTitle: storedTitle,
         appCategory: iv.appCategory,
         keystrokeCount: iv.keystrokeCount,
         mouseEvents: iv.mouseEvents,
@@ -158,7 +161,7 @@ ingestRouter.post('/', requireIngestToken, async (req, res) => {
         activeSeconds: iv.activeSeconds,
         idleSeconds: iv.idleSeconds,
         foregroundApp: iv.foregroundApp,
-        windowTitle: iv.windowTitle,
+        windowTitle: storedTitle,
         appCategory: iv.appCategory,
         keystrokeCount: iv.keystrokeCount,
         mouseEvents: iv.mouseEvents,

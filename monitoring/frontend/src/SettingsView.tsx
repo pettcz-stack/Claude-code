@@ -14,6 +14,8 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
   const [interpretMonitors, setInterpretMonitors] = useState(false);
   const [employeeReportEnabled, setEmployeeReportEnabled] = useState(false);
   const [showDemoDevices, setShowDemoDevices] = useState(true);
+  const [privacyStoreDomainOnly, setPrivacyStoreDomainOnly] = useState(false);
+  const [retentionDays, setRetentionDays] = useState(90);
   const [smtp, setSmtp] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
   const toast = useToast();
@@ -29,6 +31,8 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
       setInterpretMonitors(d.settings.interpretMonitors);
       setEmployeeReportEnabled(d.settings.employeeReportEnabled);
       setShowDemoDevices(d.settings.showDemoDevices);
+      setPrivacyStoreDomainOnly(d.settings.privacyStoreDomainOnly);
+      setRetentionDays(d.settings.retentionDaysIntervals);
       setSmtp(d.smtpConfigured);
     }).catch(() => undefined);
   }
@@ -37,7 +41,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
   async function save() {
     setMsg('Ukládám…');
     try {
-      await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline, funMode, healthMode, growthMode, interpretMonitors, employeeReportEnabled, showDemoDevices });
+      await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline, funMode, healthMode, growthMode, interpretMonitors, employeeReportEnabled, showDemoDevices, privacyStoreDomainOnly, retentionDaysIntervals: retentionDays });
       setMsg(null); toast('Nastavení uloženo');
     } catch (e) { toast('Uložení selhalo: ' + e, 'error'); }
     load();
@@ -91,6 +95,30 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
             <button onClick={save} className="btn-primary"><Save size={15} /> Uložit</button>
             <button onClick={runNow} className="btn-ghost"><Play size={15} /> Spustit kontrolu teď</button>
             {msg && <span className="text-sm muted">{msg}</span>}
+          </div>
+        )}
+      </div>
+
+      <div className="card p-5">
+        <h3 className="mb-3 text-sm font-semibold">Soukromí a uchovávání dat (GDPR)</h3>
+
+        <label className="mb-4 flex items-start gap-3 text-sm">
+          <input type="checkbox" checked={privacyStoreDomainOnly} disabled={!canEdit} onChange={(e) => setPrivacyStoreDomainOnly(e.target.checked)} className="mt-1" />
+          <span>
+            <span className="font-medium">Ukládat z prohlížeče jen doménu, ne celý titulek</span>
+            <span className="muted-2"> Místo „Schůzka 14:00 – Outlook" se uloží jen „outlook.com". Méně osobních dat, lepší soukromí. Klasifikace (práce/zábava) funguje dál podle pravidel domén.</span>
+          </span>
+        </label>
+
+        <label className="mb-1 block text-sm muted">Mazat syrové detaily aktivity starší než (dní)</label>
+        <div className="mb-1 flex items-center gap-2">
+          <input type="number" min={7} max={3650} value={retentionDays} disabled={!canEdit} onChange={(e) => setRetentionDays(Number(e.target.value))} className="field w-32" />
+          <span className="text-xs muted-2">denní/hodinové agregáty zůstávají – statistika je zachována, jen mizí detail titulků oken</span>
+        </div>
+
+        {canEdit && (
+          <div className="mt-3">
+            <button onClick={save} className="btn-primary"><Save size={15} /> Uložit</button>
           </div>
         )}
       </div>

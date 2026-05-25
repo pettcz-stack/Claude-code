@@ -148,6 +148,27 @@ export function SelfReportView({ user, from, to, preloaded }: { user?: User; fro
         </div>
       </div>
 
+      {/* Osobní trendy – sám se sebou, nesoutěží s kolegy */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="card p-4">
+          <div className="text-xs uppercase muted-2">Bloky soustředění</div>
+          <div className="mt-1 text-2xl font-bold text-emerald-600">{r.focusSessions}×</div>
+          <div className="text-xs muted-2">{r.focusMinutes > 0 ? `${Math.round(r.focusMinutes / 60 * 10) / 10} h v hluboké práci (≥ 25 min v kuse)` : 'Žádný 25min blok bez přepínání oken'}</div>
+        </div>
+        <div className="card p-4">
+          <div className="text-xs uppercase muted-2">Nejproduktivnější hodina</div>
+          <div className="mt-1 text-2xl font-bold">{r.bestHourLabel ?? '—'}</div>
+          <div className="text-xs muted-2">{r.bestHourLabel ? 'Plánuj sem těžké úkoly' : 'Málo dat z posledních 14 dní'}</div>
+        </div>
+        <div className="card p-4">
+          <div className="text-xs uppercase muted-2">Tento týden vs minulý</div>
+          {r.trendDeltaPct === null
+            ? <div className="mt-1 text-2xl font-bold muted-2">—</div>
+            : <div className={`mt-1 text-2xl font-bold ${r.trendDeltaPct > 0 ? 'text-emerald-600' : r.trendDeltaPct < 0 ? 'text-red-500' : ''}`}>{r.trendDeltaPct > 0 ? '+' : ''}{r.trendDeltaPct} %</div>}
+          <div className="text-xs muted-2">{r.lastWeekScore !== null && r.priorWeekScore !== null ? `tento týden ${r.lastWeekScore} % · minulý ${r.priorWeekScore} %` : 'Potřebujeme data za 2 týdny'}</div>
+        </div>
+      </div>
+
       <div className="card p-5">
         <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Sparkles size={16} className="text-emerald-500" /> Rozpad času u počítače</h3>
         <p className="mb-3 text-xs muted-2">Z naměřeného času na PC za zvolené období.</p>

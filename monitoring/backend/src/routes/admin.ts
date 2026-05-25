@@ -63,6 +63,8 @@ const settingsSchema = z.object({
   interpretMonitors: z.boolean().optional(),
   employeeReportEnabled: z.boolean().optional(),
   showDemoDevices: z.boolean().optional(),
+  privacyStoreDomainOnly: z.boolean().optional(),
+  retentionDaysIntervals: z.number().int().min(7).max(3650).optional(),
 });
 adminRouter.put('/settings', requireRole('ADMIN'), async (req, res) => {
   const p = settingsSchema.safeParse(req.body);

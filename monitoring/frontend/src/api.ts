@@ -176,7 +176,7 @@ export type HomeOffice = {
   byDept: { department: string; hoScore: number; officeScore: number; hoDays: number }[];
   perUser: { userId: string; displayName: string | null; department: string | null; hoDays: number; hoScore: number; officeScore: number; diff: number }[];
 };
-export type SelfReportData = { displayName: string | null; department: string | null; score: number; companyPercentile: number; deptPercentile: number; kpmPercentile: number; avgKpm: number; activeHours: number; nonWorkPct: number; monitorTypical: number; multiMonitorPct: number; appSwitchesPerHour: number; keystrokeTotal: number; caloriesTyping: number; distanceMeters: number; currentSite: string; pcWorkPct: number; pcNonWorkPct: number; pcUnknownPct: number };
+export type SelfReportData = { displayName: string | null; department: string | null; score: number; companyPercentile: number; deptPercentile: number; kpmPercentile: number; avgKpm: number; activeHours: number; nonWorkPct: number; monitorTypical: number; multiMonitorPct: number; appSwitchesPerHour: number; keystrokeTotal: number; caloriesTyping: number; distanceMeters: number; currentSite: string; pcWorkPct: number; pcNonWorkPct: number; pcUnknownPct: number; focusSessions: number; focusMinutes: number; bestHourLabel: string | null; trendDeltaPct: number | null; lastWeekScore: number | null; priorWeekScore: number | null };
 
 export type TipsData = {
   health: { category: string | null; text: string }[];
@@ -184,7 +184,7 @@ export type TipsData = {
   fun: { text: string }[];
 };
 
-export type AppSettings = { alertsEnabled: boolean; alertRecipients: string[]; offlineMinutes: number; funMode: boolean; healthMode: boolean; growthMode: boolean; interpretMonitors: boolean; employeeReportEnabled: boolean; showDemoDevices: boolean };
+export type AppSettings = { alertsEnabled: boolean; alertRecipients: string[]; offlineMinutes: number; funMode: boolean; healthMode: boolean; growthMode: boolean; interpretMonitors: boolean; employeeReportEnabled: boolean; showDemoDevices: boolean; privacyStoreDomainOnly: boolean; retentionDaysIntervals: number };
 
 export type Me = { username: string; role: string };
 
@@ -288,6 +288,11 @@ export const api = {
       if (!r.ok) throw new Error(`${r.status}`);
       return r.json() as Promise<{ report: SelfReportData; tips: TipsData; modes: { funMode: boolean; healthMode: boolean; growthMode: boolean } }>;
     }),
+  selfAudit: (token: string) =>
+    fetch(`/api/v1/self/audit?token=${encodeURIComponent(token)}`).then((r) => {
+      if (!r.ok) throw new Error(`${r.status}`);
+      return r.json() as Promise<{ rows: { id: string; adminIdentity: string; action: string; detail: string | null; createdAt: string }[] }>;
+    }),
   trend: (from: string, to: string, opts: { userId?: string; department?: string } = {}) => {
     const q = new URLSearchParams({ from, to });
     if (opts.userId) q.set('userId', opts.userId);
@@ -352,7 +357,7 @@ export const api = {
   deviceHealth: () => getJson<{ rows: DeviceHealthRow[]; summary: { critical: number; warn: number; ok: number; unreported: number } }>('/api/v1/admin/devices/health'),
   deviceHealthDetail: (id: string) => getJson<{ detail: DeviceHealthDetail }>(`/api/v1/admin/devices/health/${encodeURIComponent(id)}`).then((d) => d.detail),
   getSettings: () => getJson<{ settings: AppSettings; smtpConfigured: boolean }>('/api/v1/admin/settings'),
-  saveSettings: (data: { alertsEnabled?: boolean; alertRecipients?: string; offlineMinutes?: number; funMode?: boolean; healthMode?: boolean; growthMode?: boolean; interpretMonitors?: boolean; employeeReportEnabled?: boolean; showDemoDevices?: boolean }) =>
+  saveSettings: (data: { alertsEnabled?: boolean; alertRecipients?: string; offlineMinutes?: number; funMode?: boolean; healthMode?: boolean; growthMode?: boolean; interpretMonitors?: boolean; employeeReportEnabled?: boolean; showDemoDevices?: boolean; privacyStoreDomainOnly?: boolean; retentionDaysIntervals?: number }) =>
     fetch('/api/v1/admin/settings', { method: 'PUT', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   runAlerts: () =>
     fetch('/api/v1/admin/alerts/run', { method: 'POST', headers: authHeader() }).then((r) => r.json()),
