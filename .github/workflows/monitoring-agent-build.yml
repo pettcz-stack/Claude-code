@@ -3,6 +3,7 @@ name: Monitoring Agent (Windows build)
 # Sestaví Windows agenta, watchdog službu a MSI instalátor na skutečném
 # Windows runneru a vystaví hotové artefakty ke stažení.
 # Spouští se při změně Windows částí nebo ručně (workflow_dispatch).
+# v0.2.1 retrigger
 
 on:
   push:
