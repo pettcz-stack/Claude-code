@@ -24,6 +24,8 @@
     <Reference Include="System.Net.Http" />
     <!-- GZip komprese odesílané dávky (menší přenos po síti). -->
     <Reference Include="System.IO.Compression" />
+    <!-- WMI dotazy pro HW telemetrii (baterie, disky, RAM, BIOS, antivirus). -->
+    <Reference Include="System.Management" />
   </ItemGroup>
 
 </Project>

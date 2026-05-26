@@ -118,6 +118,37 @@ namespace WorkView.Agent
             }
         }
 
+        /// <summary>Odešle HW snapshot na backend (POST /api/v1/ingest/health). Volá se ~1x za hodinu.</summary>
+        public async Task<bool> SendHealthAsync(string healthJson)
+        {
+            try
+            {
+                byte[] gz = Gzip(healthJson);
+                using (ByteArrayContent content = new ByteArrayContent(gz))
+                {
+                    content.Headers.ContentType = new MediaTypeHeaderValue("application/json") { CharSet = "utf-8" };
+                    content.Headers.ContentEncoding.Add("gzip");
+                    using (HttpResponseMessage resp = await _http.PostAsync(_cfg.BackendUrl + "/api/v1/ingest/health", content))
+                    {
+                        if (!resp.IsSuccessStatusCode)
+                        {
+                            string err = null;
+                            try { err = await resp.Content.ReadAsStringAsync(); } catch { /* nepodstatné */ }
+                            AgentLog.Write("HEALTH FAILED HTTP " + (int)resp.StatusCode + " body=" + (err ?? ""));
+                            return false;
+                        }
+                        AgentLog.Write("HEALTH OK");
+                        return true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                AgentLog.Write("HEALTH EXCEPTION " + ex.GetType().Name + ": " + ex.Message);
+                return false;
+            }
+        }
+
         /// <summary>Vyžádá krátkodobý odkaz na report pro přihlášeného uživatele (vázaný na jeho SID).</summary>
         public async Task<string> RequestSelfTokenAsync()
         {

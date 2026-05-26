@@ -73,6 +73,24 @@ namespace WorkView.Agent
                         catch (Exception ex) { AgentLog.Write("Heartbeat exception: " + ex.Message); }
                     });
 
+                    // HW snapshot na pozadí: 1× při startu (po 30 s, ať si DHCP/síť sedne)
+                    // a pak každou hodinu. WMI dotazy dohromady běží desítky až stovky ms
+                    // jen 1× za hodinu → na CPU agenta naprosto nezbytné.
+                    _ = System.Threading.Tasks.Task.Run(async () =>
+                    {
+                        await System.Threading.Tasks.Task.Delay(30_000);
+                        while (true)
+                        {
+                            try
+                            {
+                                string json = HealthCollector.BuildJson();
+                                await _sender.SendHealthAsync(json);
+                            }
+                            catch (Exception ex) { AgentLog.Write("Health collector exception: " + ex.Message); }
+                            await System.Threading.Tasks.Task.Delay(60 * 60 * 1000); // 1 hodina
+                        }
+                    });
+
                     // Odesílání dávek v konfigurovatelném intervalu (výchozí 15 minut).
                     // Mezitím se data hromadí v lokálním bufferu (přežijí restart i výpadek sítě).
                     System.Windows.Forms.Timer sendTimer = new System.Windows.Forms.Timer { Interval = cfg.SendIntervalSeconds * 1000 };
