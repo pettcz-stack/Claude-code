@@ -42,7 +42,7 @@ namespace WorkView.Agent
 
             string sendRaw = ReadRegistry("SendIntervalSeconds") ?? Environment.GetEnvironmentVariable("WORKVIEW_SEND_INTERVAL_SECONDS");
             int sendInterval;
-            if (!int.TryParse(sendRaw, out sendInterval) || sendInterval <= 0) sendInterval = 900; // 15 minut
+            if (!int.TryParse(sendRaw, out sendInterval) || sendInterval <= 0) sendInterval = 120; // 2 minuty (rovnou viditelný log v dashboardu)
             if (sendInterval < 60) sendInterval = 60; // pod 1 min nedává smysl
 
             string captureRaw = ReadRegistry("CaptureWindowTitle") ?? Environment.GetEnvironmentVariable("WORKVIEW_CAPTURE_TITLE");

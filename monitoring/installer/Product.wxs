@@ -19,7 +19,7 @@
   <Package
       Name="MA win 32"
       Manufacturer="MA"
-      Version="0.2.0"
+      Version="0.2.1"
       UpgradeCode="7d6a2c4e-9b1f-4a3d-9c2a-2f5e6b8c1a90"
       Scope="perMachine"
       Codepage="1250"
@@ -35,7 +35,7 @@
     <Property Id="BACKENDURL" Value="https://focus.firma.cz" Secure="yes" />
     <Property Id="INGESTTOKEN" Secure="yes" Hidden="yes" />
     <Property Id="INTERVALSECONDS" Value="60" Secure="yes" />
-    <Property Id="SENDINTERVALSECONDS" Value="900" Secure="yes" />
+    <Property Id="SENDINTERVALSECONDS" Value="120" Secure="yes" />
     <Property Id="CAPTURETITLE" Value="0" Secure="yes" />
     <Property Id="IDLESECONDS" Value="300" Secure="yes" />
     <Property Id="COMPANYNETWORKONLY" Value="0" Secure="yes" />

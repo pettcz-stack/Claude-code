@@ -225,6 +225,7 @@ namespace WorkView.Agent
             try
             {
                 // Pošli po dávkách max 500 záznamů, dokud je co posílat.
+                bool sentAnything = false;
                 while (true)
                 {
                     List<string> batch = _buffer.Peek(500);
@@ -232,7 +233,16 @@ namespace WorkView.Agent
                     bool ok = await _sender.SendBatchAsync(batch);
                     if (!ok) break; // necháme v bufferu na další pokus
                     _buffer.Commit(batch.Count);
+                    sentAnything = true;
                     if (batch.Count < 500) break;
+                }
+                // Když není co posílat, udělej heartbeat (prázdná dávka). Tím se zároveň
+                // vyprázdní in-memory log agenta do dashboardu a obnoví se lastSeen –
+                // takže administrátor v UI vidí aktuální stav i tehdy, kdy uživatel
+                // momentálně nepracuje (např. session locked, oběd, schůzka).
+                if (!sentAnything)
+                {
+                    await _sender.SendBatchAsync(new List<string>());
                 }
             }
             finally
