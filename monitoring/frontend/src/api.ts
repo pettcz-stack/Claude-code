@@ -162,7 +162,7 @@ export type IntegrityResult = { userId: string; riskScore: number; suspicious: b
 export type AlertItem = { userId: string; displayName: string | null; department: string | null; riskScore: number; suspicious: boolean; flags: IntegrityFlag[] };
 
 export type Overview = {
-  kpi: { userCount: number; avgScore: number; avgScoreDelta: number | null; activeHours: number; nonWorkHours: number; idleHours: number; nonWorkPct: number; flaggedCount: number; onlineCount: number };
+  kpi: { userCount: number; avgScore: number; avgScoreDelta: number | null; activeHours: number; nonWorkHours: number; idleHours: number; nonWorkPct: number; flaggedCount: number; onlineCount: number; deviceCount: number };
   split: { work: number; nonwork: number; idle: number; pcoff: number };
   departments: { department: string; avgScore: number; activeHours: number; nonWorkPct: number; users: number }[];
   top: { userId: string; displayName: string | null; department: string | null; score: number }[];

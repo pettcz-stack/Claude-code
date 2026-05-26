@@ -46,7 +46,7 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi icon={<Gauge size={13} />} label="Průměrné skóre efektivity (%)" value={`${o.kpi.avgScore} %`} color={scoreColor(o.kpi.avgScore)} sub={<Delta d={o.kpi.avgScoreDelta} />} />
         <Kpi icon={<Clock size={13} />} label="Aktivní práce celkem (hodiny)" value={`${o.kpi.activeHours} h`} sub={<span className="muted-2">{o.kpi.userCount} sledovaných zaměstnanců</span>} />
-        <Kpi icon={<Wifi size={13} />} label="Online zařízení teď (počet)" value={`${o.kpi.onlineCount}`} sub={<span className="muted-2">z {o.kpi.userCount} zařízení</span>} />
+        <Kpi icon={<Wifi size={13} />} label="Online zařízení teď (počet)" value={`${o.kpi.onlineCount}`} sub={<span className="muted-2">z {o.kpi.deviceCount} zařízení</span>} />
         <Kpi icon={<ShieldAlert size={13} />} label="Podezření na praktiky (počet)" value={`${o.kpi.flaggedCount}`} accent={o.kpi.flaggedCount ? 'text-red-500' : ''} sub={<span className="muted-2">zaměstnanců s podezřelým chováním</span>} />
       </div>
 

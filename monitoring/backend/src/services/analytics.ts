@@ -297,6 +297,7 @@ export type OverviewResult = {
     nonWorkPct: number;
     flaggedCount: number;
     onlineCount: number;
+    deviceCount: number; // Počet aktivních zařízení (pro správný jmenovatel u "X z Y online")
   };
   split: { work: number; nonwork: number; idle: number; pcoff: number }; // hodiny
   departments: { department: string; avgScore: number; activeHours: number; nonWorkPct: number; users: number }[];
@@ -403,6 +404,7 @@ export async function overview(from: Date, to: Date, department?: string): Promi
       nonWorkPct: clampPct((nonworkSum / Math.max(workSum + nonworkSum, 1)) * 100),
       flaggedCount: flagged,
       onlineCount,
+      deviceCount: devices.length,
     },
     split: {
       work: Math.round(workSum / 60),
