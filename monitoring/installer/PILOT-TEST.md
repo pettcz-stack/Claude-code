@@ -6,7 +6,7 @@ proběhne na Windows.
 
 ## 0. Build MSI
 - Automaticky: GitHub Actions workflow **„Monitoring Agent (Windows build)"** →
-  stáhni artefakt `monitoring-windows-build` (obsahuje `DeviceMonitorAgent.msi`).
+  stáhni artefakt `monitoring-windows-build` (obsahuje `FocusAgent.msi`).
 - Nebo lokálně: `pwsh monitoring/agent/build-all.ps1` (vyžaduje .NET SDK).
 
 ## 1. Příprava serveru (dev/test)
@@ -15,7 +15,7 @@ proběhne na Windows.
 
 ## 2. Tichá instalace
 ```
-msiexec /i DeviceMonitorAgent.msi /qn ^
+msiexec /i FocusAgent.msi /qn ^
   BACKENDURL=https://<server> INGESTTOKEN=<token> INTERVALSECONDS=60 SENDINTERVALSECONDS=900 CAPTURETITLE=1
 ```
 Ověř:
@@ -45,7 +45,7 @@ Ověř:
       bývá heuristicky hlídán). Viz `../docs/DOKUMENTACE.md`.
 
 ## 6. Odinstalace / upgrade
-- [ ] `msiexec /x DeviceMonitorAgent.msi /qn` službu zastaví, odebere a uklidí,
+- [ ] `msiexec /x FocusAgent.msi /qn` službu zastaví, odebere a uklidí,
 - [ ] upgrade vyšší verzí MSI proběhne (MajorUpgrade).
 
 ## Co hlásit zpět

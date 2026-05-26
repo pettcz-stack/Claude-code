@@ -2,7 +2,7 @@
 
 *(Vzor k čl. 6 odst. 1 písm. f) GDPR – posuďte s DPO/právníkem. Viz `00-DISCLAIMER.md`.)*
 
-**Správce:** [DOPLŇTE]  **Zpracování:** Monitoring využití firemních zařízení (Device Monitor)
+**Správce:** [DOPLŇTE]  **Zpracování:** Monitoring využití firemních zařízení (FOCUS)
 **Datum:** [DOPLŇTE]
 
 ## 1. Test účelu – existuje oprávněný zájem?

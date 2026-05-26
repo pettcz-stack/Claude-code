@@ -1,7 +1,7 @@
 # Bezpečnost a soulad
 
 Tento dokument shrnuje **bezpečnostní model**, opatření a doporučení pro
-nasazení Device Monitoru. Detailnější dokument: [`docs/BEZPECNOST.md`](docs/BEZPECNOST.md).
+nasazení FOCUSu. Detailnější dokument: [`docs/BEZPECNOST.md`](docs/BEZPECNOST.md).
 
 ## Hlavní zásady
 
@@ -20,7 +20,7 @@ nasazení Device Monitoru. Detailnější dokument: [`docs/BEZPECNOST.md`](docs/
   Token musí být **dlouhý a náhodný** (min. 32 znaků). V Active Directory
   rolloutu se rozdistribuuje přes MSI parametr `INGESTTOKEN`.
 - **Dashboard ↔ backend**: HTTPS + session bearer token (uložen v `localStorage`,
-  klíč `device_monitor_token`).
+  klíč `focus_token`).
 - **Heslo administrátora**: scrypt hash (vestavěný v Node).
 
 ## Databáze
@@ -47,7 +47,7 @@ tajemství (`ADMIN_PASSWORD=admin`, `INGEST_TOKEN=dev-token` apod.) — viz
 
 Agent se **viditelně** přihlásí v Task Manageru — záměrně (transparentnost
 dle §316 ZP). Změna pojmenování / pouzdření je možná v `Product.wxs` a
-`Device Monitor.Agent.csproj`.
+`WorkView.Agent.csproj` (interní název projektu).
 
 ## GDPR
 

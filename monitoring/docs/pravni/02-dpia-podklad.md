@@ -2,7 +2,7 @@
 
 *(Vzor dle čl. 35 GDPR – posuďte s DPO/právníkem. Viz `00-DISCLAIMER.md`.)*
 
-**Správce:** [DOPLŇTE]  **Zpracování:** Monitoring využití firemních zařízení (Device Monitor)
+**Správce:** [DOPLŇTE]  **Zpracování:** Monitoring využití firemních zařízení (FOCUS)
 **Zpracoval / datum:** [DOPLŇTE]  **DPO:** [DOPLŇTE]
 
 ## 1. Popis zpracování

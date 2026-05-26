@@ -44,14 +44,14 @@ jobs:
           wix build Product.wxs -ext WixToolset.Util.wixext `
             -d "AgentExePath=..\agent\WorkView.Agent\bin\Release\net48\MA win 32.exe" `
             -d "WatchdogExePath=..\agent\WorkView.Watchdog\bin\Release\net48\MA win 32 Service.exe" `
-            -o DeviceMonitorAgent.msi
+            -o FocusAgent.msi
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: device-monitor-windows-build
+          name: focus-windows-build
           path: |
             agent/WorkView.Agent/bin/Release/net48/MA win 32.exe
             agent/WorkView.Watchdog/bin/Release/net48/MA win 32 Service.exe
-            installer/DeviceMonitorAgent.msi
+            installer/FocusAgent.msi
           if-no-files-found: error

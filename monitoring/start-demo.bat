@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM  Device Monitor - spusteni testovaciho serveru (demo, vse na 1 PC)
+REM  FOCUS - spusteni testovaciho serveru (demo, vse na 1 PC)
 REM  Staci 2x kliknout. Vyzaduje spusteny Docker Desktop.
 REM ============================================================
 cd /d "%~dp0"

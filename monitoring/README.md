@@ -1,8 +1,8 @@
-# Device Monitor
+# FOCUS
 
 **Férový přehled o efektivitě práce na firemních počítačích — v souladu s GDPR a §316 zákoníku práce.**
 
-Device Monitor sbírá z firemních Windows zařízení **pouze agregované metriky**
+FOCUS sbírá z firemních Windows zařízení **pouze agregované metriky**
 (aktivní/nečinný čas, název aktivní aplikace, počet úhozů a pohybů myši) a
 ukazuje je v jednom přehledném dashboardu — pro vedení, HR i samotné
 zaměstnance. **Žádné screenshoty, žádný keylogging obsahu, žádný mikrofon
@@ -66,7 +66,7 @@ Detailní možnosti viz [`INSTALL.md`](INSTALL.md).
 
 ---
 
-## Co Device Monitor dělá
+## Co FOCUS dělá
 
 - ✅ **Skóre efektivity** týmu i jednotlivců — férové: dovolená/nemoc/svátky se nepočítají proti.
 - ✅ **Práce vs. zábava** (sítě, sázení, hry…) rozpoznané automaticky podle aplikací + pravidel webů.
@@ -104,7 +104,7 @@ Detaily v [`docs/NAVRH.md`](docs/NAVRH.md).
 ## CI / build
 
 - **Linux backend + frontend:** [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — typecheck, lint, build, testy.
-- **Windows agent + MSI:** [`.github/workflows/agent-build.yml`](.github/workflows/agent-build.yml) — staví agenta a MSI na Windows runneru, artefakt **`DeviceMonitorAgent.msi`**.
+- **Windows agent + MSI:** [`.github/workflows/agent-build.yml`](.github/workflows/agent-build.yml) — staví agenta a MSI na Windows runneru, artefakt **`FocusAgent.msi`**.
 
 ---
 

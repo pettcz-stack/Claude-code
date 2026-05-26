@@ -1,4 +1,4 @@
-# Device Monitor frontend – build a servírování přes nginx.
+# FOCUS frontend – build a servírování přes nginx.
 FROM node:20-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./

@@ -4,7 +4,7 @@ Krátký průvodce, co kde v dashboardu najdete a jak nástroj nasadit férově.
 
 ## Přihlášení
 
-Otevřete adresu, kterou vám dalo IT (např. `https://device-monitor.firma.cz/`),
+Otevřete adresu, kterou vám dalo IT (např. `https://focus.firma.cz/`),
 zadejte uživatelské jméno a heslo. Pro každou roli (ADMIN / VIEWER) lze založit
 samostatné účty.
 

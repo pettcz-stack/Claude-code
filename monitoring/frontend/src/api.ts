@@ -188,7 +188,7 @@ export type AppSettings = { alertsEnabled: boolean; alertRecipients: string[]; o
 
 export type Me = { username: string; role: string };
 
-const STORAGE_KEY = 'device_monitor_token';
+const STORAGE_KEY = 'focus_token';
 
 export function getToken(): string | null {
   return sessionStorage.getItem(STORAGE_KEY);
@@ -400,11 +400,11 @@ export const api = {
     const q = new URLSearchParams({ from, to });
     if (opts.userId) q.set('userId', opts.userId);
     if (opts.department) q.set('department', opts.department);
-    return downloadFile(`/api/v1/export/hourly.xlsx?${q.toString()}`, 'device-monitor-hourly.xlsx');
+    return downloadFile(`/api/v1/export/hourly.xlsx?${q.toString()}`, 'focus-hourly.xlsx');
   },
   exportIntervals: (from: string, to: string, userId?: string) => {
     const q = new URLSearchParams({ from, to });
     if (userId) q.set('userId', userId);
-    return downloadFile(`/api/v1/export/intervals.xlsx?${q.toString()}`, 'device-monitor-intervals.xlsx');
+    return downloadFile(`/api/v1/export/intervals.xlsx?${q.toString()}`, 'focus-intervals.xlsx');
   },
 };

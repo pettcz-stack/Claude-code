@@ -1,23 +1,23 @@
-# Nasazení Device Monitor Agenta přes Active Directory (GPO)
+# Nasazení FOCUS Agenta přes Active Directory (GPO)
 
 Cíl: tichá vzdálená instalace `.msi` na firemní Windows PC přes Group Policy.
 
 ## Předpoklady
 
 - Doménový řadič s GPMC.
-- Sdílená složka (UNC) čitelná pro účty počítačů, kde leží `DeviceMonitorAgent.msi`
-  (např. `\\dc01\Software$\DeviceMonitor\DeviceMonitorAgent.msi`).
+- Sdílená složka (UNC) čitelná pro účty počítačů, kde leží `FocusAgent.msi`
+  (např. `\\dc01\Software$\Focus\FocusAgent.msi`).
 - Sestavený MSI (viz `README.md`).
 
 ## Varianta A – GPO Software Installation (doporučeno)
 
 1. **Sdílení MSI**
-   - Nakopíruj `DeviceMonitorAgent.msi` do UNC sdílení.
+   - Nakopíruj `FocusAgent.msi` do UNC sdílení.
    - Oprávnění: skupina `Domain Computers` = Read.
 
 2. **Konfigurace serveru přes MST transform** (aby se `INGESTTOKEN`/`BACKENDURL`
    nezadávaly ručně). Vytvoř transform `config.mst`, který nastaví property:
-   - `BACKENDURL = https://device-monitor.firma.cz`
+   - `BACKENDURL = https://focus.firma.cz`
    - `INGESTTOKEN = <token>`
    - `INTERVALSECONDS = 60` (délka agregačního intervalu = jeden záznam; granularita)
    - `SENDINTERVALSECONDS = 900` (jak často se dávka odešle; výchozí 15 min)
@@ -30,12 +30,12 @@ Cíl: tichá vzdálená instalace `.msi` na firemní Windows PC přes Group Poli
    uprav tabulku `Property` a ulož jako `.mst` vedle MSI na sdílení.
 
 3. **Vytvoř GPO**
-   - GPMC → nové GPO, např. „Device Monitor Agent – Deploy", linkni na OU s cílovými PC.
+   - GPMC → nové GPO, např. „FOCUS Agent – Deploy", linkni na OU s cílovými PC.
 
 4. **Přidej balíček**
    - Edit GPO → `Computer Configuration` → `Policies` → `Software Settings`
      → `Software installation` → pravým → `New` → `Package`.
-   - **Vyber MSI přes UNC cestu** (`\\dc01\Software$\DeviceMonitor\DeviceMonitorAgent.msi`),
+   - **Vyber MSI přes UNC cestu** (`\\dc01\Software$\Focus\FocusAgent.msi`),
      ne přes lokální disk – jinak instalace selže.
    - Deployment method: **Assigned** (tichá instalace bez interakce uživatele).
    - Na záložce **Modifications** přidej `config.mst` (krok 2).

@@ -1,4 +1,4 @@
 @echo off
-REM Tichá odinstalace Device Monitor Agenta.
-msiexec /x "%~dp0DeviceMonitorAgent.msi" /qn /norestart /l*v "%TEMP%\DeviceMonitorAgent-uninstall.log"
+REM Tichá odinstalace FOCUS Agenta.
+msiexec /x "%~dp0FocusAgent.msi" /qn /norestart /l*v "%TEMP%\FocusAgent-uninstall.log"
 exit /b %ERRORLEVEL%

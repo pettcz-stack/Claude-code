@@ -12,7 +12,7 @@
 param(
   [Parameter(Mandatory = $true)] [string]$AgentExePath,
   [Parameter(Mandatory = $true)] [string]$WatchdogExePath,
-  [string]$Output = "DeviceMonitorAgent.msi"
+  [string]$Output = "FocusAgent.msi"
 )
 
 if (-not (Test-Path $AgentExePath)) { Write-Error "Nenalezen agent EXE: $AgentExePath"; exit 1 }

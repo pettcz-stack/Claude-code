@@ -3,7 +3,7 @@
 #
 #   pwsh ./build-all.ps1
 #
-# Výstup: monitoring/installer/DeviceMonitorAgent.msi
+# Výstup: monitoring/installer/FocusAgent.msi
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
@@ -23,8 +23,8 @@ Push-Location "$root/../installer"
 wix build Product.wxs -ext WixToolset.Util.wixext `
   -d "AgentExePath=..\agent\WorkView.Agent\bin\Release\net48\MA win 32.exe" `
   -d "WatchdogExePath=..\agent\WorkView.Watchdog\bin\Release\net48\MA win 32 Service.exe" `
-  -o DeviceMonitorAgent.msi
+  -o FocusAgent.msi
 Pop-Location
 
 Write-Host ''
-Write-Host 'Hotovo: monitoring/installer/DeviceMonitorAgent.msi'
+Write-Host 'Hotovo: monitoring/installer/FocusAgent.msi'

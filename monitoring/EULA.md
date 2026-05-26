@@ -1,4 +1,4 @@
-# Koncová licenční smlouva (EULA) — Device Monitor
+# Koncová licenční smlouva (EULA) — FOCUS
 
 > ⚠️ **Vzorová šablona** — před uzavřením s prvním zákazníkem **nech zkontrolovat
 > právníkem** (specializace IT právo + autorské právo + GDPR). Toto **není**
@@ -12,7 +12,7 @@
 
 ## 2. Předmět smlouvy
 Poskytovatel uděluje zákazníkovi **nevýhradní, nepřevoditelné, časově
-omezené** oprávnění k užití softwaru **Device Monitor** ("Software") pro
+omezené** oprávnění k užití softwaru **FOCUS** ("Software") pro
 **vnitřní obchodní potřeby zákazníka**, v rozsahu uvedeném v aktivní
 předplatné objednávce / dle počtu zakoupených licencí.
 

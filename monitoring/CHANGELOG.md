@@ -30,7 +30,7 @@ Verzování: [Semantic Versioning](https://semver.org/lang/cs/).
   exportů.
 
 ### Změněno
-- **Přejmenováno na Device Monitor** (uživatelský brand). Vnitřní názvy
+- **Přejmenováno na FOCUS** (uživatelský brand). Vnitřní názvy
   (.NET namespace, registry, ProgramData cesta) zůstávají `WorkView`
   z důvodu zpětné kompatibility.
 - LinkedIn přesunut do vlastní kategorie (z „Sociální sítě"), aby šel

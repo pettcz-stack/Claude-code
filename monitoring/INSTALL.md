@@ -66,7 +66,7 @@ Důležité proměnné (`backend/.env`):
 
 | Proměnná | Význam | Příklad |
 |---|---|---|
-| `DATABASE_URL` | připojení k DB | `postgresql://devicemonitor:HESLO@db:5432/devicemonitor` |
+| `DATABASE_URL` | připojení k DB | `postgresql://focus:HESLO@db:5432/focus` |
 | `INGEST_TOKEN` | sdílený token agentů (`Authorization: Bearer ...`) | **změň**, min. 32 znaků |
 | `ADMIN_USER` / `ADMIN_PASSWORD` | první admin do dashboardu | `admin` / **silné** |
 | `SESSION_SECRET` | tajemství pro session tokeny | **změň**, min. 32 znaků |
@@ -92,14 +92,14 @@ viz `backend/docker-entrypoint.sh`).
 Před backend dej proxy s HTTPS certifikátem. Příklad pro Caddy:
 
 ```caddyfile
-device-monitor.firma.cz {
+focus.firma.cz {
   reverse_proxy localhost:4000
 }
 ```
 
 ### 4. První přihlášení
 
-- Otevři `https://device-monitor.firma.cz/`, přihlas se hodnotami z `ADMIN_USER` / `ADMIN_PASSWORD`.
+- Otevři `https://focus.firma.cz/`, přihlas se hodnotami z `ADMIN_USER` / `ADMIN_PASSWORD`.
 - Změň heslo (v Nastavení → Účty — TODO; zatím přes env při startu).
 - V **Správě → Sledovaní uživatelé** přiřaď oddělení.
 - V **Nastavení → klasifikace → Pravidla podle oddělení** přidej výjimky (např. LinkedIn = práce pro HR).
@@ -111,7 +111,7 @@ device-monitor.firma.cz {
 Detail v [`installer/README.md`](installer/README.md). Stručně:
 
 1. **Build MSI** — automaticky přes GitHub Actions workflow „Agent (Windows build)",
-   stáhnete artefakt `DeviceMonitorAgent.msi`. Lokálně viz [`agent/README.md`](agent/README.md).
+   stáhnete artefakt `FocusAgent.msi`. Lokálně viz [`agent/README.md`](agent/README.md).
 2. **GPO rollout** — viz [`installer/deploy-gpo.md`](installer/deploy-gpo.md).
 3. **Test na 1 PC** — viz [`TEST-NA-JEDNOM-PC.md`](TEST-NA-JEDNOM-PC.md).
 
@@ -121,7 +121,7 @@ MSI očekává parametry `BACKENDURL` a `INGESTTOKEN` (musí sedět s `.env` na 
 
 ## Kontrola po nasazení
 
-- [ ] Backend běží: `curl https://device-monitor.firma.cz/api/v1/health` → `{"ok":true}`.
+- [ ] Backend běží: `curl https://focus.firma.cz/api/v1/health` → `{"ok":true}`.
 - [ ] Dashboard otevřu a vidím přehled.
 - [ ] Po nainstalování agenta na 1 testovací PC se do ~5 min objeví v dashboardu zařízení.
 - [ ] Aktivita uživatele se objeví po ~10 minutách práce.

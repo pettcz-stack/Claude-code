@@ -43,7 +43,7 @@ zpráv/souborů, zvuk z mikrofonu, obraz z kamery, polohu mimo pracoviště.
 1. Agent lokálně agreguje metriky (výchozí po minutě) a dávkově je každých ~15 minut
    odešle **šifrovaně přes HTTPS** na firemní backend. Tělo je **gzip** komprimované
    (~10× menší přenos). Při výpadku sítě nebo mimo firemní síť data drží v odolném
-   lokálním bufferu (`%ProgramData%\Device Monitor\spool.ndjson`) a odešle je, až se připojí.
+   lokálním bufferu (`%ProgramData%\FOCUS\spool.ndjson`) a odešle je, až se připojí.
 2. Backend data ověří (token zařízení), uloží do databáze a průběžně agreguje
    (hodinové souhrny, skóre, detekce praktik).
 3. **Dashboard** je webové rozhraní servírované týmž backendem. Oprávněná osoba

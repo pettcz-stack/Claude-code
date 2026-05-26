@@ -1,4 +1,4 @@
-# Device Monitor Agent (Windows)
+# FOCUS Agent (Windows)
 
 Lehký agent sbírající **agregované** metriky pracovní aktivity a odesílající je
 na backend. Běží v interaktivní session přihlášeného uživatele.
@@ -28,7 +28,7 @@ Z registru `HKLM\SOFTWARE\WorkView` (plní MSI / GPO – Blok 1.5):
 
 | Hodnota | Význam | Příklad |
 |---|---|---|
-| `BackendUrl` | URL backendu | `https://device-monitor.firma.cz` |
+| `BackendUrl` | URL backendu | `https://focus.firma.cz` |
 | `IngestToken` | token pro ingest | `…` |
 | `IntervalSeconds` | délka intervalu | `60` |
 | `CaptureWindowTitle` | sbírat titulek okna (`1`/`0`) | `0` |

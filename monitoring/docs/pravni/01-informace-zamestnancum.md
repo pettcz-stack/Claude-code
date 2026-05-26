@@ -18,7 +18,7 @@ prostředků, ochrana majetku a bezpečnosti, organizace práce.
 
 ## 2. Co se sleduje (rozsah)
 
-Na služebních počítačích je nainstalován nástroj **Device Monitor**, který v
+Na služebních počítačích je nainstalován nástroj **FOCUS**, který v
 pracovní době zaznamenává **pouze agregované údaje**:
 
 - aktivní a nečinný čas u počítače (souhrnně po hodinách),

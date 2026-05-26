@@ -1,6 +1,6 @@
 # Návrh řešení: Monitoring pracovní aktivity na firemních zařízeních
 
-> **Pracovní název:** Device Monitor (lze přejmenovat)
+> **Pracovní název:** FOCUS (lze přejmenovat)
 > **Stav:** Návrhový dokument k odsouhlasení. Žádný kód se zatím nepíše.
 > **Účel dokumentu:** Slouží jako kostra, podle které se bude stavět po částech (viz §12 Roadmap).
 
@@ -251,7 +251,7 @@ Každý blok je samostatná, odsouhlasitelná dodávka. Stavíme až po tvém po
 4. Hosting: **on‑premise** vs **privátní cloud (EU)**? (ovlivní síťový návrh agenta — HO uživatelé mimo firemní síť)
 5. Interval sběru: výchozí **60 s** OK?
 6. Retence: jak dlouho syrová data / agregáty?
-7. Název produktu (zatím „Device Monitor").
+7. Název produktu (zatím „FOCUS").
 8. OKbase — máte k dispozici API/export a dokumentaci?
 
 ---

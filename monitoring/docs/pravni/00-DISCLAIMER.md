@@ -2,7 +2,7 @@
 
 Dokumenty v této složce jsou **vzory / podklady**, nikoli hotové právní
 dokumenty a **nejsou právním poradenstvím**. Jsou připravené tak, aby
-odpovídaly tomu, co systém Device Monitor technicky sbírá (pouze agregované metriky,
+odpovídaly tomu, co systém FOCUS technicky sbírá (pouze agregované metriky,
 žádný obsah – viz `../NAVRH.md`).
 
 **Před nasazením musí dokumenty posoudit a schválit váš:**
