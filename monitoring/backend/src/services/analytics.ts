@@ -3,6 +3,7 @@ import { config } from '../config.js';
 import { demoUserWhere, demoDeviceWhere } from './demoFilter.js';
 import { getCategoryMap, type CatType } from './categories.js';
 import { classifyActivity, getWebRules } from './classify.js';
+import { getDeptRules } from './deptrules.js';
 import { computeUserScore, monitorHandicapFactor, MULTI_MONITOR_BENEFIT_CATS } from './scoring.js';
 import { getSettings } from './settings.js';
 import { holidayWeekdaySet, absenceByUser, effectiveWorkdays } from './workcal.js';
