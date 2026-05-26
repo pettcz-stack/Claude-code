@@ -18,6 +18,7 @@ export function HeatmapView({ from, to, department, userId }: { from: string; to
       <p className="mb-3 text-xs muted-2">
         <b>Barva</b> = poměr práce vs. zábavy v dané hodině (zelená = práce, červená = zábava).
         <b> Sytost</b> = jak aktivně byl uživatel u PC (bledé = málo aktivity, sytá = naplno).
+        <b> Černá</b> v pracovní době (Po–Pá 8–16) = PC mlčí (možná HO bez práce nebo vypnuté PC).
       </p>
       <div className="overflow-x-auto">
         <table className="border-separate" style={{ borderSpacing: 2 }}>
@@ -45,11 +46,18 @@ export function HeatmapView({ from, to, department, userId }: { from: string; to
                   const hue = Math.round(workRatio * 145);
                   // lightness: 92 % = bledé (skoro bílé), 45 % = syté → bledé = málo aktivity
                   const lightness = Math.round(92 - 47 * intensity);
-                  const bg = total === 0
-                    ? 'rgba(148,163,184,0.18)' // bez aktivity – jednolitě šedá
+                  // Měl by pracovat? Po–Pá v 8–16 (klasické jádro pracovní doby).
+                  const isWorkHour = d.idx >= 1 && d.idx <= 5 && h >= 8 && h < 17;
+                  const noActivity = total === 0;
+                  const bg = noActivity
+                    ? (isWorkHour
+                      ? '#111827'                  // černá = měl pracovat, ale PC mlčí (HO bez práce / vypnuté PC)
+                      : 'rgba(148,163,184,0.18)')  // jiný čas = běžně mimo PC (večer, víkend)
                     : `hsl(${hue}, 80%, ${lightness}%)`;
-                  const tip = total === 0
-                    ? `${d.label} ${h}:00 – bez aktivity`
+                  const tip = noActivity
+                    ? (isWorkHour
+                      ? `${d.label} ${h}:00 – bez aktivity v pracovní době (PC vypnuté nebo mimo)`
+                      : `${d.label} ${h}:00 – bez aktivity`)
                     : `${d.label} ${h}:00 – ${total} min aktivně\n  práce: ${work} min\n  zábava: ${nonwork} min`;
                   return (
                     <td key={h} title={tip}
@@ -66,7 +74,8 @@ export function HeatmapView({ from, to, department, userId }: { from: string; to
         <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'hsl(145,80%,80%)' }} /> bledá zelená = pracoval, ale málo</span>
         <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'hsl(0,80%,55%)' }} /> sytá červená = naplno zábava</span>
         <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'hsl(0,80%,85%)' }} /> bledá červená = chvíli zábava</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'rgba(148,163,184,0.30)' }} /> šedá = bez aktivity</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'rgba(148,163,184,0.30)' }} /> šedá = bez aktivity (mimo prac. dobu)</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: '#111827' }} /> černá = měl pracovat (Po–Pá 8–16), ale PC mlčí</span>
       </div>
     </div>
   );
