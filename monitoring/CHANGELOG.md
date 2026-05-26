@@ -5,6 +5,14 @@ Verzování: [Semantic Versioning](https://semver.org/lang/cs/).
 
 ## [Unreleased]
 
+### Opraveno (agent)
+- **Resume-from-sleep handler** v agentovi: po probuzení Windows ze spánku
+  (typicky víkend s laptopem zavřeným) agent zahodí mrtvý HTTP klient
+  (zavře keep-alive sokety přes `ServicePoint.CloseConnectionGroup`) a po
+  5 s odešle nashromážděný buffer. Dříve agent po dlouhém spánku „mlčel",
+  protože jeho navázaná TCP spojení byla mrtvá, ale proces o tom nevěděl.
+  Vyžaduje rebuild MSI.
+
 ### Přidáno
 - **HW monitoring pro IT** — nová tabulka `DeviceHealth`, ingest endpoint
   `POST /api/v1/ingest/health`, výpočet stavu (OK / WARN / CRITICAL) podle

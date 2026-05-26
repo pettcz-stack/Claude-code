@@ -60,6 +60,7 @@ namespace WorkView.Agent
                     tracker.Start();
 
                     SystemEvents.SessionSwitch += OnSessionSwitch;
+                    SystemEvents.PowerModeChanged += OnPowerModeChanged;
 
                     // Odesílání dávek v konfigurovatelném intervalu (výchozí 15 minut).
                     // Mezitím se data hromadí v lokálním bufferu (přežijí restart i výpadek sítě).
@@ -70,6 +71,7 @@ namespace WorkView.Agent
                     Application.ApplicationExit += (s, e) =>
                     {
                         SystemEvents.SessionSwitch -= OnSessionSwitch;
+                        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
                         sendTimer.Stop();
                         if (_tray != null) { _tray.Visible = false; _tray.Dispose(); _tray = null; }
                     };
@@ -130,6 +132,43 @@ namespace WorkView.Agent
                 _sessionLocked = true;
             else if (e.Reason == SessionSwitchReason.SessionUnlock || e.Reason == SessionSwitchReason.SessionLogon)
                 _sessionLocked = false;
+        }
+
+        /// <summary>
+        /// Reaguje na uspání / probuzení Windows. Po probuzení (Resume) zahodí
+        /// stará HTTP spojení a hned se pokusí odeslat data, která se nashromáždila
+        /// v bufferu, případně dorovná chvilku po probuzení sítě.
+        ///
+        /// Bez tohoto handleru proces po vícedenním spánku „mlčí" – běží, ale jeho
+        /// keep-alive sokety jsou mrtvé a žádné retry je nezachrání.
+        /// </summary>
+        private static async void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
+        {
+            if (e.Mode != PowerModes.Resume) return;
+            try
+            {
+                LogEvent("PowerMode=Resume → resetuji HTTP klienta a posílám buffer");
+                _sender?.ResetConnection();
+                // Pár sekund na obnovu wifi / DHCP / DNS po probuzení.
+                await System.Threading.Tasks.Task.Delay(5000);
+                await TrySendAsync();
+                UpdateTray();
+            }
+            catch (Exception ex)
+            {
+                LogEvent("Resume handler selhal: " + ex.Message);
+            }
+        }
+
+        private static void LogEvent(string message)
+        {
+            try
+            {
+                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "WorkView");
+                Directory.CreateDirectory(dir);
+                File.AppendAllText(Path.Combine(dir, "agent.log"), $"{DateTime.UtcNow:o}\t{message}\n");
+            }
+            catch { /* nesmí shodit agenta */ }
         }
 
         private static async System.Threading.Tasks.Task TrySendAsync()

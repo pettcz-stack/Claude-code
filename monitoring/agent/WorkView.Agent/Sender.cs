@@ -14,7 +14,7 @@ namespace WorkView.Agent
     internal sealed class Sender
     {
         private readonly AgentConfig _cfg;
-        private readonly HttpClient _http;
+        private HttpClient _http;
         private readonly string _devicePart;
         private readonly string _userPart;
 
@@ -27,8 +27,7 @@ namespace WorkView.Agent
             _cfg = cfg;
             // TLS 1.2 i na starších .NET Framework / Windows.
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-            _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-            _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", cfg.IngestToken);
+            BuildHttpClient();
 
             _devicePart = "\"device\":{" +
                 "\"machineId\":" + Json.Str(MachineIdentity.MachineId()) + "," +
@@ -38,6 +37,30 @@ namespace WorkView.Agent
             _userPart = "\"user\":{" +
                 "\"sid\":" + Json.Str(MachineIdentity.UserSid()) + "," +
                 "\"displayName\":" + Json.Str(MachineIdentity.UserDisplayName()) + "}";
+        }
+
+        /// <summary>
+        /// Po probuzení Windows ze spánku jsou navázaná TCP spojení v poolu mrtvá
+        /// (server-side keep-alive timeout, výměna IP adresy přes DHCP, jiný DNS).
+        /// Tahle metoda zahodí starého klienta i connection pool pro backend
+        /// a navážeme čerstvě. Volá se z handleru SystemEvents.PowerModeChanged = Resume.
+        /// </summary>
+        public void ResetConnection()
+        {
+            try { _http?.Dispose(); } catch { /* nepodstatné */ }
+            try
+            {
+                ServicePoint sp = ServicePointManager.FindServicePoint(new Uri(_cfg.BackendUrl));
+                sp.CloseConnectionGroup(null); // zavři otevřené keep-alive sokety
+            }
+            catch { /* nepodstatné */ }
+            BuildHttpClient();
+        }
+
+        private void BuildHttpClient()
+        {
+            _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+            _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _cfg.IngestToken);
         }
 
         /// <summary>Pošle dávku JSON řádků intervalů. Vrací true při úspěchu (HTTP 2xx).</summary>
