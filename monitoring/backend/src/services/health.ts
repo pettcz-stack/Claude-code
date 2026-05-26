@@ -134,6 +134,8 @@ export type DeviceHealthRow = {
   deviceId: string;
   hostname: string;
   machineId: string;
+  primaryUser: string | null; // jméno posledního uživatele, který na PC pracoval
+  primaryDepartment: string | null;
   reportedAt: string | null;
   lastSeen: string | null;
   status: HealthStatus | 'UNREPORTED';
@@ -185,13 +187,40 @@ export async function listDeviceHealth(): Promise<DeviceHealthRow[]> {
     where: { active: true, ...(await demoDeviceWhere()) },
     select: { id: true, hostname: true, machineId: true, lastSeen: true, health: true },
   });
+
+  // Pro každý device najdi posledního aktivního uživatele – ať IT pozná, čí PC to je.
+  // Hostname (DESKTOP-153334QF) sám o sobě nestačí, oddělení a jméno je užitečnější.
+  const deviceIds = devices.map((d) => d.id);
+  const latest = await prisma.activityInterval.groupBy({
+    by: ['deviceId', 'userId'],
+    where: { deviceId: { in: deviceIds } },
+    _max: { intervalStart: true },
+  });
+  // Pro každé device si zvol userId s nejnovějším intervalem.
+  const lastByDevice = new Map<string, { userId: string; ts: Date }>();
+  for (const r of latest) {
+    if (!r._max.intervalStart) continue;
+    const cur = lastByDevice.get(r.deviceId);
+    if (!cur || r._max.intervalStart > cur.ts) lastByDevice.set(r.deviceId, { userId: r.userId, ts: r._max.intervalStart });
+  }
+  const userIds = [...new Set([...lastByDevice.values()].map((v) => v.userId))];
+  const users = userIds.length === 0 ? [] : await prisma.monitoredUser.findMany({
+    where: { id: { in: userIds } },
+    select: { id: true, displayName: true, department: true },
+  });
+  const userMap = new Map(users.map((u) => [u.id, u]));
+
   const rows: DeviceHealthRow[] = devices.map((d) => {
     const h = d.health;
     const disks = h?.disksJson ? (JSON.parse(h.disksJson) as DiskInfo[]) : null;
+    const lastUser = lastByDevice.get(d.id);
+    const u = lastUser ? userMap.get(lastUser.userId) : null;
     return {
       deviceId: d.id,
       hostname: d.hostname,
       machineId: d.machineId,
+      primaryUser: u?.displayName ?? null,
+      primaryDepartment: u?.department ?? null,
       lastSeen: d.lastSeen ? d.lastSeen.toISOString() : null,
       reportedAt: h?.reportedAt ? h.reportedAt.toISOString() : null,
       status: (h?.status as HealthStatus) ?? 'UNREPORTED',
@@ -219,10 +248,18 @@ export async function getDeviceHealthDetail(deviceId: string): Promise<DeviceHea
   if (!d) return null;
   const h = d.health;
   const disks = h?.disksJson ? (JSON.parse(h.disksJson) as DiskInfo[]) : [];
+  // Poslední aktivní uživatel na tomto PC (jméno + oddělení), ať IT ví, čí stroj to je.
+  const lastInterval = await prisma.activityInterval.findFirst({
+    where: { deviceId },
+    orderBy: { intervalStart: 'desc' },
+    select: { user: { select: { displayName: true, department: true } } },
+  });
   return {
     deviceId: d.id,
     hostname: d.hostname,
     machineId: d.machineId,
+    primaryUser: lastInterval?.user.displayName ?? null,
+    primaryDepartment: lastInterval?.user.department ?? null,
     lastSeen: d.lastSeen ? d.lastSeen.toISOString() : null,
     reportedAt: h?.reportedAt ? h.reportedAt.toISOString() : null,
     status: (h?.status as HealthStatus) ?? 'UNREPORTED',

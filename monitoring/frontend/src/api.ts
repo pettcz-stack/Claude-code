@@ -135,6 +135,7 @@ export type HealthStatus = 'OK' | 'WARN' | 'CRITICAL' | 'UNREPORTED';
 export type DiskInfo = { name: string; totalGB?: number; freeGB?: number; smartStatus?: string; reallocSectors?: number; pendingSectors?: number; powerOnHours?: number; tempC?: number };
 export type DeviceHealthRow = {
   deviceId: string; hostname: string; machineId: string;
+  primaryUser: string | null; primaryDepartment: string | null;
   reportedAt: string | null; lastSeen: string | null;
   status: HealthStatus; issues: string[];
   osName: string | null; manufacturer: string | null; model: string | null;

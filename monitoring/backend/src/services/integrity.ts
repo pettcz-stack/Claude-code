@@ -1,4 +1,5 @@
 import { prisma } from '../db.js';
+import { demoUserWhere } from './demoFilter.js';
 
 export type IntegrityFlag = {
   type: 'MOUSE_JIGGLER' | 'KEYBOARD_WEIGHT' | 'NO_APP_SWITCH' | 'ROBOTIC_REGULARITY';
@@ -109,7 +110,7 @@ export async function computeIntegrity(userId: string, from: Date, to: Date): Pr
 /** Spustí detekci pro všechny aktivní uživatele a vrátí jen ty s nálezem. */
 export async function detectAlerts(from: Date, to: Date, department?: string) {
   const users = await prisma.monitoredUser.findMany({
-    where: { active: true, ...(department ? { department } : {}) },
+    where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
     select: { id: true, displayName: true, department: true },
   });
   const alerts = [];

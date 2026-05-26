@@ -40,7 +40,7 @@ export function HardwareHealthView() {
   }
   useEffect(load, []);
 
-  const filtered = rows.filter((r) => (filter === 'ALL' || r.status === filter) && (!search || r.hostname.toLowerCase().includes(search.toLowerCase()) || (r.model ?? '').toLowerCase().includes(search.toLowerCase())));
+  const filtered = rows.filter((r) => (filter === 'ALL' || r.status === filter) && (!search || r.hostname.toLowerCase().includes(search.toLowerCase()) || (r.model ?? '').toLowerCase().includes(search.toLowerCase()) || (r.primaryUser ?? '').toLowerCase().includes(search.toLowerCase())));
 
   return (
     <div className="space-y-4">
@@ -76,7 +76,7 @@ export function HardwareHealthView() {
       {/* Filtr + hledání */}
       <div className="flex flex-wrap items-center gap-2">
         <button onClick={() => setFilter('ALL')} className={`btn-ghost text-xs ${filter === 'ALL' ? 'ring-1 ring-emerald-400' : ''}`}>Vše</button>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Hledat hostname / model…" className="field w-64" />
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Hledat hostname / uživatel / model…" className="field w-64" />
         <span className="text-xs muted-2">Zobrazeno {filtered.length} z {rows.length}</span>
       </div>
 
@@ -85,7 +85,7 @@ export function HardwareHealthView() {
         <div className="overflow-auto">
           <table className="w-full">
             <thead><tr className="text-left">
-              <th className="th">Stav</th><th className="th">Hostname</th><th className="th">Model</th>
+              <th className="th">Stav</th><th className="th">Hostname / Uživatel</th><th className="th">Model</th>
               <th className="th">Baterie</th><th className="th">Disk</th><th className="th">RAM</th>
               <th className="th">Aktual.</th><th className="th">Antivir</th><th className="th">Hlášky</th>
             </tr></thead>
@@ -93,7 +93,10 @@ export function HardwareHealthView() {
               {filtered.map((r) => (
                 <tr key={r.deviceId} className="divide-row cursor-pointer hover:bg-emerald-50/30 dark:hover:bg-emerald-500/5" onClick={() => api.deviceHealthDetail(r.deviceId).then(setOpen)}>
                   <td className="td">{statusBadge(r.status)}</td>
-                  <td className="td font-medium">{r.hostname}</td>
+                  <td className="td">
+                    <div className="font-medium">{r.hostname}</div>
+                    {r.primaryUser && <div className="text-[11px] muted-2">{r.primaryUser}{r.primaryDepartment ? ` · ${r.primaryDepartment}` : ''}</div>}
+                  </td>
                   <td className="td text-xs muted-2">{r.manufacturer ?? '—'} {r.model ?? ''}</td>
                   <td className="td">{batteryHealth(r.batteryHealthPct)}</td>
                   <td className="td">{pctBar(r.diskTopUsedPct, 85, 95)}</td>
@@ -123,6 +126,7 @@ function HealthDetailPanel({ d, onClose }: { d: DeviceHealthDetail; onClose: () 
           <div>
             <div className="text-xs uppercase muted-2">{d.manufacturer ?? '—'} {d.model ?? ''}</div>
             <h3 className="text-lg font-semibold">{d.hostname}</h3>
+            {d.primaryUser && <div className="text-xs muted-2">Uživatel: {d.primaryUser}{d.primaryDepartment ? ` · ${d.primaryDepartment}` : ''}</div>}
             <div className="mt-1">{statusBadge(d.status)}</div>
           </div>
           <button onClick={onClose} className="muted-2 hover:text-red-500"><X size={18} /></button>
