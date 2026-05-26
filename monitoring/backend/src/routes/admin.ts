@@ -294,6 +294,22 @@ adminRouter.get('/devices/health/:deviceId', async (req, res) => {
   res.json({ detail });
 });
 
+/** Diagnostika: posledních ~50 intervalů z konkrétního zařízení, ať admin vidí,
+ *  co reálně agent posílá (app, titulek, aktivita). Pro debug klasifikace. */
+adminRouter.get('/devices/:deviceId/recent-intervals', async (req, res) => {
+  const rows = await prisma.activityInterval.findMany({
+    where: { deviceId: req.params.deviceId },
+    orderBy: { intervalStart: 'desc' },
+    take: 50,
+    select: {
+      intervalStart: true, intervalSeconds: true, activeSeconds: true, idleSeconds: true,
+      foregroundApp: true, windowTitle: true, keystrokeCount: true, mouseEvents: true,
+      sessionLocked: true, user: { select: { displayName: true } },
+    },
+  });
+  res.json({ intervals: rows });
+});
+
 /** Diagnostický log – posledních ~500 zajímavých událostí v paměti procesu. */
 adminRouter.get('/events', async (req, res) => {
   const limit = Math.min(Number(req.query.limit ?? 200), 500);

@@ -369,6 +369,7 @@ export const api = {
   },
   clearEvents: () => fetch('/api/v1/admin/events', { method: 'DELETE', headers: authHeader() }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   deviceHealthDetail: (id: string) => getJson<{ detail: DeviceHealthDetail }>(`/api/v1/admin/devices/health/${encodeURIComponent(id)}`).then((d) => d.detail),
+  deviceRecentIntervals: (id: string) => getJson<{ intervals: { intervalStart: string; intervalSeconds: number; activeSeconds: number; idleSeconds: number; foregroundApp: string | null; windowTitle: string | null; keystrokeCount: number; mouseEvents: number; sessionLocked: boolean; user: { displayName: string | null } | null }[] }>(`/api/v1/admin/devices/${encodeURIComponent(id)}/recent-intervals`),
   getSettings: () => getJson<{ settings: AppSettings; smtpConfigured: boolean }>('/api/v1/admin/settings'),
   saveSettings: (data: { alertsEnabled?: boolean; alertRecipients?: string; offlineMinutes?: number; funMode?: boolean; healthMode?: boolean; growthMode?: boolean; interpretMonitors?: boolean; employeeReportEnabled?: boolean; showDemoDevices?: boolean; privacyStoreDomainOnly?: boolean; retentionDaysIntervals?: number; selfAuditEnabled?: boolean }) =>
     fetch('/api/v1/admin/settings', { method: 'PUT', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),

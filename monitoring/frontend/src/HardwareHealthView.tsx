@@ -119,6 +119,10 @@ export function HardwareHealthView() {
 
 function HealthDetailPanel({ d, onClose }: { d: DeviceHealthDetail; onClose: () => void }) {
   const days = d.uptimeSec ? Math.floor(d.uptimeSec / 86400) : null;
+  const [recent, setRecent] = useState<{ intervalStart: string; intervalSeconds: number; activeSeconds: number; foregroundApp: string | null; windowTitle: string | null; user: { displayName: string | null } | null }[] | null>(null);
+  useEffect(() => {
+    api.deviceRecentIntervals(d.deviceId).then((r) => setRecent(r.intervals)).catch(() => setRecent([]));
+  }, [d.deviceId]);
   return (
     <div className="fixed inset-0 z-40 flex justify-end bg-black/40" onClick={onClose}>
       <div className="h-full w-full max-w-lg overflow-auto bg-white p-5 shadow-2xl dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
@@ -184,6 +188,29 @@ function HealthDetailPanel({ d, onClose }: { d: DeviceHealthDetail; onClose: () 
         </Section>
 
         <div className="mt-3 text-xs muted-2">Poslední report: {d.reportedAt ? new Date(d.reportedAt).toLocaleString('cs-CZ') : 'nikdy'}</div>
+
+        <Section title="Diagnostika: posledních 50 intervalů (co agent posílá)">
+          <p className="mb-2 text-xs muted-2">Co reálně vidí klasifikátor. Když některou aplikaci v reportu nevidíš, ale tady ji vidíš – musí se jen přidat do kategorií (Nastavení → klasifikace).</p>
+          {recent === null && <div className="text-xs muted-2">Načítám…</div>}
+          {recent && recent.length === 0 && <div className="text-xs muted-2">Žádné intervaly za poslední dobu.</div>}
+          {recent && recent.length > 0 && (
+            <div className="max-h-72 overflow-auto rounded border border-gray-200 dark:border-slate-700">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50 dark:bg-slate-800/40"><tr><th className="th">Čas</th><th className="th">Aplikace</th><th className="th">Titulek okna</th><th className="th text-right">Aktivní</th></tr></thead>
+                <tbody>
+                  {recent.map((r, i) => (
+                    <tr key={i} className="divide-row">
+                      <td className="td tabular-nums">{new Date(r.intervalStart).toLocaleTimeString('cs-CZ')}</td>
+                      <td className="td font-mono">{r.foregroundApp ?? '—'}</td>
+                      <td className="td truncate max-w-[20ch]" title={r.windowTitle ?? ''}>{r.windowTitle ?? '—'}</td>
+                      <td className="td text-right tabular-nums">{r.activeSeconds}s</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Section>
       </div>
     </div>
   );

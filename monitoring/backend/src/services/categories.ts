@@ -38,6 +38,30 @@ export const DEFAULT_CATEGORIES: CatDef[] = [
   { appName: 'msedge.exe', category: 'Prohlížeč', type: 'NEUTRAL' },
   { appName: 'firefox.exe', category: 'Prohlížeč', type: 'NEUTRAL' },
   { appName: 'explorer.exe', category: 'Systém', type: 'NEUTRAL' },
+  // Moderní pracovní aplikace (AI, IDE, poznámky, komunikace) – často chybí, protože jsou nové
+  { appName: 'claude.exe', category: 'AI nástroje', type: 'WORK' }, // Anthropic Claude desktop
+  { appName: 'chatgpt.exe', category: 'AI nástroje', type: 'WORK' }, // ChatGPT desktop
+  { appName: 'cursor.exe', category: 'Vývoj', type: 'WORK' }, // Cursor IDE
+  { appName: 'windsurf.exe', category: 'Vývoj', type: 'WORK' }, // Codeium Windsurf
+  { appName: 'github desktop.exe', category: 'Vývoj', type: 'WORK' },
+  { appName: 'postman.exe', category: 'Vývoj', type: 'WORK' },
+  { appName: 'notion.exe', category: 'Poznámky / wiki', type: 'WORK' },
+  { appName: 'obsidian.exe', category: 'Poznámky / wiki', type: 'WORK' },
+  { appName: 'onenote.exe', category: 'Poznámky / wiki', type: 'WORK' },
+  { appName: 'figma.exe', category: 'Design', type: 'WORK' },
+  { appName: 'figma_agent.exe', category: 'Design', type: 'WORK' },
+  { appName: 'ms-teams.exe', category: 'Komunikace', type: 'WORK' }, // new Teams
+  { appName: 'olk.exe', category: 'E-mail', type: 'WORK' }, // new Outlook
+  // Drobné systémové / neutrální editory (běžně otevřené, ale ne práce-ne-zábava)
+  { appName: 'notepad.exe', category: 'Editor textu', type: 'NEUTRAL' },
+  { appName: 'notepad++.exe', category: 'Editor textu', type: 'NEUTRAL' },
+  { appName: 'wordpad.exe', category: 'Editor textu', type: 'NEUTRAL' },
+  { appName: 'mspaint.exe', category: 'Systém', type: 'NEUTRAL' },
+  { appName: 'snippingtool.exe', category: 'Systém', type: 'NEUTRAL' },
+  { appName: 'taskmgr.exe', category: 'Systém', type: 'NEUTRAL' },
+  { appName: 'cmd.exe', category: 'Systém', type: 'NEUTRAL' },
+  { appName: 'powershell.exe', category: 'Systém', type: 'NEUTRAL' },
+  { appName: 'windowsterminal.exe', category: 'Systém', type: 'NEUTRAL' },
   // Mimopracovní
   { appName: 'steam.exe', category: 'Hry', type: 'NON_WORK' },
   { appName: 'epicgameslauncher.exe', category: 'Hry', type: 'NON_WORK' },
@@ -45,6 +69,8 @@ export const DEFAULT_CATEGORIES: CatDef[] = [
   { appName: 'spotify.exe', category: 'Hudba/zábava', type: 'NON_WORK' },
   { appName: 'whatsapp.exe', category: 'Soukromé zprávy', type: 'NON_WORK' },
   { appName: 'telegram.exe', category: 'Soukromé zprávy', type: 'NON_WORK' },
+  { appName: 'discord.exe', category: 'Soukromé zprávy', type: 'NON_WORK' },
+  { appName: 'signal.exe', category: 'Soukromé zprávy', type: 'NON_WORK' },
   // Demo: domény (využijí se až při doménovém režimu)
   { appName: 'facebook.com', category: 'Sociální sítě', type: 'NON_WORK' },
   { appName: 'instagram.com', category: 'Sociální sítě', type: 'NON_WORK' },
