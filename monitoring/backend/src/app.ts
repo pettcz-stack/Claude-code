@@ -12,6 +12,7 @@ import { ingestRouter } from './routes/ingest.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { exportRouter } from './routes/export.js';
 import { adminRouter } from './routes/admin.js';
+import { pushEvent } from './services/eventLog.js';
 import { selfRouter } from './routes/self.js';
 import { requireAuth, login, destroySession } from './auth.js';
 
@@ -49,16 +50,23 @@ export function createApp() {
 
   app.use(express.json({ limit: '2mb' }));
 
-  // Jednoduchý HTTP access log – píše do stdout (`docker logs`) pro diagnostiku
-  // ingest požadavků (kdo, kdy, jaký status). Tichý pro /health, ať nezahltí log.
+  // HTTP access log – píše do stdout (`docker logs`) a chyby (4xx/5xx) navíc
+  // do in-memory event logu pro „Diagnostický log" v Nastavení.
   app.use((req, res, next) => {
     if (req.path === '/api/v1/health') return next();
     const t0 = Date.now();
     res.on('finish', () => {
       const ms = Date.now() - t0;
       const dev = (req.body && req.body.device && req.body.device.machineId) || '-';
+      const line = `${req.method} ${req.path} ${res.statusCode} ${ms}ms dev=${dev}`;
       // eslint-disable-next-line no-console
-      console.log(`${new Date().toISOString()} ${req.method} ${req.path} ${res.statusCode} ${ms}ms dev=${dev}`);
+      console.log(`${new Date().toISOString()} ${line}`);
+      if (res.statusCode >= 400) {
+        pushEvent(res.statusCode >= 500 ? 'error' : 'warn', line, {
+          method: req.method, path: req.path, status: res.statusCode, ms, device: dev,
+          ip: (req.headers['x-forwarded-for'] as string) || req.ip,
+        });
+      }
     });
     next();
   });
@@ -134,9 +142,14 @@ export function createApp() {
 
   // Generická chybová odpověď – nikdy neodhalí stack/detaily klientovi.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+    const msg = err instanceof Error ? err.message : String(err);
     // eslint-disable-next-line no-console
-    console.error('Neošetřená chyba:', err instanceof Error ? err.message : err);
+    console.error('Neošetřená chyba:', msg);
+    pushEvent('error', `Neošetřená chyba: ${msg}`, {
+      path: req.path, method: req.method,
+      stack: err instanceof Error ? err.stack?.split('\n').slice(0, 5).join(' | ') : undefined,
+    });
     if (!res.headersSent) res.status(500).json({ error: 'server_error' });
   });
 

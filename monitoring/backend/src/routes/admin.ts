@@ -10,6 +10,7 @@ import { clearCache } from '../services/cache.js';
 import { getSites } from '../services/sites.js';
 import { demoUserWhere, demoDeviceWhere } from '../services/demoFilter.js';
 import { listDeviceHealth, getDeviceHealthDetail } from '../services/health.js';
+import { recentEvents, clearEvents } from '../services/eventLog.js';
 
 /** Provozovny / pobočky – číselník pro určení pracoviště podle lokální sítě. */
 const siteSchema = z.object({
@@ -291,6 +292,19 @@ adminRouter.get('/devices/health/:deviceId', async (req, res) => {
   const detail = await getDeviceHealthDetail(req.params.deviceId);
   if (!detail) return void res.status(404).json({ error: 'not_found' });
   res.json({ detail });
+});
+
+/** Diagnostický log – posledních ~500 zajímavých událostí v paměti procesu. */
+adminRouter.get('/events', async (req, res) => {
+  const limit = Math.min(Number(req.query.limit ?? 200), 500);
+  const lvl = typeof req.query.level === 'string' ? req.query.level : undefined;
+  const allowed = ['info', 'warn', 'error'] as const;
+  const levelFilter = allowed.includes(lvl as typeof allowed[number]) ? (lvl as 'info' | 'warn' | 'error') : undefined;
+  res.json({ events: recentEvents(limit, levelFilter) });
+});
+adminRouter.delete('/events', requireRole('ADMIN'), async (_req, res) => {
+  clearEvents();
+  res.json({ ok: true });
 });
 
 /** Audit log přístupů (GDPR) – jen ADMIN. */

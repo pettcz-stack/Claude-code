@@ -359,6 +359,14 @@ export const api = {
   deleteDeptRule: (id: string) =>
     fetch(`/api/v1/admin/dept-rules/${encodeURIComponent(id)}`, { method: 'DELETE', headers: authHeader() }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   deviceHealth: () => getJson<{ rows: DeviceHealthRow[]; summary: { critical: number; warn: number; ok: number; unreported: number } }>('/api/v1/admin/devices/health'),
+  events: (opts: { level?: 'error' | 'warn' | 'info'; limit?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (opts.level) q.set('level', opts.level);
+    if (opts.limit) q.set('limit', String(opts.limit));
+    const s = q.toString();
+    return getJson<{ events: { ts: string; level: 'info' | 'warn' | 'error'; message: string; meta?: Record<string, unknown> }[] }>(`/api/v1/admin/events${s ? '?' + s : ''}`);
+  },
+  clearEvents: () => fetch('/api/v1/admin/events', { method: 'DELETE', headers: authHeader() }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   deviceHealthDetail: (id: string) => getJson<{ detail: DeviceHealthDetail }>(`/api/v1/admin/devices/health/${encodeURIComponent(id)}`).then((d) => d.detail),
   getSettings: () => getJson<{ settings: AppSettings; smtpConfigured: boolean }>('/api/v1/admin/settings'),
   saveSettings: (data: { alertsEnabled?: boolean; alertRecipients?: string; offlineMinutes?: number; funMode?: boolean; healthMode?: boolean; growthMode?: boolean; interpretMonitors?: boolean; employeeReportEnabled?: boolean; showDemoDevices?: boolean; privacyStoreDomainOnly?: boolean; retentionDaysIntervals?: number; selfAuditEnabled?: boolean }) =>
