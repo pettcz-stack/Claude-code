@@ -7,6 +7,7 @@ import { clearCache } from '../services/cache.js';
 import { getSettings } from '../services/settings.js';
 import { saveHealthSnapshot } from '../services/health.js';
 import { sanitizeWindowTitle } from '../services/domain.js';
+import { appendAgentLog } from '../services/agentLogStore.js';
 
 export const ingestRouter = Router();
 
@@ -102,6 +103,8 @@ const payloadSchema = z.object({
   // aby se zařízení a uživatel zaregistrovali v dashboardu ihned, ne až po
   // prvním 60s intervalu aktivity.
   intervals: z.array(intervalSchema).max(1000),
+  // Agent v dávce posílá i své vlastní log řádky pro zobrazení v dashboardu.
+  agentLog: z.array(z.object({ ts: z.string(), message: z.string().max(1000) })).max(500).optional(),
 });
 
 /**
@@ -115,7 +118,7 @@ ingestRouter.post('/', requireIngestToken, async (req, res) => {
     res.status(400).json({ error: 'invalid_payload', detail: parsed.error.flatten() });
     return;
   }
-  const { device: d, user: u, intervals } = parsed.data;
+  const { device: d, user: u, intervals, agentLog } = parsed.data;
 
   const device = await prisma.device.upsert({
     where: { machineId: d.machineId },
@@ -181,6 +184,11 @@ ingestRouter.post('/', requireIngestToken, async (req, res) => {
   clearCache(); // nová data → dashboard přepočítá
 
   // Agent podle toho zobrazí/skryje ikonku reportu zaměstnance v liště.
+  // Přibaleny log řádky z agenta – uložíme do in-memory storu pro „Log agenta" panel.
+  if (agentLog && agentLog.length > 0) {
+    appendAgentLog(device.id, agentLog);
+  }
+
   const { employeeReportEnabled } = await getSettings();
   res.json({ accepted, hoursUpdated, deviceId: device.id, userId: user.id, employeeReportEnabled });
 });

@@ -11,6 +11,7 @@ import { getSites } from '../services/sites.js';
 import { demoUserWhere, demoDeviceWhere } from '../services/demoFilter.js';
 import { listDeviceHealth, getDeviceHealthDetail } from '../services/health.js';
 import { recentEvents, clearEvents } from '../services/eventLog.js';
+import { getAgentLog } from '../services/agentLogStore.js';
 
 /** Provozovny / pobočky – číselník pro určení pracoviště podle lokální sítě. */
 const siteSchema = z.object({
@@ -292,6 +293,12 @@ adminRouter.get('/devices/health/:deviceId', async (req, res) => {
   const detail = await getDeviceHealthDetail(req.params.deviceId);
   if (!detail) return void res.status(404).json({ error: 'not_found' });
   res.json({ detail });
+});
+
+/** Log agenta: posledních ~300 zpráv, které agent na PC posílá s každou
+ *  ingest dávkou. Pro debug bez lezení na klientské PC. */
+adminRouter.get('/devices/:deviceId/agent-log', async (req, res) => {
+  res.json({ entries: getAgentLog(req.params.deviceId, 300) });
 });
 
 /** Diagnostika: posledních ~50 intervalů z konkrétního zařízení, ať admin vidí,

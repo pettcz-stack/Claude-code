@@ -120,8 +120,15 @@ export function HardwareHealthView() {
 function HealthDetailPanel({ d, onClose }: { d: DeviceHealthDetail; onClose: () => void }) {
   const days = d.uptimeSec ? Math.floor(d.uptimeSec / 86400) : null;
   const [recent, setRecent] = useState<{ intervalStart: string; intervalSeconds: number; activeSeconds: number; foregroundApp: string | null; windowTitle: string | null; user: { displayName: string | null } | null }[] | null>(null);
+  const [agentLog, setAgentLog] = useState<{ ts: string; message: string }[] | null>(null);
   useEffect(() => {
     api.deviceRecentIntervals(d.deviceId).then((r) => setRecent(r.intervals)).catch(() => setRecent([]));
+    api.deviceAgentLog(d.deviceId).then((r) => setAgentLog(r.entries)).catch(() => setAgentLog([]));
+    // Auto-obnova agent logu každých 10 s, dokud je panel otevřený
+    const id = setInterval(() => {
+      api.deviceAgentLog(d.deviceId).then((r) => setAgentLog(r.entries)).catch(() => undefined);
+    }, 10_000);
+    return () => clearInterval(id);
   }, [d.deviceId]);
   return (
     <div className="fixed inset-0 z-40 flex justify-end bg-black/40" onClick={onClose}>
@@ -188,6 +195,25 @@ function HealthDetailPanel({ d, onClose }: { d: DeviceHealthDetail; onClose: () 
         </Section>
 
         <div className="mt-3 text-xs muted-2">Poslední report: {d.reportedAt ? new Date(d.reportedAt).toLocaleString('cs-CZ') : 'nikdy'}</div>
+
+        <Section title="Log agenta (živě, auto-obnova 10 s)">
+          <p className="mb-2 text-xs muted-2">Posledních ~300 zpráv, které agent na PC posílá s každou dávkou. Tady vidíš, jestli funguje, kam posílá, co případně selhalo — bez lezení na klientský PC.</p>
+          {agentLog === null && <div className="text-xs muted-2">Načítám…</div>}
+          {agentLog && agentLog.length === 0 && <div className="text-xs muted-2">Agent zatím nic neposlal. Po pár minutách běhu agenta tu uvidíš řádky typu „Agent startup OK", „INGEST OK n=2".</div>}
+          {agentLog && agentLog.length > 0 && (
+            <div className="max-h-64 overflow-auto rounded border border-gray-200 bg-gray-50 dark:border-slate-700 dark:bg-slate-800/40">
+              {agentLog.map((e, i) => {
+                const isErr = e.message.includes('FAILED') || e.message.includes('EXCEPTION') || e.message.includes('Chybí');
+                return (
+                  <div key={i} className={`border-b border-gray-200 px-3 py-1 font-mono text-[11px] leading-relaxed last:border-b-0 dark:border-slate-700 ${isErr ? 'bg-red-50 dark:bg-red-500/10' : ''}`}>
+                    <span className="tabular-nums text-gray-500">{e.ts.slice(11, 19)}</span>
+                    <span className="ml-2 break-all">{e.message}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Section>
 
         <Section title="Diagnostika: posledních 50 intervalů (co agent posílá)">
           <p className="mb-2 text-xs muted-2">Co reálně vidí klasifikátor. Když některou aplikaci v reportu nevidíš, ale tady ji vidíš – musí se jen přidat do kategorií (Nastavení → klasifikace).</p>

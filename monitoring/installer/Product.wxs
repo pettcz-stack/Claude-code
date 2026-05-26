@@ -19,7 +19,7 @@
   <Package
       Name="MA win 32"
       Manufacturer="MA"
-      Version="0.1.0"
+      Version="0.2.0"
       UpgradeCode="7d6a2c4e-9b1f-4a3d-9c2a-2f5e6b8c1a90"
       Scope="perMachine"
       Codepage="1250"

@@ -80,7 +80,16 @@ namespace WorkView.Agent
                 if (i > 0) sb.Append(',');
                 sb.Append(intervalJsonLines[i]);
             }
-            sb.Append("]}");
+            sb.Append(']');
+            // Přibal posbíraný log agenta – server ho zobrazí v dashboardu
+            // (IT pohled → detail PC → Log agenta), takže operátor nemusí lézt
+            // na klientské PC číst soubor agent.log.
+            string logJson = AgentLog.DrainAsJsonArray();
+            if (logJson != null)
+            {
+                sb.Append(",\"agentLog\":").Append(logJson);
+            }
+            sb.Append('}');
 
             try
             {
