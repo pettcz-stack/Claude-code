@@ -44,14 +44,35 @@ jobs:
           wix build Product.wxs -ext WixToolset.Util.wixext `
             -d "AgentExePath=..\agent\WorkView.Agent\bin\Release\net48\MA win 32.exe" `
             -d "WatchdogExePath=..\agent\WorkView.Watchdog\bin\Release\net48\MA win 32 Service.exe" `
-            -o WorkViewAgent.msi
+            -o FocusAgent.msi
+
+      - name: Stage install package (MSI + install/uninstall .bat)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifact | Out-Null
+          Copy-Item monitoring/installer/FocusAgent.msi              artifact/
+          Copy-Item monitoring/installer/install-agent-test.bat      artifact/
+          Copy-Item monitoring/installer/uninstall-agent-test.bat    artifact/
+          Copy-Item monitoring/installer/PILOT-TEST.md               artifact/
+          # README "co s tím" pro netechniky
+          @"
+          Focus Agent - testovací instalační balíček
+          ==========================================
+
+          1) Spusť server v Dockeru (start-demo.bat ve složce monitoring).
+          2) Pravým klikem na install-agent-test.bat -> Spustit jako spravce.
+          3) Po ~5 minutach se PC objevi v dashboardu (Sprava -> Zarizeni).
+
+          Defaultně agent posílá na http://localhost:8080 (token "dev-token").
+          Když je server na jiném PC, otevři install-agent-test.bat v editoru
+          a uprav řádek "if "%BACKENDURL%"=="" set BACKENDURL=..." .
+
+          Odinstalace: uninstall-agent-test.bat (taky pravým -> jako správce).
+          "@ | Set-Content -Path artifact/README.txt -Encoding UTF8
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: monitoring-windows-build
-          path: |
-            monitoring/agent/WorkView.Agent/bin/Release/net48/MA win 32.exe
-            monitoring/agent/WorkView.Watchdog/bin/Release/net48/MA win 32 Service.exe
-            monitoring/installer/WorkViewAgent.msi
+          name: focus-windows-build
+          path: artifact/**
           if-no-files-found: error
