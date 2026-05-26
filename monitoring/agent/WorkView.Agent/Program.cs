@@ -89,9 +89,9 @@ namespace WorkView.Agent
                 bool on = _sender != null && _sender.LastEmployeeReportEnabled;
                 if (on && _tray == null)
                 {
-                    _tray = new NotifyIcon { Icon = System.Drawing.SystemIcons.Information, Text = "Můj report práce", Visible = true };
+                    _tray = new NotifyIcon { Icon = System.Drawing.SystemIcons.Information, Text = "FOCUS – můj report", Visible = true };
                     ContextMenuStrip menu = new ContextMenuStrip();
-                    menu.Items.Add("Zobrazit můj report", null, async (s, e) => await OpenReportAsync());
+                    menu.Items.Add("Otevřít můj report", null, async (s, e) => await OpenReportAsync());
                     _tray.ContextMenuStrip = menu;
                     _tray.DoubleClick += async (s, e) => await OpenReportAsync();
                 }

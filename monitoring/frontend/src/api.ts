@@ -284,8 +284,12 @@ export const api = {
     getJson<{ report: SelfReportData }>(`/api/v1/dashboard/selfreport?userId=${encodeURIComponent(userId)}&from=${from}&to=${to}`).then((d) => d.report),
   tips: () => getJson<TipsData>('/api/v1/dashboard/tips'),
   selfReportPublic: (token: string, from: string, to: string) =>
-    fetch(`/api/v1/self/report?token=${encodeURIComponent(token)}&from=${from}&to=${to}`).then((r) => {
-      if (!r.ok) throw new Error(`${r.status}`);
+    fetch(`/api/v1/self/report?token=${encodeURIComponent(token)}&from=${from}&to=${to}`).then(async (r) => {
+      if (!r.ok) {
+        let code: string | undefined;
+        try { const j = await r.json(); code = typeof j?.error === 'string' ? j.error : undefined; } catch { /* nepodstatné */ }
+        throw new Error(code ? `${r.status}:${code}` : `${r.status}`);
+      }
       return r.json() as Promise<{ report: SelfReportData; tips: TipsData; modes: { funMode: boolean; healthMode: boolean; growthMode: boolean } }>;
     }),
   selfAudit: (token: string) =>

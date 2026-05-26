@@ -21,16 +21,24 @@ export function EmployeeSelfReport({ token }: { token: string }) {
   }, []);
 
   useEffect(() => {
-    api.selfReportPublic(token, from, to).then(setData).catch(() => setError('Report není dostupný (odkaz vypršel nebo byl vypnut).'));
+    api.selfReportPublic(token, from, to).then(setData).catch((e: Error) => {
+      // Chybové kódy ze serveru: 403:disabled · 401:invalid_token · 404:not_found
+      const msg = e.message || '';
+      if (msg.includes('404')) setError('Tvoje data ještě nedorazila na server. Agent se rozjíždí — zkus znovu za pár minut.');
+      else if (msg.includes('401')) setError('Odkaz vypršel nebo je neplatný. Otevři report znovu z ikonky v liště (pravým → Otevřít můj report).');
+      else if (msg.includes('403')) setError('Report pro zaměstnance je vypnutý v administraci. Požádej IT / vedení o zapnutí.');
+      else setError('Report se nepodařilo načíst. Zkus to za chvíli znovu.');
+    });
     api.selfAudit(token).then(setAudit).catch(() => setAudit({ enabled: false, rows: [] }));
   }, [token, from, to]);
 
   if (error) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6 dark:bg-slate-900">
-        <div className="card max-w-sm p-6 text-center">
-          <div className="text-sm font-semibold">Report zatím nedostupný</div>
-          <div className="mt-1 text-xs muted-2">{error}</div>
+        <div className="card max-w-md p-6 text-center">
+          <div className="mb-2 text-2xl">🙏</div>
+          <div className="text-sm font-semibold">FOCUS – report zatím nedostupný</div>
+          <div className="mt-2 text-xs muted-2">{error}</div>
         </div>
       </div>
     );
