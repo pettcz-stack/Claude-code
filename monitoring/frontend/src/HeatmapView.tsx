@@ -38,15 +38,16 @@ export function HeatmapView({ from, to, department, userId }: { from: string; to
                   const work = data.work?.[d.idx]?.[h] ?? 0;
                   const nonwork = data.nonwork?.[d.idx]?.[h] ?? 0;
                   const classified = work + nonwork;
-                  // alpha: jak sytá – podle celkové aktivity vs. max
+                  // intensity (0..1) podle celkové aktivity vs. max
                   const intensity = total / max;
-                  // hue: zelená 145 = práce, červená 0 = zábava
+                  // hue: zelená 145 = práce, červená 0 = zábava (~žlutá 60 = půl na půl)
                   const workRatio = classified > 0 ? work / classified : 0.5;
-                  const hue = Math.round(workRatio * 145); // 0=červená → 145=zelená
-                  const alpha = 0.08 + 0.85 * intensity; // i málo aktivity je mírně viditelné
+                  const hue = Math.round(workRatio * 145);
+                  // lightness: 92 % = bledé (skoro bílé), 45 % = syté → bledé = málo aktivity
+                  const lightness = Math.round(92 - 47 * intensity);
                   const bg = total === 0
-                    ? 'rgba(148,163,184,0.10)' // úplně bez aktivity – šedá
-                    : `hsla(${hue}, 70%, 45%, ${alpha.toFixed(2)})`;
+                    ? 'rgba(148,163,184,0.18)' // bez aktivity – jednolitě šedá
+                    : `hsl(${hue}, 80%, ${lightness}%)`;
                   const tip = total === 0
                     ? `${d.label} ${h}:00 – bez aktivity`
                     : `${d.label} ${h}:00 – ${total} min aktivně\n  práce: ${work} min\n  zábava: ${nonwork} min`;
@@ -61,9 +62,10 @@ export function HeatmapView({ from, to, department, userId }: { from: string; to
         </table>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] muted-2">
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'hsla(145,70%,45%,0.9)' }} /> sytá zelená = naplno pracoval</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'hsla(145,70%,45%,0.25)' }} /> bledá zelená = pracoval, ale málo</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'hsla(0,70%,45%,0.9)' }} /> sytá červená = naplno zábava</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'hsl(145,80%,45%)' }} /> sytá zelená = naplno pracoval</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'hsl(145,80%,80%)' }} /> bledá zelená = pracoval, ale málo</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'hsl(0,80%,55%)' }} /> sytá červená = naplno zábava</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'hsl(0,80%,85%)' }} /> bledá červená = chvíli zábava</span>
         <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'rgba(148,163,184,0.30)' }} /> šedá = bez aktivity</span>
       </div>
     </div>
