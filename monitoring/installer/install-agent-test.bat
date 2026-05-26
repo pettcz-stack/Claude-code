@@ -74,7 +74,7 @@ REM ============================================================
 REM  KROK 1: Pre-flight - ozve se backend?
 REM ============================================================
 echo [1/5] Overuji, ze backend bezi na %BACKENDURL% ...
-powershell -NoProfile -Command "try { (Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 '%BACKENDURL%/api/v1/health').StatusCode ^| Out-Null; exit 0 } catch { exit 1 }"
+powershell -NoProfile -Command "try { [void](Invoke-WebRequest -UseBasicParsing -TimeoutSec 5 '%BACKENDURL%/api/v1/health'); exit 0 } catch { exit 1 }"
 if errorlevel 1 goto :backend_down
 echo [OK] Backend odpovida.
 goto :step_clean
