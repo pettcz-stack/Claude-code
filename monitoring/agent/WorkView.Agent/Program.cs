@@ -52,6 +52,7 @@ namespace WorkView.Agent
                 _cfg = cfg;
                 _buffer = new LocalBuffer();
                 _sender = new Sender(cfg);
+                LogEvent("Agent startup OK, sending to " + cfg.BackendUrl + ", interval=" + cfg.IntervalSeconds + "s, send=" + cfg.SendIntervalSeconds + "s");
 
                 using (InputCounters input = new InputCounters())
                 using (ActivityTracker tracker = new ActivityTracker(input, _buffer, cfg.IntervalSeconds, () => _sessionLocked, cfg.CaptureWindowTitle, cfg.IdleThresholdSeconds))
