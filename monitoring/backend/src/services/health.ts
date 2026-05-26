@@ -1,4 +1,5 @@
 import { prisma } from '../db.js';
+import { demoDeviceWhere } from './demoFilter.js';
 
 export type DiskInfo = {
   name: string; // např. C:
@@ -181,7 +182,7 @@ function diskTopUsed(disks: DiskInfo[] | null): number | null {
 /** Seznam pro IT dashboard. Vrací řazený seznam s nejhoršími nahoře. */
 export async function listDeviceHealth(): Promise<DeviceHealthRow[]> {
   const devices = await prisma.device.findMany({
-    where: { active: true },
+    where: { active: true, ...(await demoDeviceWhere()) },
     select: { id: true, hostname: true, machineId: true, lastSeen: true, health: true },
   });
   const rows: DeviceHealthRow[] = devices.map((d) => {
