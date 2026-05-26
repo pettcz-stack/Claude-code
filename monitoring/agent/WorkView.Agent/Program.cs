@@ -22,7 +22,9 @@ namespace WorkView.Agent
         private static Sender _sender;
         private static AgentConfig _cfg;
         private static bool _sending;
-        private static NotifyIcon _tray; // ikonka reportu zaměstnance (jen když to admin povolí)
+        private static NotifyIcon _tray; // vytvořena eagerně na UI thready, jen se přepíná Visible
+        private static System.Threading.SynchronizationContext _uiSync; // marshalování z background tasků
+        private static bool _trayWasVisible; // detekce přechodu false→true pro toast notifikaci
 
         [STAThread]
         private static void Main()
@@ -59,6 +61,29 @@ namespace WorkView.Agent
                 {
                     input.Install();
                     tracker.Start();
+
+                    // Inicializuj WinForms message loop (nutné pro NotifyIcon) + zachytí
+                    // SynchronizationContext UI threadu, abychom mohli z background tasků
+                    // bezpečně marshalovat update tray ikonky.
+                    System.Windows.Forms.WindowsFormsSynchronizationContext.AutoInstall = false;
+                    System.Threading.SynchronizationContext.SetSynchronizationContext(new System.Windows.Forms.WindowsFormsSynchronizationContext());
+                    _uiSync = System.Threading.SynchronizationContext.Current;
+
+                    // Tray ikonka se vytvoří JEDNOU na UI thready (skrytá). Pak se jen
+                    // přepíná Visible podle nastavení ze serveru. Tím se zaručí, že její
+                    // skrytý okno-handle žije na UI thready a kliky / kontextové menu
+                    // skutečně fungují (jinak by ikonka mohla být "mrtvá").
+                    _tray = new NotifyIcon
+                    {
+                        Icon = System.Drawing.SystemIcons.Information,
+                        Text = "FOCUS – můj report práce",
+                        Visible = false,
+                    };
+                    ContextMenuStrip trayMenu = new ContextMenuStrip();
+                    trayMenu.Items.Add("Otevřít můj report", null, async (s, e) => await OpenReportAsync());
+                    _tray.ContextMenuStrip = trayMenu;
+                    _tray.DoubleClick += async (s, e) => await OpenReportAsync();
+                    _tray.BalloonTipClicked += async (s, e) => await OpenReportAsync();
 
                     SystemEvents.SessionSwitch += OnSessionSwitch;
                     SystemEvents.PowerModeChanged += OnPowerModeChanged;
@@ -110,26 +135,39 @@ namespace WorkView.Agent
             }
         }
 
-        /// <summary>Zobrazí/skryje ikonku reportu v liště podle přepínače z administrace.</summary>
+        /// <summary>
+        /// Zobrazí/skryje ikonku reportu v liště podle přepínače z administrace.
+        /// Bezpečně marshaluje na UI thready – volá se i z background tasků
+        /// (sendTimer.Tick je UI, ale heartbeat task běží na thread-pool).
+        /// </summary>
         private static void UpdateTray()
         {
-            try
+            if (_tray == null || _uiSync == null) return;
+            bool on = _sender != null && _sender.LastEmployeeReportEnabled;
+            _uiSync.Post(_ =>
             {
-                bool on = _sender != null && _sender.LastEmployeeReportEnabled;
-                if (on && _tray == null)
+                try
                 {
-                    _tray = new NotifyIcon { Icon = System.Drawing.SystemIcons.Information, Text = "FOCUS – můj report", Visible = true };
-                    ContextMenuStrip menu = new ContextMenuStrip();
-                    menu.Items.Add("Otevřít můj report", null, async (s, e) => await OpenReportAsync());
-                    _tray.ContextMenuStrip = menu;
-                    _tray.DoubleClick += async (s, e) => await OpenReportAsync();
+                    if (_tray == null) return;
+                    if (on && !_trayWasVisible)
+                    {
+                        _tray.Visible = true;
+                        _trayWasVisible = true;
+                        // Windows 11 schovává nové tray ikonky do overflow. Toast je vždy viditelný.
+                        _tray.BalloonTipTitle = "FOCUS";
+                        _tray.BalloonTipText = "Tvůj osobní report je teď přístupný. Klikni na tuhle bublinu nebo na ikonku v liště (vpravo dole, případně klikni na šipku ↑).";
+                        try { _tray.ShowBalloonTip(10_000); } catch { /* nepodstatné */ }
+                        AgentLog.Write("Tray icon shown (employeeReportEnabled=true)");
+                    }
+                    else if (!on && _trayWasVisible)
+                    {
+                        _tray.Visible = false;
+                        _trayWasVisible = false;
+                        AgentLog.Write("Tray icon hidden (employeeReportEnabled=false)");
+                    }
                 }
-                else if (!on && _tray != null)
-                {
-                    _tray.Visible = false; _tray.Dispose(); _tray = null;
-                }
-            }
-            catch { /* ikonka není kritická */ }
+                catch (Exception ex) { AgentLog.Write("UpdateTray exception: " + ex.Message); }
+            }, null);
         }
 
         private static async System.Threading.Tasks.Task OpenReportAsync()
