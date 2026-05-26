@@ -427,9 +427,21 @@ export async function overview(from: Date, to: Date, department?: string): Promi
   };
 }
 
-export type HeatmapResult = { matrix: number[][]; max: number };
+export type HeatmapResult = {
+  /** průměrné aktivní minuty (celková intenzita) */
+  matrix: number[][];
+  /** průměrné WORK minuty (pro odstín – zelená) */
+  work: number[][];
+  /** průměrné NON_WORK minuty (pro odstín – červená) */
+  nonwork: number[][];
+  /** maximum napříč matrix – pro normalizaci sytosti barvy */
+  max: number;
+};
 
-/** Průměrné aktivní minuty podle dne v týdnu (0=Ne) × hodina (0–23). */
+/**
+ * Průměrné aktivní minuty + rozpad práce/zábava podle dne v týdnu (0=Ne) × hodina (0–23).
+ * Frontend pak barvy odvodí: hue z poměru work/(work+nonwork), alpha z intenzity.
+ */
 export async function heatmap(from: Date, to: Date, department?: string, userId?: string): Promise<HeatmapResult> {
   const userIds = userId
     ? [userId]
@@ -442,8 +454,16 @@ export async function heatmap(from: Date, to: Date, department?: string, userId?
 
   const rows = await prisma.activityInterval.findMany({
     where: { userId: { in: userIds }, intervalStart: { gte: from, lt: to } },
-    select: { intervalStart: true, activeSeconds: true },
+    select: { intervalStart: true, activeSeconds: true, foregroundApp: true, windowTitle: true, userId: true },
   });
+
+  // Pro klasifikaci stejné funkce jako jinde (apps + web rules + dept overrides).
+  const catMap = await getCategoryMap();
+  const webRules = await getWebRules();
+  const deptRules = await getDeptRules();
+  const userDept = userIds.length > 0
+    ? new Map((await prisma.monitoredUser.findMany({ where: { id: { in: userIds } }, select: { id: true, department: true } })).map((u) => [u.id, u.department]))
+    : new Map<string, string | null>();
 
   // počet výskytů každého dne v týdnu v období (pro průměr na slot), místní čas
   const dowCount = new Array(7).fill(0);
@@ -451,21 +471,29 @@ export async function heatmap(from: Date, to: Date, department?: string, userId?
     dowCount[localDow(d)]++;
   }
 
-  const sum: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  const sumActive: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  const sumWork: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  const sumNonwork: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
   for (const r of rows) {
-    sum[localDow(r.intervalStart)][localHour(r.intervalStart)] += r.activeSeconds / 60;
+    const dow = localDow(r.intervalStart);
+    const h = localHour(r.intervalStart);
+    const min = r.activeSeconds / 60;
+    sumActive[dow][h] += min;
+    if (min > 0) {
+      const info = classifyActivity(catMap, webRules, r.foregroundApp, r.windowTitle, deptRules, userDept.get(r.userId) ?? null);
+      if (info.type === 'WORK' || info.type === 'NEUTRAL') sumWork[dow][h] += min;
+      else if (info.type === 'NON_WORK') sumNonwork[dow][h] += min;
+    }
   }
 
   let max = 0;
-  const matrix = sum.map((row, dow) =>
-    row.map((v) => {
-      const days = Math.max(dowCount[dow], 1);
-      const avg = v / days; // průměrné aktivní minuty v daném slotu (napříč uživateli)
-      max = Math.max(max, avg);
-      return Math.round(avg);
-    }),
-  );
-  return { matrix, max: Math.round(max) };
+  const avgMatrix = (sums: number[][]) =>
+    sums.map((row, dow) =>
+      row.map((v) => Math.round(v / Math.max(dowCount[dow], 1))),
+    );
+  const matrix = avgMatrix(sumActive);
+  for (const row of matrix) for (const v of row) if (v > max) max = v;
+  return { matrix, work: avgMatrix(sumWork), nonwork: avgMatrix(sumNonwork), max };
 }
 
 // --- Home Office vyhodnocení -------------------------------------------------

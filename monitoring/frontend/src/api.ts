@@ -170,7 +170,7 @@ export type Overview = {
   locations: { site: string; users: number }[];
 };
 export type Site = { id: string; name: string; subnets: string; kind: string; active: boolean };
-export type Heatmap = { matrix: number[][]; max: number };
+export type Heatmap = { matrix: number[][]; work: number[][]; nonwork: number[][]; max: number };
 
 export type HomeOffice = {
   company: { usersWithHo: number; hoDays: number; officeDays: number; hoScore: number; officeScore: number; hoActiveHours: number; officeActiveHours: number; hoNonWorkPct: number; officeNonWorkPct: number };
