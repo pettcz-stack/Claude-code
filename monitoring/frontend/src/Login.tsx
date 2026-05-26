@@ -27,7 +27,7 @@ export function Login({ onLogin }: { onLogin: (me: Me) => void }) {
         <div className="mb-5 flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white"><Gauge size={22} /></div>
           <div>
-            <h1 className="text-base font-semibold leading-tight">Monitoring efektivity práce</h1>
+            <h1 className="text-base font-semibold leading-tight">FOCUS</h1>
             <p className="text-xs muted-2">Přihlášení do administrace</p>
           </div>
         </div>
