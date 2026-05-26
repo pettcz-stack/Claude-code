@@ -64,10 +64,14 @@ namespace WorkView.Agent
         }
 
         /// <summary>Pošle dávku JSON řádků intervalů. Vrací true při úspěchu (HTTP 2xx).</summary>
+        /// <remarks>
+        /// Když je seznam prázdný, pošleme „heartbeat" (prázdná dávka). Server ji
+        /// akceptuje a založí v DB device + user. Díky tomu se zařízení objeví
+        /// v dashboardu ihned po prvním zavolání agenta, ne až po prvním 60s
+        /// intervalu aktivity.
+        /// </remarks>
         public async Task<bool> SendBatchAsync(List<string> intervalJsonLines)
         {
-            if (intervalJsonLines.Count == 0) return true;
-
             StringBuilder sb = new StringBuilder();
             sb.Append('{').Append(_devicePart).Append(',').Append(_userPart).Append(',');
             sb.Append("\"intervals\":[");
@@ -89,20 +93,28 @@ namespace WorkView.Agent
                     content.Headers.ContentEncoding.Add("gzip");
                     using (HttpResponseMessage resp = await _http.PostAsync(_cfg.BackendUrl + "/api/v1/ingest", content))
                     {
-                        if (!resp.IsSuccessStatusCode) return false;
+                        if (!resp.IsSuccessStatusCode)
+                        {
+                            string err = null;
+                            try { err = await resp.Content.ReadAsStringAsync(); } catch { /* nepodstatné */ }
+                            AgentLog.Write("INGEST FAILED HTTP " + (int)resp.StatusCode + " body=" + (err ?? ""));
+                            return false;
+                        }
                         try
                         {
                             string body = await resp.Content.ReadAsStringAsync();
                             LastEmployeeReportEnabled = body.IndexOf("\"employeeReportEnabled\":true", StringComparison.Ordinal) >= 0;
                         }
                         catch { /* nepodstatné pro úspěch odeslání */ }
+                        AgentLog.Write("INGEST OK n=" + intervalJsonLines.Count + " (employeeReport=" + LastEmployeeReportEnabled + ")");
                         return true;
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                return false; // síťová chyba – necháme v bufferu na příště
+                AgentLog.Write("INGEST EXCEPTION " + ex.GetType().Name + ": " + ex.Message + " (url=" + _cfg.BackendUrl + ")");
+                return false;
             }
         }
 

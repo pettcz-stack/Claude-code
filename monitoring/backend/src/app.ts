@@ -49,6 +49,20 @@ export function createApp() {
 
   app.use(express.json({ limit: '2mb' }));
 
+  // Jednoduchý HTTP access log – píše do stdout (`docker logs`) pro diagnostiku
+  // ingest požadavků (kdo, kdy, jaký status). Tichý pro /health, ať nezahltí log.
+  app.use((req, res, next) => {
+    if (req.path === '/api/v1/health') return next();
+    const t0 = Date.now();
+    res.on('finish', () => {
+      const ms = Date.now() - t0;
+      const dev = (req.body && req.body.device && req.body.device.machineId) || '-';
+      // eslint-disable-next-line no-console
+      console.log(`${new Date().toISOString()} ${req.method} ${req.path} ${res.statusCode} ${ms}ms dev=${dev}`);
+    });
+    next();
+  });
+
   app.get('/api/v1/health', async (_req, res) => {
     try {
       await prisma.$queryRaw`SELECT 1`;

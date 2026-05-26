@@ -98,7 +98,10 @@ const payloadSchema = z.object({
     displayName: z.string().max(255).optional(),
     department: z.string().max(128).optional(),
   }),
-  intervals: z.array(intervalSchema).min(1).max(1000),
+  // Prázdné pole je povolené – agent posílá hned po startu „heartbeat",
+  // aby se zařízení a uživatel zaregistrovali v dashboardu ihned, ne až po
+  // prvním 60s intervalu aktivity.
+  intervals: z.array(intervalSchema).max(1000),
 });
 
 /**

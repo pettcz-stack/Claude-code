@@ -41,7 +41,7 @@ namespace WorkView.Agent
                 catch (Exception ex)
                 {
                     // Bez konfigurace nemá smysl běžet. Tiše zaloguj a skonči (žádný pop-up).
-                    LogError("Chybí/špatná konfigurace: " + ex.Message);
+                    AgentLog.Write("Chybí/špatná konfigurace: " + ex.Message);
                     return;
                 }
 
@@ -52,7 +52,7 @@ namespace WorkView.Agent
                 _cfg = cfg;
                 _buffer = new LocalBuffer();
                 _sender = new Sender(cfg);
-                LogEvent("Agent startup OK, sending to " + cfg.BackendUrl + ", interval=" + cfg.IntervalSeconds + "s, send=" + cfg.SendIntervalSeconds + "s");
+                AgentLog.Write("Agent startup OK, sending to " + cfg.BackendUrl + ", interval=" + cfg.IntervalSeconds + "s, send=" + cfg.SendIntervalSeconds + "s");
 
                 using (InputCounters input = new InputCounters())
                 using (ActivityTracker tracker = new ActivityTracker(input, _buffer, cfg.IntervalSeconds, () => _sessionLocked, cfg.CaptureWindowTitle, cfg.IdleThresholdSeconds))
@@ -62,6 +62,16 @@ namespace WorkView.Agent
 
                     SystemEvents.SessionSwitch += OnSessionSwitch;
                     SystemEvents.PowerModeChanged += OnPowerModeChanged;
+
+                    // Hned po startu pošli heartbeat (prázdná dávka). Tím se zařízení
+                    // i uživatel zaregistrují v dashboardu IHNED, ne až po prvních
+                    // 60 sekundách aktivity. Pokud heartbeat selže (síť/token),
+                    // chyba se zaloguje a další pokus bude přes sendTimer.
+                    _ = System.Threading.Tasks.Task.Run(async () =>
+                    {
+                        try { await _sender.SendBatchAsync(new System.Collections.Generic.List<string>()); UpdateTray(); }
+                        catch (Exception ex) { AgentLog.Write("Heartbeat exception: " + ex.Message); }
+                    });
 
                     // Odesílání dávek v konfigurovatelném intervalu (výchozí 15 minut).
                     // Mezitím se data hromadí v lokálním bufferu (přežijí restart i výpadek sítě).
@@ -116,17 +126,6 @@ namespace WorkView.Agent
             catch { /* nepodstatné */ }
         }
 
-        private static void LogError(string message)
-        {
-            try
-            {
-                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "WorkView");
-                Directory.CreateDirectory(dir);
-                File.AppendAllText(Path.Combine(dir, "agent.log"), $"{DateTime.UtcNow:o}\t{message}\n");
-            }
-            catch { /* nesmí shodit agenta */ }
-        }
-
         private static void OnSessionSwitch(object sender, SessionSwitchEventArgs e)
         {
             if (e.Reason == SessionSwitchReason.SessionLock || e.Reason == SessionSwitchReason.SessionLogoff)
@@ -148,7 +147,7 @@ namespace WorkView.Agent
             if (e.Mode != PowerModes.Resume) return;
             try
             {
-                LogEvent("PowerMode=Resume → resetuji HTTP klienta a posílám buffer");
+                AgentLog.Write("PowerMode=Resume → resetuji HTTP klienta a posílám buffer");
                 _sender?.ResetConnection();
                 // Pár sekund na obnovu wifi / DHCP / DNS po probuzení.
                 await System.Threading.Tasks.Task.Delay(5000);
@@ -157,19 +156,8 @@ namespace WorkView.Agent
             }
             catch (Exception ex)
             {
-                LogEvent("Resume handler selhal: " + ex.Message);
+                AgentLog.Write("Resume handler selhal: " + ex.Message);
             }
-        }
-
-        private static void LogEvent(string message)
-        {
-            try
-            {
-                string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "WorkView");
-                Directory.CreateDirectory(dir);
-                File.AppendAllText(Path.Combine(dir, "agent.log"), $"{DateTime.UtcNow:o}\t{message}\n");
-            }
-            catch { /* nesmí shodit agenta */ }
         }
 
         private static async System.Threading.Tasks.Task TrySendAsync()
