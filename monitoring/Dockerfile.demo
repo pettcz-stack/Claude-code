@@ -19,12 +19,16 @@ COPY backend/ ./
 # Frontend build tam, kde ho backend servíruje (../frontend/dist)
 COPY --from=fe /fe/dist /app/frontend/dist
 
-ENV DATABASE_URL=file:./demo.db
+# DB ukládáme do /data, aby se dala mountnout jako volume a přežila restarty.
+RUN mkdir -p /data
+ENV DATABASE_URL=file:/data/demo.db
 ENV PORT=8080
 ENV ADMIN_USER=admin
 ENV ADMIN_PASSWORD=admin
+ENV INGEST_TOKEN=dev-token
 ENV ENABLE_JOBS=false
 EXPOSE 8080
 
 # Při startu: vygeneruje klienta, vytvoří DB, naseeduje demo data a spustí server.
+# Seed je idempotentní (upsert) – reálná data z agentů zůstávají.
 CMD sh -c "npx prisma generate && npx prisma migrate deploy && npm run seed && npm run dev"

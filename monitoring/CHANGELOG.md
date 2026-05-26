@@ -5,6 +5,16 @@ Verzování: [Semantic Versioning](https://semver.org/lang/cs/).
 
 ## [Unreleased]
 
+### Přidáno (pilot)
+- **`INSTALL-PILOT-WINDOWS.md`** — průvodce „klikni a běž" pro jeden testovací
+  Windows PC: server v Dockeru (přes `start-demo.bat`), agent natvrdo přes MSI,
+  vč. instrukcí pro odinstalaci starých verzí agenta.
+- **Persistent volume** v `docker-compose.demo.yml` (volume `focus-db`
+  mountnutý na `/data`) — data SQLite přežijí `docker compose down` i restart
+  hostitelského PC. Pro úplně čistý start `down -v`.
+- **`INGEST_TOKEN=dev-token`** explicitně v Dockerfile.demo, aby ladil
+  s defaultní hodnotou v `install-agent-test.bat`.
+
 ### Opraveno (agent)
 - **Resume-from-sleep handler** v agentovi: po probuzení Windows ze spánku
   (typicky víkend s laptopem zavřeným) agent zahodí mrtvý HTTP klient

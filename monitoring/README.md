@@ -19,6 +19,7 @@ ani kamera.**
 |---|---|---|
 | [README.md](README.md) ← tady jsi | Všichni | Přehled, struktura, rychlý start |
 | [INSTALL.md](INSTALL.md) | IT / nasazení | Instalace serveru (Docker, on-prem) + GPO rollout agenta |
+| [INSTALL-PILOT-WINDOWS.md](INSTALL-PILOT-WINDOWS.md) | Pilot / 1 PC | „Klikni a běž" instalace na jeden Windows: server v Dockeru, agent natvrdo |
 | [USAGE.md](USAGE.md) | Vedení / HR | Jak číst dashboard, klasifikace, výjimky podle oddělení |
 | [SECURITY.md](SECURITY.md) | Bezpečnost / DPO | Bezpečnostní model, šifrování, role, GDPR |
 | [CHANGELOG.md](CHANGELOG.md) | Vývoj | Historie verzí |

@@ -1,6 +1,11 @@
-# DEMO – vše v jednom kontejneru (SQLite + demo data), jeden port.
-# Spuštění:  docker compose -f docker-compose.demo.yml up
+# DEMO / pilot – vše v jednom kontejneru (SQLite + demo data), jeden port.
+# Spuštění:  docker compose -f docker-compose.demo.yml up -d
 # Otevři:    http://localhost:8080   (přihlášení: admin / admin)
+#
+# Data SQLite jsou ve volume `focus-db` (v /data uvnitř kontejneru), takže
+# přežijí `docker compose down` i restart hostitelského PC. Když chceš úplně
+# čistý začátek (i s reálnými daty z agentů), spusť:
+#   docker compose -f docker-compose.demo.yml down -v
 
 services:
   demo:
@@ -9,3 +14,9 @@ services:
       dockerfile: Dockerfile.demo
     ports:
       - '8080:8080'
+    volumes:
+      - focus-db:/data
+    restart: unless-stopped
+
+volumes:
+  focus-db:
