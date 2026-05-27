@@ -44,8 +44,15 @@ export const config = {
 export const smtpEnabled = () => config.smtp.host.length > 0 && config.report.recipients.length > 0;
 
 /**
- * V produkci odmítne start se slabými výchozími tajemstvími (admin/admin,
- * dev-token). Brání nasazení s defaultními přihlašovacími údaji.
+ * V produkci odmítne start s nebezpečnou konfigurací. Pokrývá:
+ *  - slabé hesla / tokeny (admin/admin, dev-token)
+ *  - placeholder hodnoty z ukázkového docker-compose
+ *  - SQLite v produkci (single-file DB, žádné connection pooling, nešlo by za 100+ uživatelů)
+ *  - CORS_ORIGIN=*  (kdokoli z internetu by mohl volat API)
+ *  - ENABLE_DEMO_DATA=true (kazí počty zařízení a obsahuje vymyšlené uživatele)
+ *  - SMTP bez TLS (SMTP_SECURE=false na portech ≠ 587 s STARTTLS = riziko)
+ *
+ * Brání tomu, aby admin při deploy přehlédl `.env` a pustil produkci s defaulty.
  */
 export function assertProductionSecrets(): void {
   if (config.nodeEnv !== 'production') return;
@@ -54,12 +61,44 @@ export function assertProductionSecrets(): void {
   const weak: string[] = [];
   const pw = config.adminPassword.toLowerCase();
   const tok = config.ingestToken.toLowerCase();
-  if (['admin', 'heslo', 'password', ''].includes(pw) || placeholders.includes(pw)) weak.push('ADMIN_PASSWORD');
-  if (config.adminPassword.length < 10) weak.push('ADMIN_PASSWORD (min. 10 znaků)');
-  if (['dev-token', '', 'token'].includes(tok) || placeholders.includes(tok)) weak.push('INGEST_TOKEN');
-  if (config.ingestToken.length < 24) weak.push('INGEST_TOKEN (min. 24 znaků – vygeneruj `openssl rand -hex 32`)');
+
+  // 1) Admin heslo
+  if (['admin', 'heslo', 'password', ''].includes(pw) || placeholders.includes(pw)) weak.push('ADMIN_PASSWORD je default/placeholder');
+  if (config.adminPassword.length < 10) weak.push('ADMIN_PASSWORD má < 10 znaků');
+
+  // 2) Ingest token (sdílený s agenty)
+  if (['dev-token', '', 'token'].includes(tok) || placeholders.includes(tok)) weak.push('INGEST_TOKEN je default/placeholder');
+  if (config.ingestToken.length < 24) weak.push('INGEST_TOKEN má < 24 znaků (vygeneruj `openssl rand -hex 32`)');
+
+  // 3) Demo data – pošpiňují produkční dashboard
   if (config.enableDemoData) weak.push('ENABLE_DEMO_DATA=true (v produkci nikdy)');
+
+  // 4) SQLite v produkci – výkon a robustnost
+  if (config.databaseUrl.startsWith('file:') || config.databaseUrl.includes('sqlite')) {
+    weak.push('DATABASE_URL ukazuje na SQLite – v produkci použij PostgreSQL (postgresql://...)');
+  }
+
+  // 5) CORS wildcard – kdokoli může volat API z jakéhokoli originu
+  if (config.corsOrigin === '*' || config.corsOrigin.includes(',*')) {
+    weak.push('CORS_ORIGIN=* (otevřené pro celý internet) – nastav konkrétní origin');
+  }
+
+  // 6) SMTP bez TLS na portech kromě STARTTLS standard 587
+  if (config.smtp.host && !config.smtp.secure && config.smtp.port !== 587 && config.smtp.port !== 25) {
+    weak.push(`SMTP_SECURE=false na portu ${config.smtp.port} – pravděpodobně plain text login`);
+  }
+
   if (weak.length > 0) {
-    throw new Error('Odmítnut start v produkci se slabými tajemstvími: ' + weak.join(', '));
+    const msg = [
+      '╔════════════════════════════════════════════════════════════════╗',
+      '║ FOCUS backend ODMÍTÁ START V PRODUKCI – nebezpečná konfigurace ║',
+      '╚════════════════════════════════════════════════════════════════╝',
+      '',
+      ...weak.map((w, i) => `  ${i + 1}. ${w}`),
+      '',
+      'Oprav .env nebo docker-compose.yml a restartuj.',
+      'Pro vývoj / demo: NODE_ENV=development (kontrola se přeskočí).',
+    ].join('\n');
+    throw new Error(msg);
   }
 }
