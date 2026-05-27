@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { config } from '../config.js';
-import { requireIngestToken } from '../middleware/auth.js';
+import { requireIngestAuth } from '../middleware/auth.js';
 import { getSettings } from '../services/settings.js';
 import { selfReport } from '../services/analytics.js';
 import { getTips } from '../services/tips.js';
@@ -54,7 +54,7 @@ function extractSelfToken(req: import('express').Request): string | null {
 }
 
 /** Agent si vyžádá odkaz pro zaměstnance (autentizace ingest tokenem). */
-selfRouter.post('/token', requireIngestToken, async (req, res) => {
+selfRouter.post('/token', requireIngestAuth, async (req, res) => {
   const sid = z.string().min(1).max(128).safeParse(req.body?.sid);
   if (!sid.success) return void res.status(400).json({ error: 'sid_required' });
   const { employeeReportEnabled } = await getSettings();

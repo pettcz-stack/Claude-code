@@ -56,6 +56,22 @@ namespace WorkView.Agent
                 _sender = new Sender(cfg);
                 AgentLog.Write("Agent startup OK, sending to " + cfg.BackendUrl + ", interval=" + cfg.IntervalSeconds + "s, send=" + cfg.SendIntervalSeconds + "s");
 
+                // Enrollment: pokud agent ještě nemá per-device token (čerstvá
+                // instalace nebo po wipe registry), vyžádá si ho na pozadí.
+                // Sdílený INGEST_TOKEN tím přestane být dlouhodobý sekret.
+                if (string.IsNullOrEmpty(cfg.DeviceToken))
+                {
+                    _ = System.Threading.Tasks.Task.Run(async () =>
+                    {
+                        try
+                        {
+                            string newToken = await _sender.RequestDeviceTokenAsync();
+                            if (!string.IsNullOrEmpty(newToken)) _sender.UpdateDeviceToken(newToken);
+                        }
+                        catch (Exception ex) { AgentLog.Write("Enrollment exception: " + ex.Message); }
+                    });
+                }
+
                 using (InputCounters input = new InputCounters())
                 using (ActivityTracker tracker = new ActivityTracker(input, _buffer, cfg.IntervalSeconds, () => _sessionLocked, cfg.CaptureWindowTitle, cfg.IdleThresholdSeconds))
                 {

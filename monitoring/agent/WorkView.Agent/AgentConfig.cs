@@ -10,7 +10,12 @@ namespace WorkView.Agent
     internal sealed class AgentConfig
     {
         public string BackendUrl { get; private set; }
+        // Sdílený token z MSI / GPO – používá se POUZE pro enrollment (žádost
+        // o per-device token). Po enrollmentu na něm /ingest přestane viset.
         public string IngestToken { get; private set; }
+        // Per-device token získaný enrollmentem. Prázdný do prvního úspěšného
+        // /enroll volání. Po SetDeviceToken se uloží do registru i do paměti.
+        public string DeviceToken { get; private set; }
         // Délka agregačního intervalu (jeden záznam). Výchozí 60 s = jemná granularita
         // pro kalendář, klasifikaci a detekci praktik. NEMĚNÍ frekvenci odesílání.
         public int IntervalSeconds { get; private set; }
@@ -79,10 +84,13 @@ namespace WorkView.Agent
 
             if (string.IsNullOrWhiteSpace(probeHost)) probeHost = HostFromUrl(backend);
 
+            string deviceToken = ReadRegistry("DeviceToken") ?? Environment.GetEnvironmentVariable("WORKVIEW_DEVICE_TOKEN");
+
             return new AgentConfig
             {
                 BackendUrl = backend,
                 IngestToken = token,
+                DeviceToken = deviceToken,
                 IntervalSeconds = interval,
                 SendIntervalSeconds = sendInterval,
                 CaptureWindowTitle = captureTitle,
@@ -90,6 +98,25 @@ namespace WorkView.Agent
                 CompanyNetworkOnly = networkOnly,
                 CompanyProbeHost = probeHost
             };
+        }
+
+        /// <summary>
+        /// Persistuje per-device token získaný enrollmentem do registru
+        /// (HKLM\SOFTWARE\WorkView\DeviceToken) i do paměti. Vyžaduje admin/SYSTEM
+        /// práva (agent typicky spuštěn watchdogem pod LocalSystem).
+        /// </summary>
+        public void SetDeviceToken(string token)
+        {
+            DeviceToken = token;
+            try
+            {
+                using (RegistryKey baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
+                using (RegistryKey key = baseKey.CreateSubKey(@"SOFTWARE\WorkView", true))
+                {
+                    if (key != null) key.SetValue("DeviceToken", token, RegistryValueKind.String);
+                }
+            }
+            catch (Exception ex) { AgentLog.Write("SetDeviceToken registry write FAILED " + ex.Message); }
         }
 
         private static string HostFromUrl(string url)

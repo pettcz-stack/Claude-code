@@ -1,7 +1,8 @@
 import { Router } from 'express';
+import crypto from 'node:crypto';
 import { z } from 'zod';
 import { prisma } from '../db.js';
-import { requireIngestToken } from '../middleware/auth.js';
+import { requireEnrollmentToken, requireIngestAuth, hashToken } from '../middleware/auth.js';
 import { aggregateForIntervals } from '../services/aggregate.js';
 import { clearCache } from '../services/cache.js';
 import { getSettings } from '../services/settings.js';
@@ -55,7 +56,7 @@ const healthSchema = z.object({
  * Server spočítá stav (OK/WARN/CRITICAL) a uloží jako poslední snapshot.
  */
 export function registerHealthIngest(router: Router) {
-  router.post('/health', requireIngestToken, async (req, res) => {
+  router.post('/health', requireIngestAuth, async (req, res) => {
     const parsed = healthSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: 'invalid_payload', detail: parsed.error.flatten() });
@@ -112,7 +113,38 @@ const payloadSchema = z.object({
  * Agent posílá dávku intervalů. Idempotentní (unikát device+user+intervalStart).
  * Auto-enrollment zařízení a uživatele dle machineId / SID.
  */
-ingestRouter.post('/', requireIngestToken, async (req, res) => {
+/**
+ * POST /api/v1/ingest/enroll
+ *
+ * Agent při prvním běhu pošle sdílený INGEST_TOKEN a svůj machineId/hostname.
+ * Server vygeneruje per-device token, uloží jeho sha256 hash do Device a token
+ * vrátí. Agent ho uloží do registry (DeviceToken) a všechny další /ingest
+ * volání už autentizuje per-device tokenem.
+ *
+ * Idempotentní: opakované volání pro stejné machineId vygeneruje NOVÝ token
+ * (rotace). Starý automaticky přestane fungovat.
+ */
+const enrollSchema = z.object({
+  machineId: z.string().min(1).max(128),
+  hostname: z.string().max(255),
+  os: z.string().max(128).optional(),
+  agentVersion: z.string().max(64).optional(),
+});
+ingestRouter.post('/enroll', requireEnrollmentToken, async (req, res) => {
+  const parsed = enrollSchema.safeParse(req.body);
+  if (!parsed.success) return void res.status(400).json({ error: 'invalid_payload' });
+  const { machineId, hostname, os, agentVersion } = parsed.data;
+  const token = crypto.randomBytes(32).toString('hex');
+  const tokenHash = hashToken(token);
+  await prisma.device.upsert({
+    where: { machineId },
+    create: { machineId, hostname, os, agentVersion, enrollmentTokenHash: tokenHash },
+    update: { hostname, os, agentVersion, enrollmentTokenHash: tokenHash, active: true },
+  });
+  res.json({ deviceToken: token });
+});
+
+ingestRouter.post('/', requireIngestAuth, async (req, res) => {
   const parsed = payloadSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: 'invalid_payload', detail: parsed.error.flatten() });

@@ -63,7 +63,65 @@ namespace WorkView.Agent
         private void BuildHttpClient()
         {
             _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-            _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _cfg.IngestToken);
+            // Auth token: preferujeme per-device token (vznikl enrollmentem),
+            // jinak fallback na sdílený INGEST_TOKEN z konfigurace agenta.
+            string activeToken = string.IsNullOrEmpty(_cfg.DeviceToken) ? _cfg.IngestToken : _cfg.DeviceToken;
+            _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", activeToken);
+        }
+
+        /// <summary>
+        /// Při prvním běhu (nebo po revokaci) si agent vyžádá per-device token.
+        /// Autentizuje se SDÍLENÝM INGEST_TOKEN, server vrátí jedinečný token,
+        /// který se uloží do HKLM\SOFTWARE\WorkView\DeviceToken a používá pro
+        /// všechny další /ingest dotazy. Únik tokenu z jednoho PC tak nezpřístupní
+        /// data ostatních strojů (per-device izolace).
+        /// </summary>
+        public async Task<string> RequestDeviceTokenAsync()
+        {
+            try
+            {
+                // Pro /enroll musíme dočasně použít sdílený token, ne per-device.
+                using (HttpClient enrollHttp = new HttpClient { Timeout = TimeSpan.FromSeconds(30) })
+                {
+                    enrollHttp.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _cfg.IngestToken);
+                    string body = "{" + "\"machineId\":" + Json.Str(MachineIdentity.MachineId()) + "," +
+                                  "\"hostname\":" + Json.Str(MachineIdentity.Hostname()) + "," +
+                                  "\"os\":" + Json.Str(MachineIdentity.OsName()) + "," +
+                                  "\"agentVersion\":" + Json.Str(AgentInfo.Version) + "}";
+                    using (StringContent content = new StringContent(body, Encoding.UTF8, "application/json"))
+                    using (HttpResponseMessage resp = await enrollHttp.PostAsync(_cfg.BackendUrl + "/api/v1/ingest/enroll", content))
+                    {
+                        if (!resp.IsSuccessStatusCode)
+                        {
+                            AgentLog.Write("ENROLL FAILED " + (int)resp.StatusCode);
+                            return null;
+                        }
+                        string respBody = await resp.Content.ReadAsStringAsync();
+                        // Minimalistický JSON parse na "deviceToken":"…"
+                        int i = respBody.IndexOf("\"deviceToken\"", StringComparison.OrdinalIgnoreCase);
+                        if (i < 0) return null;
+                        int q1 = respBody.IndexOf('"', i + 13 + 1);
+                        int q2 = respBody.IndexOf('"', q1 + 1);
+                        if (q1 < 0 || q2 < 0) return null;
+                        string token = respBody.Substring(q1 + 1, q2 - q1 - 1);
+                        AgentLog.Write("ENROLL OK – získán per-device token (délka " + token.Length + ")");
+                        return token;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                AgentLog.Write("ENROLL EXCEPTION " + ex.Message);
+                return null;
+            }
+        }
+
+        /// <summary>Po enrollmentu se odpoví novým tokenem – HttpClient přebuduje s ním. </summary>
+        public void UpdateDeviceToken(string deviceToken)
+        {
+            _cfg.SetDeviceToken(deviceToken);
+            try { _http?.Dispose(); } catch { /* nepodstatné */ }
+            BuildHttpClient();
         }
 
         /// <summary>Pošle dávku JSON řádků intervalů. Vrací true při úspěchu (HTTP 2xx).</summary>
