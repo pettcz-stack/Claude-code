@@ -28,6 +28,8 @@ export const sk: typeof cs = {
     settings: 'Nastavenia',
     logout: 'Odhlásiť sa',
     search: 'Hľadať',
+    searchPlaceholder: 'Hľadať meno / oddelenie…',
+    shownOfTotal: 'zobrazené {shown} z {total}',
     showMore: 'Zobraziť viac',
     showLess: 'Zobraziť menej',
     learnMore: 'Viac informácií',

@@ -28,6 +28,8 @@ export const en: typeof cs = {
     settings: 'Settings',
     logout: 'Log out',
     search: 'Search',
+    searchPlaceholder: 'Search name / department…',
+    shownOfTotal: 'showing {shown} of {total}',
     showMore: 'Show more',
     showLess: 'Show less',
     learnMore: 'Learn more',

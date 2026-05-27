@@ -28,6 +28,8 @@ export const de: typeof cs = {
     settings: 'Einstellungen',
     logout: 'Abmelden',
     search: 'Suchen',
+    searchPlaceholder: 'Name / Abteilung suchen…',
+    shownOfTotal: 'Anzeige {shown} von {total}',
     showMore: 'Mehr anzeigen',
     showLess: 'Weniger anzeigen',
     learnMore: 'Mehr erfahren',

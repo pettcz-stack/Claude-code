@@ -30,6 +30,8 @@ export const cs = {
     settings: 'Nastavení',
     logout: 'Odhlásit se',
     search: 'Hledat',
+    searchPlaceholder: 'Hledat jméno / oddělení…',
+    shownOfTotal: 'zobrazeno {shown} z {total}',
     showMore: 'Zobrazit více',
     showLess: 'Zobrazit méně',
     learnMore: 'Více informací',
