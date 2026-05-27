@@ -244,7 +244,11 @@ export default function App() {
           jsou v hlavičce vpravo nahoře, kde uživatel naprosto očekává). */}
       <aside
         onClick={() => setSidebarOpen(false)}
-        className={`fixed inset-y-0 left-0 z-30 flex w-60 shrink-0 flex-col border-r border-gray-200 bg-white transition-transform dark:border-slate-700/70 dark:bg-slate-800/40 lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        // Mobil: fixed celý sloupec, overlay přes obsah.
+        // Desktop (lg+): sticky na top-0 + h-screen + overflow-y-auto –
+        // menu zůstává v zorném poli i při scrollu obsahu; vlastní vnitřní
+        // scroll, kdyby bylo položek tolik, že se nevejde do výšky okna.
+        className={`fixed inset-y-0 left-0 z-30 flex w-60 shrink-0 flex-col border-r border-gray-200 bg-white transition-transform dark:border-slate-700/70 dark:bg-slate-800/40 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:overflow-y-auto ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div className="flex items-center gap-2.5 border-b border-gray-200 px-5 py-4 dark:border-slate-700/70">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm"><Gauge size={20} /></div>
