@@ -60,6 +60,22 @@ fi
 # Binárka musí být spustitelná
 chmod 755 "$FOCUS_DIR/focus-agent" || true
 
+# Ad-hoc codesign: bez tohoto macOS každý rebuild považuje za jinou aplikaci
+# (jiný CDHash). TCC pak rezetuje permissions na "denied" - i když uživatel
+# v UI vidí toggle ON. Ad-hoc signing dá konzistentní podpis, který přežije
+# obsahové změny mezi verzemi. Pro produkci je lepší Developer ID Application
+# certifikát ($99/rok), ale ad-hoc je dost dobré pro internal/pilot.
+if /usr/bin/codesign -dv "$FOCUS_DIR/focus-agent" >/dev/null 2>&1; then
+    echo "FOCUS postinstall: binárka už podepsaná, přeznačit pro jistotu..."
+fi
+/usr/bin/codesign --sign - --force --preserve-metadata=entitlements,requirements,flags \
+    "$FOCUS_DIR/focus-agent" 2>/dev/null && \
+    echo "FOCUS postinstall: ad-hoc codesign OK" || \
+    echo "FOCUS postinstall: codesign selhal, pokračujeme dál (TCC permissions můžou zlobit)"
+
+# TCC vyžaduje, aby se TCC daemon refreshnul - jinak držuje starou cache CDHash
+/usr/bin/killall -HUP tccd 2>/dev/null || true
+
 # Pre-create launchd log soubory s user-write povoleními. launchd je nezvládne
 # vytvořit, pokud složka nedovoluje zápis "other"; sticky bit nemění existující
 # soubory, ale pojišťuje, že userské procesy si tu zapsanou state ponechají.

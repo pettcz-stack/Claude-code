@@ -32,6 +32,10 @@ mkdir -p "$PAYLOAD_DIR/Library/LaunchAgents"
 
 cp .build/apple/Products/Release/focus-agent "$PAYLOAD_DIR/Library/Application Support/FOCUS/focus-agent"
 chmod 755 "$PAYLOAD_DIR/Library/Application Support/FOCUS/focus-agent"
+# Ad-hoc codesign už při buildu – konzistentní identita kterou si TCC pamatuje
+# (bez toho každý rebuild = nový CDHash = TCC reset na denied).
+codesign --sign - --force --preserve-metadata=entitlements,requirements,flags \
+    "$PAYLOAD_DIR/Library/Application Support/FOCUS/focus-agent" || true
 # Složka musí být user-writable (1777) – agent běží jako user a launchd sem
 # musí umět zapsat stdout/stderr i agent.log. Postinstall to ještě potvrdí.
 chmod 1777 "$PAYLOAD_DIR/Library/Application Support/FOCUS"

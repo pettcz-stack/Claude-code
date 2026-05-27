@@ -7,5 +7,5 @@ enum AgentInfo {
     /// Identifikátor konkrétního buildu – mění se s každým commitem agenta,
     /// aby šlo z logu okamžitě poznat, jestli běží stará nebo nová binárka.
     /// Bumpni při každé změně v monitoring/agent-macos/Sources/**.
-    static let buildId = "2026-05-27-ioperms"
+    static let buildId = "2026-05-27-codesign"
 }
