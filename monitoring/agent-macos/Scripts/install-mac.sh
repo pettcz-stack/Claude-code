@@ -117,33 +117,73 @@ fi
 ok "Agent běží (PID: $(pgrep -f focus-agent | head -1))."
 
 # ──────────────────────────────────────────────────────────────────────────
-step "7/7  Otevírám System Settings pro povolení permissions"
+step "7/7  Detekce stavu permissions po update"
 # ──────────────────────────────────────────────────────────────────────────
-cat <<EOT
+# Po každém update se mění CDHash binárky a macOS TCC bere agenta jako
+# "jinou aplikaci" → permissions se RESETUJÍ na denied. Bez Developer ID
+# Application cert se s tím nedá nic dělat. Skript se proto pokusí
+# detekovat jaký permission chybí a otevře jen relevantní System Settings.
+sleep 2 # nech agentovi 2s ať stihne zapsat startup log
+LAST_STARTUP=$(grep -n "FOCUS agent macOS .* startup" "$LOG" | tail -1 | cut -d: -f1)
+NEEDS_INPUT_MON=false
+NEEDS_ACCESSIBILITY=false
+if [ -n "$LAST_STARTUP" ]; then
+    BLOCK=$(tail -n +"$LAST_STARTUP" "$LOG")
+    echo "$BLOCK" | grep -q "Input Monitoring je ODMÍTNUT" && NEEDS_INPUT_MON=true
+    echo "$BLOCK" | grep -q "Input Monitoring není ještě rozhodnut" && NEEDS_INPUT_MON=true
+    echo "$BLOCK" | grep -q "Accessibility není povoleno" && NEEDS_ACCESSIBILITY=true
+fi
 
-V dalších dvou krocích musíš ${B}ručně${N} povolit dvě věci v System Settings.
-Bez nich agent neuvidí klávesy, kliky ani titulky oken.
+if [ "$NEEDS_INPUT_MON" = false ] && [ "$NEEDS_ACCESSIBILITY" = false ]; then
+    ok "${G}Všechny permissions jsou povoleny${N} – update proběhl bez nutnosti ručního zásahu (vzácné s ad-hoc signed binárkou)."
+else
+    cat <<EOT
 
-${B}1) INPUT MONITORING${N} – pro počítání úhozů a kliků
-${B}2) ACCESSIBILITY${N}    – pro čtení titulků aktivního okna (top weby)
+${Y}══════════════════════════════════════════════════════════════════${N}
+${Y}MacOS znovu vyžaduje povolení (typické po každém update agenta).${N}
+${Y}══════════════════════════════════════════════════════════════════${N}
 
-Pro každou:
-  – pokud focus-agent ${B}je${N} v seznamu, klikni na něj a zapni TOGGLE napravo
-  – pokud focus-agent ${B}není${N} v seznamu, klikni "+", stiskni Cmd+Shift+G,
-    napiš:  /Library/Application Support/FOCUS/
-    vyber focus-agent, klikni Open, toggle bude ON
+Důvod: agent je ad-hoc podepsaný, ne Developer ID. Každá nová verze má
+jinou CDHash → macOS to vidí jako "jinou aplikaci" a permissions resetuje.
+Dlouhodobé řešení = Apple Developer Program ($99/rok).
+
+Skript ti otevře jen ty panely, kde focus-agent potřebuje znovu povolit:
 
 EOT
-ask "Stiskni Enter, otevřu Input Monitoring panel."
-read -r _ < /dev/tty || true
-open "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
+    if [ "$NEEDS_INPUT_MON" = true ]; then
+        echo "  ${R}✗${N} ${B}Input Monitoring${N} – pro počty kláves a kliků"
+    else
+        echo "  ${G}✓${N} Input Monitoring je v pořádku"
+    fi
+    if [ "$NEEDS_ACCESSIBILITY" = true ]; then
+        echo "  ${R}✗${N} ${B}Accessibility${N} – pro čtení titulků aktivního okna (top weby)"
+    else
+        echo "  ${G}✓${N} Accessibility je v pořádku"
+    fi
+    cat <<EOT
 
-ask "Až povolíš Input Monitoring, stiskni Enter – otevřu Accessibility panel."
-read -r _ < /dev/tty || true
-open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+V panelu:
+  – Pokud focus-agent ${B}je${N} v seznamu (na šedý), klikni a zapni TOGGLE.
+  – Pokud focus-agent ${B}není${N} v seznamu (po update se může stát, že
+    macOS odstranil starý záznam), klikni "+", ${B}Cmd+Shift+G${N},
+    napiš:  ${C}/Library/Application Support/FOCUS/FocusAgent.app${N}
+    vyber FocusAgent.app, klikni Open, toggle bude ON.
 
-ask "Až povolíš Accessibility, stiskni Enter – restartnu agenta a ověřím."
-read -r _ < /dev/tty || true
+EOT
+
+    if [ "$NEEDS_INPUT_MON" = true ]; then
+        ask "Stiskni Enter, otevřu Input Monitoring panel."
+        read -r _ < /dev/tty || true
+        open "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
+    fi
+    if [ "$NEEDS_ACCESSIBILITY" = true ]; then
+        ask "Až povolíš Input Monitoring, stiskni Enter – otevřu Accessibility panel."
+        read -r _ < /dev/tty || true
+        open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+    fi
+    ask "Až povolíš toggle/y v System Settings, stiskni Enter – restartnu agenta a ověřím."
+    read -r _ < /dev/tty || true
+fi
 
 # ──────────────────────────────────────────────────────────────────────────
 echo ""

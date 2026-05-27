@@ -37,6 +37,22 @@ běží, ale s omezenou funkcionalitou:
 | **Input Monitoring** | Počty kláves/kliků (HID idle time funguje dál) |
 | **Full Disk Access** | CUPS print log, FSEvents na /Volumes ostatních uživatelů |
 
+### ⚠️ Permissions resetují při každém update (známé omezení ad-hoc podpisu)
+
+Agent je v pilot fázi **ad-hoc podepsaný** (bez Developer ID). macOS TCC
+pamatuje povolení podle CDHash binárky – ten se s každým rebuildem mění,
+takže po update Input Monitoring a Accessibility znovu žádají schválení.
+
+**Krátkodobé řešení:** spusť `install-mac.sh` po každém update – nově detekuje,
+co konkrétně chybí, a otevře pouze ty System Settings panely, kde je třeba
+ručně přidat focus-agent. ~30 s práce.
+
+**Dlouhodobé řešení (před GA):** Apple Developer Program ($99/rok) →
+Developer ID Application certifikát → podpis přes `codesign --sign "Developer ID..."`.
+TCC pak bude tracovat podle stabilního **Team ID + bundle ID**, povolení
+přežije všechny updaty bez zásahu uživatele. Toto je standardní postup pro
+distribuci macOS softwaru mimo App Store.
+
 ### Hromadné předudělení přes MDM (doporučeno)
 
 Při enterprise nasazení vytvořte **PPPC profil (Privacy Preferences Policy
