@@ -14,6 +14,9 @@ export const config = {
   // CORS: prázdné = žádný CORS (SPA je same-origin). Jinak konkrétní origin.
   corsOrigin: process.env.CORS_ORIGIN ?? '',
   nodeEnv: process.env.NODE_ENV ?? 'development',
+  // Demo data (HW snapshoty pro DEMO-PC-* zařízení) se backfillují JEN když je flag true.
+  // V produkci nikdy nezapínat – kazí počty zařízení v dashboardu zákazníka.
+  enableDemoData: (process.env.ENABLE_DEMO_DATA ?? 'false') === 'true',
   // Výchozí admin účet (vytvoří se jen pokud žádný neexistuje).
   adminUser: process.env.ADMIN_USER ?? 'admin',
   adminPassword: process.env.ADMIN_PASSWORD ?? 'admin',
@@ -44,13 +47,15 @@ export const smtpEnabled = () => config.smtp.host.length > 0 && config.report.re
 export function assertProductionSecrets(): void {
   if (config.nodeEnv !== 'production') return;
   // Zástupné hodnoty z ukázkové konfigurace/compose – nesmí projít do provozu.
-  const placeholders = ['zmente-me', 'zmeňte-me', 'change-me', 'changeme', 'tbd', 'xxx'];
+  const placeholders = ['zmente-me', 'zmeňte-me', 'change-me', 'changeme', 'tbd', 'xxx', '__set_before_first_run__'];
   const weak: string[] = [];
   const pw = config.adminPassword.toLowerCase();
   const tok = config.ingestToken.toLowerCase();
   if (['admin', 'heslo', 'password', ''].includes(pw) || placeholders.includes(pw)) weak.push('ADMIN_PASSWORD');
   if (config.adminPassword.length < 10) weak.push('ADMIN_PASSWORD (min. 10 znaků)');
   if (['dev-token', '', 'token'].includes(tok) || placeholders.includes(tok)) weak.push('INGEST_TOKEN');
+  if (config.ingestToken.length < 24) weak.push('INGEST_TOKEN (min. 24 znaků – vygeneruj `openssl rand -hex 32`)');
+  if (config.enableDemoData) weak.push('ENABLE_DEMO_DATA=true (v produkci nikdy)');
   if (weak.length > 0) {
     throw new Error('Odmítnut start v produkci se slabými tajemstvími: ' + weak.join(', '));
   }

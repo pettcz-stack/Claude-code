@@ -29,7 +29,7 @@ const server = app.listen(config.port, async () => {
   await ensureDefaultTips();
   await ensureDefaultSites();
   await ensureDefaultDeptRules();
-  await ensureDemoDeviceHealth();
+  if (config.enableDemoData) await ensureDemoDeviceHealth();
   scheduleRetentionPruning();
   // eslint-disable-next-line no-console
   console.log(`FOCUS backend naslouchá na portu ${config.port}`);
