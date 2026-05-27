@@ -9,6 +9,7 @@ import { ensureDefaultCategories } from './services/categories.js';
 import { DEFAULT_WEB_RULES } from './services/classify.js';
 import { ensureDefaultTips } from './services/tips.js';
 import { ensureDefaultSites } from './services/sites.js';
+import { saveSettings } from './services/settings.js';
 import { floorToDay, addDays, localParts, localDow, zonedToUtc } from './services/tz.js';
 
 // Provozovna podle útvaru (pro lokální IP v demu): 10.30=Hořovice, 10.20=Praha, 10.10=Brno.
@@ -98,7 +99,7 @@ const BROWSER_NONWORK_TITLES = ['YouTube', 'Facebook', 'Instagram', 'Novinky.cz'
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 const rnd = (n: number) => Math.floor(Math.random() * n);
 
-type Person = { id: string; deviceId: string; behavior: Behavior; diligence: number; hoDip: number; monitors: number; workPool: Pick[]; siteBase: string };
+type Person = { id: string; deviceId: string; dept: string; behavior: Behavior; diligence: number; hoDip: number; monitors: number; workPool: Pick[]; siteBase: string };
 
 // Kolik monitorů kdo má (z HW). Část lidí 2, IT i 3.
 function monitorsFor(dept: string): number {
@@ -142,7 +143,7 @@ async function main() {
       update: { lastSeen: new Date(), agentVersion: '0.1.0', os: 'Windows 11' },
       create: { machineId, hostname: `ALB-PC-${i + 1}`, os: 'Windows 11', agentVersion: '0.1.0', lastSeen: new Date() },
     });
-    created.push({ id: user.id, deviceId: device.id, behavior: p.behavior, diligence: p.diligence, hoDip: hoDipFor(p.behavior), monitors: monitorsFor(p.dept), workPool: buildPool(p.dept), siteBase: siteBaseFor(p.dept) });
+    created.push({ id: user.id, deviceId: device.id, dept: p.dept, behavior: p.behavior, diligence: p.diligence, hoDip: hoDipFor(p.behavior), monitors: monitorsFor(p.dept), workPool: buildPool(p.dept), siteBase: siteBaseFor(p.dept) });
   }
 
   const userIds = created.map((c) => c.id);
@@ -220,9 +221,109 @@ async function main() {
     });
   }
 
+  // Demo Print & USB events – sekce v dashboardu by jinak byla prázdná.
+  // Generujeme realistické vzorky: většina uživatelů občas tiskne A4/B&W,
+  // pár "podezřelých" tiskne velké objemy v podivných časech (víkend, noc).
+  await seedPrintAndUsb(created);
+
   const hours = await aggregateAll();
   // eslint-disable-next-line no-console
   console.log(`Seed hotov: ${created.length} uživatelů, ${batch.length} intervalů, ${absences.length} HO dnů, ${hours} agregátů.`);
+}
+
+/**
+ * Demo data pro Tisk & USB sekce v dashboardu. Bez nich vypadá tab prázdně
+ * a investor / zákazník netuší, jak by feature vypadala v reálu.
+ *
+ * Hodnoty:
+ *  - 30 dní zpětně, ~70% uživatelů aspoň občas tiskne (HR a Vedení nejvíc).
+ *  - "Cheater" profily mají abnormálně velké objemy (vzorky pro odbor security).
+ *  - USB události naopak řidší – běžně 1-2 events / týden / user, ale Konstrukce
+ *    a Vedení občas vynáší CAD soubory nebo prezentace.
+ */
+async function seedPrintAndUsb(users: Person[]) {
+  const PRINTERS = ['HP LaserJet M404 (Tiskárna kancelář 1)', 'Canon iR-ADV C5550 (Tiskárna recepce)', 'Brother HL-L2370 (Tiskárna sklad)'];
+  const PAPER_SIZES = ['A4', 'A4', 'A4', 'A4', 'A3', 'A4', 'A5']; // distribuce
+  const DOC_NAMES = ['Faktura', 'Smlouva s dodavatelem', 'Cenová nabídka', 'Týdenní report', 'Technický výkres', 'Personální podklady', 'Návrh dovolené'];
+  const USB_LABELS = ['SanDisk-USB-32GB', 'Kingston-DataTraveler', 'Externí HDD WD', 'Apple TimeMachine'];
+  const USB_EXTENSIONS = ['pdf', 'docx', 'xlsx', 'jpg', 'png', 'dwg', 'zip', 'mp4'];
+  const ACTIONS = ['CREATE', 'WRITE', 'READ', 'DELETE'];
+
+  const today = new Date();
+  const printJobs: Prisma.PrintJobCreateManyInput[] = [];
+  const usbEvents: Prisma.UsbFileEventCreateManyInput[] = [];
+
+  for (const u of users) {
+    const isHeavyPrinter = u.dept === 'Personalistika' || u.dept === 'Vedení' || u.dept === 'Ekonomika';
+    const isCheater = u.behavior.startsWith('cheater');
+    const printsPerWeek = isCheater ? 80 + rnd(40) : isHeavyPrinter ? 15 + rnd(15) : 3 + rnd(6);
+
+    for (let d = 0; d < 30; d++) {
+      const date = new Date(today); date.setDate(date.getDate() - d);
+      // Tisk: jeden uživatel v den dělá 0–N úloh
+      const jobsToday = Math.random() < 0.4 ? Math.round(printsPerWeek / 7 * (0.5 + Math.random())) : 0;
+      for (let j = 0; j < jobsToday; j++) {
+        const jobAt = new Date(date);
+        jobAt.setHours(isCheater && Math.random() < 0.3 ? 19 + rnd(4) : 8 + rnd(8), rnd(60), rnd(60));
+        printJobs.push({
+          deviceId: u.deviceId,
+          userId: u.id,
+          printerName: pick(PRINTERS),
+          documentName: Math.random() < 0.6 ? `${pick(DOC_NAMES)} ${1000 + rnd(9000)}.pdf` : null,
+          pages: 1 + rnd(isCheater ? 50 : 10),
+          copies: Math.random() < 0.1 ? 1 + rnd(5) : 1,
+          paperSize: pick(PAPER_SIZES),
+          color: Math.random() < 0.25,
+          duplex: Math.random() < 0.4,
+          sizeBytes: 50_000 + rnd(2_000_000),
+          jobAt,
+        });
+      }
+
+      // USB: výrazně řidší než tisk
+      if (Math.random() < (isCheater ? 0.5 : 0.1)) {
+        const eventsToday = isCheater ? 5 + rnd(20) : 1 + rnd(3);
+        for (let e = 0; e < eventsToday; e++) {
+          const evAt = new Date(date);
+          evAt.setHours(8 + rnd(10), rnd(60), rnd(60));
+          const action = pick(ACTIONS);
+          const ext = pick(USB_EXTENSIONS);
+          usbEvents.push({
+            deviceId: u.deviceId,
+            userId: u.id,
+            action,
+            driveLetter: 'E:',
+            driveLabel: pick(USB_LABELS),
+            fileName: Math.random() < 0.4 ? `${pick(DOC_NAMES).toLowerCase().replace(/\s/g, '_')}_${rnd(1000)}.${ext}` : null,
+            fileExt: ext,
+            sizeBytes: action === 'DELETE' ? BigInt(0) : BigInt(1_000_000 + rnd(500_000_000)),
+            eventAt: evAt,
+          });
+        }
+      }
+    }
+  }
+
+  if (printJobs.length > 0) {
+    for (let i = 0; i < printJobs.length; i += 1000) {
+      await prisma.printJob.createMany({ data: printJobs.slice(i, i + 1000) });
+    }
+  }
+  if (usbEvents.length > 0) {
+    for (let i = 0; i < usbEvents.length; i += 1000) {
+      await prisma.usbFileEvent.createMany({ data: usbEvents.slice(i, i + 1000) });
+    }
+  }
+  // eslint-disable-next-line no-console
+  console.log(`Demo Print/USB: ${printJobs.length} tiskových úloh, ${usbEvents.length} USB událostí.`);
+
+  // Zapni Print & USB tracking v Settings, aby data byla viditelná v UI.
+  await saveSettings({
+    printTrackingEnabled: true,
+    capturePrintDocName: true,
+    usbTrackingEnabled: true,
+    captureUsbFilename: true,
+  });
 }
 
 function makeRow(c: Person, intervalStart: Date, isHO: boolean): Prisma.ActivityIntervalCreateManyInput | null {
