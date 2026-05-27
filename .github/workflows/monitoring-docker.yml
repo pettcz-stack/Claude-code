@@ -57,9 +57,11 @@ jobs:
 
       - name: Smoke-test demo image
         run: |
-          docker run -d --name focus-demo -p 8080:8080 focus-demo:ci
-          # Počkej až healthcheck zezelená (max 90 s na seed + start).
-          for i in $(seq 1 30); do
+          # SKIP_SEED=1 – CI ověřuje BUILD a START. Plné demo seedování
+          # (100 lidí, 176k intervalů, ~2 min) si user spustí lokálně.
+          docker run -d --name focus-demo -p 8080:8080 -e SKIP_SEED=1 focus-demo:ci
+          # Čekáme až healthcheck zezelená (max 60×3 s = 3 min).
+          for i in $(seq 1 60); do
             STATUS=$(docker inspect --format='{{.State.Health.Status}}' focus-demo 2>/dev/null || echo starting)
             if [ "$STATUS" = "healthy" ]; then
               echo "✓ demo image je healthy po ${i}×3 s"
@@ -70,7 +72,10 @@ jobs:
           # Final probe (pokud healthy timeout vypršel, dej user-friendly chybu).
           if ! curl -fsS http://localhost:8080/api/v1/health | grep -q '"status":"ok"'; then
             echo "::error::Demo image neodpovídá na /api/v1/health"
-            docker logs focus-demo | tail -50
+            echo "--- docker inspect health ---"
+            docker inspect --format='{{json .State.Health}}' focus-demo || true
+            echo "--- container logs (last 100) ---"
+            docker logs focus-demo 2>&1 | tail -100
             exit 1
           fi
           # Statika frontendu (index.html)
