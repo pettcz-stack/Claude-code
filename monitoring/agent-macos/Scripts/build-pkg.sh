@@ -16,7 +16,7 @@
 set -e
 cd "$(dirname "$0")/.."
 
-VERSION="0.9.1"
+VERSION="0.9.2"
 BUILD_DIR="$(pwd)/build"
 PAYLOAD_DIR="$BUILD_DIR/payload"
 

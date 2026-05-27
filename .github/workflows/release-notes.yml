@@ -1,0 +1,72 @@
+name: Release notes (auto from CHANGELOG)
+
+# Při pushe gitového tagu vX.Y.Z se vytvoří GitHub Release a do popisu
+# se vytáhne odpovídající sekce z CHANGELOG.md.
+# Žádné manuální copy-paste mezi git commit a GitHub UI.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write   # publikace GitHub Release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Extract changelog section for this tag
+        id: extract
+        run: |
+          # Tag bez prefixu 'v' (např. v0.9.2 -> 0.9.2)
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          # Vytáhne sekci od `## [VERSION]` (vč.) až do dalšího `## [`.
+          # Pokud sekce neexistuje, body bude prázdný a workflow upozorní.
+          BODY=$(awk -v v="## [$VERSION]" '
+            $0 ~ "^## \\[" v "" "{in_section = 0}
+            in_section { print }
+            $0 ~ ("^" v) { in_section = 1 }
+          ' monitoring/CHANGELOG.md || true)
+
+          if [ -z "$BODY" ]; then
+            # Fallback - jen najdi sekci podle prefixu "## [VERSION]"
+            BODY=$(awk -v target="$VERSION" '
+              /^## \[/ {
+                if (found) exit
+                if ($0 ~ "\\[" target "\\]") { found=1; print; next }
+              }
+              found { print }
+            ' monitoring/CHANGELOG.md)
+          fi
+
+          if [ -z "$BODY" ]; then
+            BODY="Verze $VERSION — detaily v CHANGELOG.md."
+          fi
+
+          # Multi-line output do GITHUB_OUTPUT
+          {
+            echo "body<<EOF"
+            echo "$BODY"
+            echo ""
+            echo "---"
+            echo "🛠️  Full CHANGELOG: https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/monitoring/CHANGELOG.md"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "FOCUS ${{ github.ref_name }}"
+          body: ${{ steps.extract.outputs.body }}
+          draft: false
+          prerelease: false
+          make_latest: true

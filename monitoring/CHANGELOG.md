@@ -3,9 +3,137 @@
 Všechny významné změny jsou tady. Formát: [Keep a Changelog](https://keepachangelog.com/cs/1.1.0/).
 Verzování: [Semantic Versioning](https://semver.org/lang/cs/).
 
+> **Jak číst:** v každé verzi je shrnutí jako TL;DR + 4 sekce: 🆕 Přidáno · 🔧 Opraveno · 🚀 Výkon · 🛡️ Bezpečnost.
+> Detaily jednotlivých commitů: `git log v0.9.X..v0.9.Y` nebo na GitHubu v Releases.
+> **Proces vydání:** [docs/RELEASING.md](docs/RELEASING.md).
+
 ## [Unreleased]
 
-### v0.9.1 — Release-candidate (pilot-ready)
+## [0.9.2] — Pilot iterace (UX + výkon + macOS) — 2026-05-27
+
+**TL;DR:** Po reálném pilotu na macOS přibylo cca 30 commitů. Hlavní vlna: dotažení
+macOS agenta (`.app` bundle, ad-hoc codesign, Input Monitoring detekce, baterie health),
+sjednocení statistiky napříč pohledy (pro nově nasazeného uživatele už dashboard
+nezobrazuje 160 h "Mimo PC"), Developer Mode s metodikou u každé metriky,
+sort/filter/pagination ve všech velkých tabulkách, lazy-loading frontendu
+(-31 % initial bundle), one-shot macOS installer skript.
+
+### 🆕 Přidáno
+
+#### Agent macOS
+- **`.app` bundle** s `CFBundleIdentifier=com.sinsu.focusagent` + ad-hoc codesign.
+  Bez něj měl macOS Sequoia 26 problém: každý rebuild = nový CDHash = TCC reset
+  povolení Input Monitoring / Accessibility. S bundlem si TCC zapamatuje
+  uživatelovo schválení napříč updaty.
+- **`install-mac.sh`** — one-shot instalátor (stáhne pkg, ověří buildId, vyčistí
+  starou binárku, otevře System Settings panely, restartne agenta a ověří
+  permissions v logu).
+- **IOHIDCheckAccess** detekce před `CGEvent.tapCreate` — agent v logu jasně
+  řekne, zda je Input Monitoring `povolen` / `ODMÍTNUT` / `není ještě rozhodnut`
+  (dřív tap "nainstalován" ale úhozy = 0 a uživatel netušil proč).
+- **Baterie zdraví + cykly** přes `ioreg AppleSmartBattery` (drive jen `pmset -g batt`).
+- **Fáze 2 typingKpm** — agent měří souvislé typing sessions s gap < 5 s,
+  posílá `typingMs` + `typingKeystrokeCount`. Backend pak počítá tempo psaní
+  jen z aktivního psaní (eliminuje pauzy mezi větami).
+- **Smoke-test script** `Scripts/smoke-test-macos.sh` — diagnostika 8 oblastí
+  (binárka, launchd, config, backend reachability, TCC permissions, logy, device token).
+- **Build ID v logu** — `FOCUS agent macOS 0.9.2 build 2026-05-27-... startup`.
+
+#### Backend
+- **Cílená reagregace** klasifikace (`reaggregateByClassificationChange`) místo
+  `aggregateAll()` – při změně `chrome.exe` → WORK se přepočítají jen intervaly
+  s tímto appName (~5 %), ne miliony řádků celé firmy.
+- **Detailnější `/api/v1/health`** — vrací `{ status, uptime, version, checks: { db, memory } }`.
+  Uptime monitor (Uptime Kuma) si rozliší ok / degraded podle 503.
+- **typingMs + typingKeystrokeCount** v `ActivityInterval` a `DailyStat` (Prisma migrace 20260527153306).
+- **firstSeenInRange + computeExpectedMinutes + buildExpectedOf** helpers v `analytics.ts`
+  — jednotná logika pro všechny analytické funkce (overview, scoreboard,
+  homeOffice, monitorsComparison, costAudit, selfReport, computeUserScore).
+
+#### Frontend
+- **Developer Mode** (toggle v UserMenu pro ADMIN, persistován v localStorage):
+  zobrazí ⓘ ikonky vedle metrik s tooltipy vysvětlujícími metodiku výpočtu.
+  Nasazeno na ~15 klíčových metrik v Overview, ScoreView, HeatmapView,
+  HomeOffice, SoftwareView.
+- **Sort + filter v hlavních tabulkách** přes sdílený `useSort` + `<SortHeader>`
+  (Shrnutí, IT Health, Home-office, Tisk/USB, Software, Přístupy). LocaleCompare
+  s `cs` lokalizací rozumí `Č`, `Š` a číslům v textu.
+- **Pagination** (50/strana) ve Shrnutí, HW Health, Přístupy přes `usePagination`.
+- **Empty states s onboarding CTA** — pokud žádné zařízení, zobrazí se
+  "Stáhnout agenta" tlačítko místo prázdných 0/0 KPI karet.
+- **TypePicker** v Klasifikaci — kliknutí na chip otevře dropdown pro inline
+  reklasifikaci (Práce / Zábava / Neutrální / Nezařazeno). Prohlížeče
+  (Chrome, Safari, …) mají chip "podle webu" — klasifikace přes WebRule.
+- **Reagregace při změně pravidla** — backend přepočítá dotčené dailyAppStat,
+  Top weby / aplikace se okamžitě aktualizují.
+- **Heatmap + Trend bez budoucnosti** — dny po `now` jsou neměřitelné
+  (transparentní, ne 0 % bar). Pro dny před nasazením agenta totéž (observed=0).
+- **Sticky levé menu** při scrollu (lg+ breakpoint).
+- **Vlastní (custom) date range** přes nativní `<input type="date">`.
+- **macOS app icons** ~60 + emoji barev (Google Chrome, Safari, Terminal,
+  Slack, Discord, Xcode, Cursor, Notion, Figma, Spotify, Claude, …).
+- **Top weby z titulku okna** — backend extrahuje doménu regexem
+  (`youtube.com`, `github.com`, …) z titulku Chrome / Safari, pokud
+  Accessibility povolena.
+
+#### Operace
+- **Docker log rotation** (max 10 MB × 3 soubory per kontejner) v obou
+  compose souborech.
+- **DEPLOY.md aktualizován** s Prometheus scrape config + 5 doporučenými alerty
+  (backend down, žádný ingest, brute force, vysoká chybovost, málo zařízení).
+- **CHANGELOG + RELEASING.md proces** — verze se bumpuje při každém GA pushe,
+  release-notes do GitHub Releases automaticky z CHANGELOG.
+
+### 🔧 Opraveno
+
+- **"Mimo PC: 160 h"** u nově nasazeného uživatele — expected work minutes
+  nyní clampnuté na `min(workdays × 8h, uplynulé minuty od prvního intervalu)`.
+- **`windowTitle: null`** odmítáno backendem (Zod `.optional()` neumí `null`)
+  — schema změněno na `.nullish()`, agent macOS nyní podmíněně nepřidává
+  null fieldy.
+- **macOS browsers** (`Google Chrome`, `Safari`, …) nebyly v `BROWSERS` setu
+  pro aggregate.ts — top weby na Macu byly vždy prázdné. Refactor přes
+  sdílený `isBrowser()` z `domain.ts`.
+- **Self-delete admina** — UI trash button disabled pro vlastní řádek
+  + tooltip "Vlastní účet nelze smazat".
+- **Print/USB demo data viditelná i po vypnutí toggle** — `printSummary` /
+  `usbSummary` měly špatnou check klauzuli (`'id' in userFilter`),
+  filter se neaplikoval. Refactor přes `hiddenDemoUserIds()`.
+- **Skrytý drill-down** v Tisk & USB tabulkách — chyběl vizuální indikátor.
+  Přidán `›` chevron + emerald hover.
+- **Seed sentinel** bumpnut na `.seeded-v2` — uživatelé bez `down -v`
+  dostanou Print/USB data po upgrade image.
+- **Schéma v `dist/seed.js`** — `skipDuplicates` SQLite nepodporuje,
+  místo toho idempotentní check `count() === 0`.
+- **Stale TCC** po reinstall agenta — codesign + tccd HUP v postinstallu
+  + dokumentace v install skriptu.
+
+### 🚀 Výkon
+
+- **Initial bundle frontend −31 %** (468 KB → 320 KB) díky `React.lazy`
+  na všech tabech kromě OverviewView a Scoreboard.
+- **Cílená reagregace** — místo 2.7 M řádků jen ~5 % dotčených (chrome.exe).
+- **Pagination 50/strana** ve velkých tabulkách — render < 50 řádků místo všech.
+
+### 🛡️ Bezpečnost
+
+- **`assertProductionSecrets`** rozšířen — odmítá start s SQLite v produkci,
+  CORS=`*`, SMTP_SECURE=false na nepodporovaných portech. Výpis důvodů
+  v hezky formátovaném box-drawing.
+- **Per-user expected** s clampem na `firstSeenAt` napříč všemi pohledy
+  (defense in depth proti unfair score pro nově nasazené).
+
+### 📦 Verze komponent v 0.9.2
+
+| Komponenta | Verze |
+|---|---|
+| Backend (`monitoring/backend/package.json`) | 0.9.2 |
+| Frontend (`monitoring/frontend/package.json`) | 0.9.2 |
+| Agent macOS (`AgentInfo.swift`) | 0.9.2 |
+| Agent Windows (`AgentInfo.cs`) | 0.9.1 *(bez změn)* |
+| Prisma migrace | `20260527153306_typing_kpm_phase2` |
+
+## [0.9.1] — Release-candidate (pilot-ready)
 
 Verze sjednocena napříč na **0.9.1**. Aplikace je připravená pro:
 

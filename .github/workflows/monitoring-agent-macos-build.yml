@@ -67,7 +67,7 @@ jobs:
           pkgbuild \
             --root "build/payload" \
             --identifier "com.sinsu.focusagent" \
-            --version "0.9.1" \
+            --version "0.9.2" \
             --scripts "build/scripts" \
             --install-location "/" \
             focus-agent-macos.pkg
