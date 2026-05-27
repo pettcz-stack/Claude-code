@@ -2,7 +2,7 @@
 
 Tento dokument shrnuje **bezpečnostní model**, opatření a doporučení pro
 nasazení FOCUSu (v0.2.1+). Detailnější dokument: [`docs/BEZPECNOST.md`](docs/BEZPECNOST.md).
-Provozní postup nasazení: [`DEPLOY.md`](DEPLOY.md). Právní šablony: [`docs/pravni/`](docs/pravni/).
+Provozní postup nasazení: [`DEPLOY.md`](DEPLOY.md). Právní šablony: [`docs/pravni/`](docs/pravni/) — souhrnný manuál [`docs/pravni/08-pravni-manual.md`](docs/pravni/08-pravni-manual.md).
 
 ## Hlavní zásady
 
@@ -109,6 +109,7 @@ dle §316 ZP).
 |---|---|
 | **Minimalizace dat** | Sbírají se jen agregované metriky; titulky oken opt-in; retence v UI |
 | **Účel** | Pouze sledování využití firemního zařízení pro produktivitu a HW údržbu |
+| **Souhrnný právní manuál** | [`docs/pravni/08-pravni-manual.md`](docs/pravni/08-pravni-manual.md) — kompletní rámec ČR + EU (GDPR, ZP, NOZ, TZ) |
 | **Transparentnost** | Šablona poučení v [`docs/pravni/01-informace-zamestnancum.md`](docs/pravni/01-informace-zamestnancum.md) |
 | **Právo na přístup (čl. 15)** | `GET /api/v1/self/report` + `/self/audit` |
 | **Právo na výmaz (čl. 17)** | `DELETE /api/v1/admin/users/:id?confirm=DELETE` — kaskádový hard-delete aktivit + pseudonymizace profilu |
