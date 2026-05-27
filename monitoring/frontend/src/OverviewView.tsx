@@ -7,6 +7,7 @@ import { HeatmapView } from './HeatmapView.js';
 import { PageSkeleton } from './Skeleton.js';
 import { ScoreScaleLegend } from './Legend.js';
 import { TYPE_COLORS, scoreHex, scoreColor } from './util.js';
+import { useT } from './i18n/index.js';
 
 function Kpi({ icon, label, value, sub, accent, color }: { icon: React.ReactNode; label: string; value: string; sub?: React.ReactNode; accent?: string; color?: string }) {
   return (
@@ -19,12 +20,13 @@ function Kpi({ icon, label, value, sub, accent, color }: { icon: React.ReactNode
 }
 
 function Delta({ d }: { d: number | null }) {
-  if (d === null) return <span className="muted-2 flex items-center gap-0.5"><Minus size={12} /> bez srovnání</span>;
-  if (d === 0) return <span className="muted-2 flex items-center gap-0.5"><Minus size={12} /> beze změny</span>;
+  const { t } = useT();
+  if (d === null) return <span className="muted-2 flex items-center gap-0.5"><Minus size={12} /> {t('overview.deltaNoComparison')}</span>;
+  if (d === 0) return <span className="muted-2 flex items-center gap-0.5"><Minus size={12} /> {t('overview.deltaNoChange')}</span>;
   const up = d > 0;
   return (
     <span className={`flex items-center gap-0.5 ${up ? 'text-emerald-500' : 'text-red-500'}`}>
-      {up ? <ArrowUp size={12} /> : <ArrowDown size={12} />} {up ? '+' : ''}{d} b. vs minulé období
+      {up ? <ArrowUp size={12} /> : <ArrowDown size={12} />} {up ? '+' : ''}{d} {t('overview.deltaVsLast')}
     </span>
   );
 }
@@ -32,11 +34,15 @@ function Delta({ d }: { d: number | null }) {
 export function OverviewView({ from, to, department, dark, onOpenUser }: {
   from: string; to: string; department?: string; dark: boolean; onOpenUser: (id: string) => void;
 }) {
+  const { t } = useT();
   const [o, setO] = useState<Overview | null>(null);
   const [mon, setMon] = useState<MonitorsData | null>(null);
   useEffect(() => { api.overview(from, to, department).then(setO).catch(() => setO(null)); }, [from, to, department]);
   useEffect(() => { api.monitors(from, to, department).then(setMon).catch(() => setMon(null)); }, [from, to, department]);
   if (!o) return <PageSkeleton />;
+
+  const employeeWord = (n: number) =>
+    n === 1 ? t('overview.employeeOne') : n >= 2 && n <= 4 ? t('overview.employeeFew') : t('overview.employeeMany');
 
   return (
     <div className="space-y-4">
@@ -44,16 +50,16 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
 
       {/* KPI strip */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi icon={<Gauge size={13} />} label="Průměrné skóre efektivity (%)" value={`${o.kpi.avgScore} %`} color={scoreColor(o.kpi.avgScore)} sub={<Delta d={o.kpi.avgScoreDelta} />} />
-        <Kpi icon={<Clock size={13} />} label="Aktivní práce celkem (hodiny)" value={`${o.kpi.activeHours} h`} sub={<span className="muted-2">{o.kpi.userCount} sledovaných zaměstnanců</span>} />
-        <Kpi icon={<Wifi size={13} />} label="Online zařízení teď (počet)" value={`${o.kpi.onlineCount}`} sub={<span className="muted-2">z {o.kpi.deviceCount} zařízení</span>} />
-        <Kpi icon={<ShieldAlert size={13} />} label="Podezření na praktiky (počet)" value={`${o.kpi.flaggedCount}`} accent={o.kpi.flaggedCount ? 'text-red-500' : ''} sub={<span className="muted-2">zaměstnanců s podezřelým chováním</span>} />
+        <Kpi icon={<Gauge size={13} />} label={t('overview.kpiAvgScore')} value={`${o.kpi.avgScore} %`} color={scoreColor(o.kpi.avgScore)} sub={<Delta d={o.kpi.avgScoreDelta} />} />
+        <Kpi icon={<Clock size={13} />} label={t('overview.kpiActiveWork')} value={`${o.kpi.activeHours} h`} sub={<span className="muted-2">{t('overview.kpiActiveWorkSub', { n: o.kpi.userCount })}</span>} />
+        <Kpi icon={<Wifi size={13} />} label={t('overview.kpiOnlineNow')} value={`${o.kpi.onlineCount}`} sub={<span className="muted-2">{t('overview.kpiOnlineSub', { n: o.kpi.deviceCount })}</span>} />
+        <Kpi icon={<ShieldAlert size={13} />} label={t('overview.kpiSuspicion')} value={`${o.kpi.flaggedCount}`} accent={o.kpi.flaggedCount ? 'text-red-500' : ''} sub={<span className="muted-2">{t('overview.kpiSuspicionSub')}</span>} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Rozdělení času */}
         <div className="card flex flex-col items-center justify-center p-6">
-          <h3 className="mb-3 self-start text-sm font-semibold">Rozdělení času celé firmy (hodiny)</h3>
+          <h3 className="mb-3 self-start text-sm font-semibold">{t('overview.timeSplit')}</h3>
           <Donut
             size={170}
             segments={[
@@ -62,20 +68,20 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
               { value: o.split.idle, color: TYPE_COLORS.idle },
               { value: o.split.pcoff, color: TYPE_COLORS.off },
             ]}
-            center={<><div className="text-xl font-bold">{o.split.work} h</div><div className="text-xs muted-2">práce</div></>}
+            center={<><div className="text-xl font-bold">{o.split.work} h</div><div className="text-xs muted-2">{t('overview.timeSplitCenter')}</div></>}
           />
           <div className="mt-3 grid w-full grid-cols-2 gap-1 text-xs">
-            <span className="flex items-center gap-1"><i className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: TYPE_COLORS.work }} /> Práce: {o.split.work} h</span>
-            <span className="flex items-center gap-1"><i className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: TYPE_COLORS.nonwork }} /> Zábava: {o.split.nonwork} h</span>
-            <span className="flex items-center gap-1"><i className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: TYPE_COLORS.idle }} /> Nečinnost u PC: {o.split.idle} h</span>
-            <span className="flex items-center gap-1"><i className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: TYPE_COLORS.off }} /> Mimo PC: {o.split.pcoff} h</span>
+            <span className="flex items-center gap-1"><i className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: TYPE_COLORS.work }} /> {t('overview.timeSplitWork')}: {o.split.work} h</span>
+            <span className="flex items-center gap-1"><i className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: TYPE_COLORS.nonwork }} /> {t('overview.timeSplitFun')}: {o.split.nonwork} h</span>
+            <span className="flex items-center gap-1"><i className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: TYPE_COLORS.idle }} /> {t('overview.timeSplitIdle')}: {o.split.idle} h</span>
+            <span className="flex items-center gap-1"><i className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: TYPE_COLORS.off }} /> {t('overview.timeSplitOff')}: {o.split.pcoff} h</span>
           </div>
         </div>
 
         {/* Srovnání oddělení */}
         <div className="card p-5 lg:col-span-2">
-          <h3 className="mb-1 text-sm font-semibold">Skóre podle oddělení</h3>
-          <p className="mb-3 text-xs muted-2">Délka i barva pruhu odpovídají skóre (0–100 %). Číslo v závorce = počet lidí.</p>
+          <h3 className="mb-1 text-sm font-semibold">{t('overview.deptScore')}</h3>
+          <p className="mb-3 text-xs muted-2">{t('overview.deptScoreSub')}</p>
           <div className="space-y-2.5">
             {o.departments.map((d) => (
               <div key={d.department} className="flex items-center gap-3">
@@ -93,16 +99,17 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
       {/* Kde se pracuje (podle lokální sítě) */}
       {o.locations && o.locations.length > 0 && (
         <div className="card p-5">
-          <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><MapPin size={16} className="text-sky-500" /> Kde se pracuje (počet zaměstnanců)</h3>
-          <p className="mb-3 text-xs muted-2">Převažující pracoviště za období podle firemní sítě. „Mimo firmu" = Home Office / mimo provozovny (VPN se nepočítá jako pobočka).</p>
+          <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><MapPin size={16} className="text-sky-500" /> {t('overview.wherePeopleWork')}</h3>
+          <p className="mb-3 text-xs muted-2">{t('overview.wherePeopleWorkSub')}</p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {o.locations.map((l) => {
               const out = l.site === 'Mimo firmu';
+              const siteLabel = out ? t('overview.outsideCompany') : l.site;
               return (
                 <div key={l.site} className="rounded-lg border border-gray-200 p-3 dark:border-slate-700">
-                  <div className="flex items-center gap-1.5 text-xs muted-2">{out ? <House size={13} /> : <Building2 size={13} className="text-sky-500" />} {l.site}</div>
+                  <div className="flex items-center gap-1.5 text-xs muted-2">{out ? <House size={13} /> : <Building2 size={13} className="text-sky-500" />} {siteLabel}</div>
                   <div className="text-2xl font-bold">{l.users}</div>
-                  <div className="text-xs muted-2">{l.users === 1 ? 'zaměstnanec' : l.users >= 2 && l.users <= 4 ? 'zaměstnanci' : 'zaměstnanců'}</div>
+                  <div className="text-xs muted-2">{employeeWord(l.users)}</div>
                 </div>
               );
             })}
@@ -112,20 +119,20 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
 
       {/* Top / Bottom */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <RankCard title="Nejefektivnější zaměstnanci (skóre %)" rows={o.top} good onOpenUser={onOpenUser} />
-        <RankCard title="Nejnižší skóre efektivity (skóre %)" rows={o.bottom} onOpenUser={onOpenUser} />
+        <RankCard title={t('overview.topEmployees')} rows={o.top} good onOpenUser={onOpenUser} />
+        <RankCard title={t('overview.bottomEmployees')} rows={o.bottom} onOpenUser={onOpenUser} />
       </div>
 
       {/* Efektivita podle počtu monitorů */}
       {mon && (
         <div className="card p-5">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Monitor size={16} className="text-emerald-600" /> Skóre efektivity podle počtu monitorů</h3>
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Monitor size={16} className="text-emerald-600" /> {t('overview.scoreByMonitors')}</h3>
           <div className="grid gap-4 sm:grid-cols-2">
-            <MonitorBox label="Pracují na 1 monitoru" data={mon.single} />
-            <MonitorBox label="Pracují na 2 a více monitorech" data={mon.multi} />
+            <MonitorBox label={t('overview.monitorBox1')} data={mon.single} />
+            <MonitorBox label={t('overview.monitorBoxMulti')} data={mon.multi} />
           </div>
           <p className="mt-3 text-xs muted-2">
-            Sledujeme pouze počet připojených monitorů (HW), nikoli obsah druhé obrazovky.
+            {t('overview.monitorBoxNote')}
           </p>
         </div>
       )}
@@ -133,18 +140,17 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
       {/* Manažerská doporučení (interpretace dat – nezasahuje do nich) */}
       {mon && mon.advice.candidates.length > 0 && (
         <div className="card p-5">
-          <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Lightbulb size={16} className="text-amber-500" /> Manažerská doporučení</h3>
+          <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Lightbulb size={16} className="text-amber-500" /> {t('overview.managerRecs')}</h3>
           <p className="mb-3 text-xs muted-2">
-            Návrhy odvozené z dat (nezasahují do nich). Druhý monitor u níže uvedených lidí dělá práci,
-            které dle studií přináší +{mon.advice.upliftLowPct}–{mon.advice.upliftHighPct} % – vyplatí se ho zvážit.
+            {t('overview.managerRecsSub', { low: mon.advice.upliftLowPct, high: mon.advice.upliftHighPct })}
           </p>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr>
-                  <th className="th">Zaměstnanec</th><th className="th">Oddělení</th>
-                  <th className="th">Převažující práce</th><th className="th text-right">Počet monitorů</th>
-                  <th className="th text-right">Odpracováno (hodiny)</th><th className="th text-right">Možný přínos 2. monitoru (hodiny)</th>
+                  <th className="th">{t('overview.colEmployee')}</th><th className="th">{t('overview.colDept')}</th>
+                  <th className="th">{t('overview.colDominantWork')}</th><th className="th text-right">{t('overview.colMonitors')}</th>
+                  <th className="th text-right">{t('overview.colWorkedHours')}</th><th className="th text-right">{t('overview.colReclaim')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -162,11 +168,10 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
             </table>
           </div>
           {mon.advice.candidates.length > 10 && (
-            <p className="mt-2 text-xs muted-2">…a dalších {mon.advice.candidates.length - 10} zaměstnanců. Zobrazeno 10 s největším přínosem.</p>
+            <p className="mt-2 text-xs muted-2">{t('overview.moreEmployeesNote', { n: mon.advice.candidates.length - 10 })}</p>
           )}
           <p className="mt-3 text-xs muted-2">
-            „Možný přínos" = orientační rozsah produktivnějších hodin za období, pokud by člověk dostal druhý monitor.
-            Jde o odhad ze studií, ne o naměřená data.
+            {t('overview.reclaimDef')}
           </p>
         </div>
       )}
@@ -178,13 +183,15 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
 }
 
 function MonitorBox({ label, data }: { label: string; data: { users: number; avgScore: number; avgActiveHours: number } }) {
+  const { t } = useT();
+  const employeeWord = data.users === 1 ? t('overview.employeeOne') : t('overview.employeeMany');
   return (
     <div className="rounded-lg border border-gray-200 p-4 dark:border-slate-700">
       <div className="text-sm font-medium">{label}</div>
-      <div className="text-xs muted-2">{data.users} {data.users === 1 ? 'zaměstnanec' : 'zaměstnanců'}</div>
+      <div className="text-xs muted-2">{data.users} {employeeWord}</div>
       <div className="mt-2 flex items-end gap-3">
         <span className="text-3xl font-bold" style={{ color: scoreColor(data.avgScore) }}>{data.avgScore}%</span>
-        <span className="text-xs muted-2">průměrné skóre · {data.avgActiveHours} h aktivní práce</span>
+        <span className="text-xs muted-2">{t('overview.monitorAvgScoreSub', { h: data.avgActiveHours })}</span>
       </div>
     </div>
   );

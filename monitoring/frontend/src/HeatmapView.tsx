@@ -1,24 +1,31 @@
 import { useEffect, useState } from 'react';
 import { api, type Heatmap as HeatmapData } from './api.js';
-
-const DAYS = [
-  { idx: 1, label: 'Po' }, { idx: 2, label: 'Út' }, { idx: 3, label: 'St' },
-  { idx: 4, label: 'Čt' }, { idx: 5, label: 'Pá' }, { idx: 6, label: 'So' }, { idx: 0, label: 'Ne' },
-];
+import { useT } from './i18n/index.js';
 
 export function HeatmapView({ from, to, department, userId }: { from: string; to: string; department?: string; userId?: string }) {
+  const { t } = useT();
   const [data, setData] = useState<HeatmapData | null>(null);
   useEffect(() => { api.heatmap(from, to, { department, userId }).then(setData).catch(() => setData(null)); }, [from, to, department, userId]);
   if (!data) return null;
   const max = Math.max(data.max, 1);
 
+  const DAYS = [
+    { idx: 1, label: t('heatmap.monday') },
+    { idx: 2, label: t('heatmap.tuesday') },
+    { idx: 3, label: t('heatmap.wednesday') },
+    { idx: 4, label: t('heatmap.thursday') },
+    { idx: 5, label: t('heatmap.friday') },
+    { idx: 6, label: t('heatmap.saturday') },
+    { idx: 0, label: t('heatmap.sunday') },
+  ];
+
   return (
     <div className="card p-5">
-      <h3 className="mb-1 text-sm font-semibold">Kdy se pracuje (vytížení dne)</h3>
+      <h3 className="mb-1 text-sm font-semibold">{t('heatmap.chartTitle')}</h3>
       <p className="mb-3 text-xs muted-2">
-        <b>Barva</b> = poměr práce vs. zábavy v dané hodině (zelená = práce, červená = zábava).
-        <b> Sytost</b> = jak aktivně byl uživatel u PC (bledé = málo aktivity, sytá = naplno).
-        <b> Černá</b> v pracovní době (Po–Pá 8–16) = PC mlčí (možná HO bez práce nebo vypnuté PC).
+        <b>{t('heatmap.chartSubtitlePart1')}</b>{t('heatmap.chartSubtitlePart1Desc')}
+        <b> {t('heatmap.chartSubtitlePart2')}</b>{t('heatmap.chartSubtitlePart2Desc')}
+        <b> {t('heatmap.chartSubtitlePart3')}</b>{t('heatmap.chartSubtitlePart3Desc')}
       </p>
       <div className="overflow-x-auto">
         <table className="border-separate" style={{ borderSpacing: 2 }}>
@@ -56,9 +63,9 @@ export function HeatmapView({ from, to, department, userId }: { from: string; to
                     : `hsl(${hue}, 80%, ${lightness}%)`;
                   const tip = noActivity
                     ? (isWorkHour
-                      ? `${d.label} ${h}:00 – bez aktivity v pracovní době (PC vypnuté nebo mimo)`
-                      : `${d.label} ${h}:00 – bez aktivity`)
-                    : `${d.label} ${h}:00 – ${total} min aktivně\n  práce: ${work} min\n  zábava: ${nonwork} min`;
+                      ? `${d.label} ${h}:00 – ${t('heatmap.cellNoActivityWork')}`
+                      : `${d.label} ${h}:00 – ${t('heatmap.cellNoActivity')}`)
+                    : `${d.label} ${h}:00 – ${total} ${t('heatmap.cellMinActive')}\n  ${t('heatmap.cellWorkUnit')}: ${work} min\n  ${t('heatmap.cellFunUnit')}: ${nonwork} min`;
                   return (
                     <td key={h} title={tip}
                       style={{ width: 20, height: 18, borderRadius: 3, background: bg }} />
@@ -70,12 +77,12 @@ export function HeatmapView({ from, to, department, userId }: { from: string; to
         </table>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] muted-2">
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'hsl(145,80%,45%)' }} /> sytá zelená = naplno pracoval</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'hsl(145,80%,80%)' }} /> bledá zelená = pracoval, ale málo</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'hsl(0,80%,55%)' }} /> sytá červená = naplno zábava</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'hsl(0,80%,85%)' }} /> bledá červená = chvíli zábava</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'rgba(148,163,184,0.30)' }} /> šedá = bez aktivity (mimo prac. dobu)</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: '#111827' }} /> černá = měl pracovat (Po–Pá 8–16), ale PC mlčí</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'hsl(145,80%,45%)' }} /> {t('heatmap.legendWorkStrong')}</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'hsl(145,80%,80%)' }} /> {t('heatmap.legendWorkPale')}</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'hsl(0,80%,55%)' }} /> {t('heatmap.legendFunStrong')}</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'hsl(0,80%,85%)' }} /> {t('heatmap.legendFunPale')}</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: 'rgba(148,163,184,0.30)' }} /> {t('heatmap.legendGrey')}</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm" style={{ background: '#111827' }} /> {t('heatmap.legendBlack')}</span>
       </div>
     </div>
   );
