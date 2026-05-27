@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, lazy, Suspense } from 'react';
 import {
   Gauge, LayoutDashboard, User as UserIcon, Trophy, TrendingUp, AppWindow, CalendarDays, Table2, Shield,
   ShieldAlert, SlidersHorizontal, House, BadgeCheck, KeyRound, Sun, Moon, ChevronLeft, ChevronRight,
@@ -6,25 +6,28 @@ import {
 } from 'lucide-react';
 import { api, auth, type Me, type User } from './api.js';
 import { CommandPalette, type Command } from './CommandPalette.js';
-import { OverviewView } from './OverviewView.js';
-import { HomeOfficeView } from './HomeOfficeView.js';
-import { SelfReportView } from './SelfReportView.js';
-import { DetailView } from './DetailView.js';
-import { CalendarView } from './CalendarView.js';
-import { Scoreboard } from './Scoreboard.js';
-import { SummaryView } from './SummaryView.js';
-import { AdminView } from './AdminView.js';
-import { AccessControlView } from './AccessControlView.js';
-import { HardwareHealthView } from './HardwareHealthView.js';
-import { PrintUsbView } from './PrintUsbView.js';
-import { TrendChart } from './TrendChart.js';
-import { TopActivities } from './TopActivities.js';
-import { CategoryAdmin } from './CategoryAdmin.js';
-import { AlertsView } from './AlertsView.js';
-import { SoftwareView } from './SoftwareView.js';
-import { SettingsView } from './SettingsView.js';
-import { EmployeeSelfReport } from './EmployeeSelfReport.js';
+import { OverviewView } from './OverviewView.js';     // eager - vychozi tab
+import { Scoreboard } from './Scoreboard.js';          // eager - druhy nejcastejsi tab
 import { Login } from './Login.js';
+import { PageSkeleton } from './Skeleton.js';
+// Ostatni view se nactaji lazy – snizuje initial bundle z ~470 KB na ~250 KB.
+// Pri prepnuti na tab se mensi chunk stahne na pozadi (typicky < 50 KB / tab).
+const HomeOfficeView = lazy(() => import('./HomeOfficeView.js').then((m) => ({ default: m.HomeOfficeView })));
+const SelfReportView = lazy(() => import('./SelfReportView.js').then((m) => ({ default: m.SelfReportView })));
+const DetailView = lazy(() => import('./DetailView.js').then((m) => ({ default: m.DetailView })));
+const CalendarView = lazy(() => import('./CalendarView.js').then((m) => ({ default: m.CalendarView })));
+const SummaryView = lazy(() => import('./SummaryView.js').then((m) => ({ default: m.SummaryView })));
+const AdminView = lazy(() => import('./AdminView.js').then((m) => ({ default: m.AdminView })));
+const AccessControlView = lazy(() => import('./AccessControlView.js').then((m) => ({ default: m.AccessControlView })));
+const HardwareHealthView = lazy(() => import('./HardwareHealthView.js').then((m) => ({ default: m.HardwareHealthView })));
+const PrintUsbView = lazy(() => import('./PrintUsbView.js').then((m) => ({ default: m.PrintUsbView })));
+const TrendChart = lazy(() => import('./TrendChart.js').then((m) => ({ default: m.TrendChart })));
+const TopActivities = lazy(() => import('./TopActivities.js').then((m) => ({ default: m.TopActivities })));
+const CategoryAdmin = lazy(() => import('./CategoryAdmin.js').then((m) => ({ default: m.CategoryAdmin })));
+const AlertsView = lazy(() => import('./AlertsView.js').then((m) => ({ default: m.AlertsView })));
+const SoftwareView = lazy(() => import('./SoftwareView.js').then((m) => ({ default: m.SoftwareView })));
+const SettingsView = lazy(() => import('./SettingsView.js').then((m) => ({ default: m.SettingsView })));
+const EmployeeSelfReport = lazy(() => import('./EmployeeSelfReport.js').then((m) => ({ default: m.EmployeeSelfReport })));
 import { useTheme } from './theme.js';
 import { useT } from './i18n/index.js';
 import { LanguageSwitcher } from './LanguageSwitcher.js';
@@ -374,6 +377,7 @@ export default function App() {
         </header>
 
         <main key={tab} className="fade-in p-6">
+          <Suspense fallback={<PageSkeleton />}>
           {tab === 'overview' && <OverviewView from={from} to={to} department={department || undefined} dark={dark} onOpenUser={(id) => { setUserId(id); setTab('detail'); }} />}
           {tab === 'homeoffice' && <HomeOfficeView from={from} to={to} department={department || undefined} onOpenUser={(id) => { setUserId(id); setTab('detail'); }} />}
           {tab === 'selfreport' && selectedUser && <SelfReportView user={selectedUser} from={from} to={to} />}
@@ -402,6 +406,7 @@ export default function App() {
           {tab === 'health' && <HardwareHealthView />}
           {tab === 'printusb' && <PrintUsbView from={from} to={to} />}
           {tab === 'settings' && <SettingsView canEdit={me.role === 'ADMIN'} />}
+          </Suspense>
         </main>
       </div>
     </div>
