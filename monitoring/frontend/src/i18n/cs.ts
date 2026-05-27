@@ -31,6 +31,16 @@ export const cs = {
   userMenu: {
     devMode: 'Vývojářský režim',
     devModeTooltip: 'Zobrazí ⓘ ikonky u metrik s vysvětlením, jak jsou počítány. Užitečné pro auditora / DPO / debug.',
+    whatsNew: 'Co je nového',
+    version: 'Verze',
+  },
+  whatsNew: {
+    title: 'Nová verze {v} je tady',
+    showHighlights: 'Zobrazit {n} novinek',
+    collapse: 'Skrýt',
+    dismiss: 'Zavřít a označit jako přečtené',
+    panelTitle: 'Co je nového ve FOCUSu',
+    fullChangelogLink: 'Kompletní changelog →',
   },
   methodology: {
     avgScore: 'Průměrné skóre = (work_min / expected_min) × 100 %. Expected = min(workdays × 8 h, čas od nasazení agenta). Nezařazený čas (UNKNOWN) se z fondu odečítá, aby pravidla pro nové aplikace nesnižovala skóre. Dovolená/nemoc/svátky se nezapočítávají.',

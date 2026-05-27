@@ -29,6 +29,16 @@ export const en: typeof cs = {
   userMenu: {
     devMode: 'Developer mode',
     devModeTooltip: 'Shows ⓘ icons next to metrics explaining how they are calculated. Useful for auditors / DPO / debugging.',
+    whatsNew: "What's new",
+    version: 'Version',
+  },
+  whatsNew: {
+    title: 'New version {v} is here',
+    showHighlights: 'Show {n} highlights',
+    collapse: 'Collapse',
+    dismiss: 'Close and mark as read',
+    panelTitle: "What's new in FOCUS",
+    fullChangelogLink: 'Full changelog →',
   },
   methodology: {
     avgScore: 'Average score = (work_min / expected_min) × 100 %. Expected = min(workdays × 8 h, time since agent deployed). Unclassified time (UNKNOWN) is subtracted from the pool so rules for new apps don\'t lower the score. Vacation/sick/holidays are excluded.',

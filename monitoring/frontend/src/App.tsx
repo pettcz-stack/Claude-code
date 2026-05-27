@@ -29,6 +29,7 @@ const SoftwareView = lazy(() => import('./SoftwareView.js').then((m) => ({ defau
 const SettingsView = lazy(() => import('./SettingsView.js').then((m) => ({ default: m.SettingsView })));
 const EmployeeSelfReport = lazy(() => import('./EmployeeSelfReport.js').then((m) => ({ default: m.EmployeeSelfReport })));
 import { useTheme } from './theme.js';
+import { WhatsNewBanner } from './WhatsNew.js';
 import { useT } from './i18n/index.js';
 import { LanguageSwitcher } from './LanguageSwitcher.js';
 import { UserMenu } from './UserMenu.js';
@@ -375,6 +376,8 @@ export default function App() {
             </div>
           )}
         </header>
+
+        <WhatsNewBanner />
 
         <main key={tab} className="fade-in p-6">
           <Suspense fallback={<PageSkeleton />}>

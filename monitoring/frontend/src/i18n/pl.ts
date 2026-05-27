@@ -18,6 +18,16 @@ export const pl: typeof cs = {
   userMenu: {
     devMode: 'Tryb deweloperski',
     devModeTooltip: 'Pokazuje ⓘ ikonki przy metrykach z wyjaśnieniem sposobu obliczania. Przydatne dla audytora / DPO / debugowania.',
+    whatsNew: 'Co nowego',
+    version: 'Wersja',
+  },
+  whatsNew: {
+    title: 'Nowa wersja {v} jest dostępna',
+    showHighlights: 'Pokaż {n} nowości',
+    collapse: 'Zwiń',
+    dismiss: 'Zamknij i oznacz jako przeczytane',
+    panelTitle: 'Co nowego w FOCUS',
+    fullChangelogLink: 'Pełny changelog →',
   },
   methodology: {
     avgScore: 'Średni wynik = (work_min / expected_min) × 100 %. Expected = min(workdays × 8 h, czas od wdrożenia agenta). Nieklasyfikowany czas (UNKNOWN) jest odejmowany. Urlop/zwolnienia/święta są wyłączone.',

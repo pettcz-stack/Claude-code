@@ -18,6 +18,16 @@ export const de: typeof cs = {
   userMenu: {
     devMode: 'Entwicklermodus',
     devModeTooltip: 'Zeigt ⓘ Icons neben Metriken mit Erklärung der Berechnung. Nützlich für Auditor / DPO / Debugging.',
+    whatsNew: 'Neuigkeiten',
+    version: 'Version',
+  },
+  whatsNew: {
+    title: 'Neue Version {v} ist da',
+    showHighlights: '{n} Highlights anzeigen',
+    collapse: 'Einklappen',
+    dismiss: 'Schließen und als gelesen markieren',
+    panelTitle: 'Neuigkeiten in FOCUS',
+    fullChangelogLink: 'Vollständiges Changelog →',
   },
   methodology: {
     avgScore: 'Durchschnittsscore = (work_min / expected_min) × 100 %. Expected = min(workdays × 8 h, Zeit seit Agent-Deployment). Unklassifizierte Zeit (UNKNOWN) wird abgezogen. Urlaub/Krankheit/Feiertage werden ausgeschlossen.',

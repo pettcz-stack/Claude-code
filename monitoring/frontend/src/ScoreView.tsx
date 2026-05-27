@@ -7,8 +7,9 @@ import { AppIcon, useAppName } from './appMeta.js';
 import { minutesToHm, chipClass, typeLabel, TYPE_COLORS, scoreColor } from './util.js';
 import { useT } from './i18n/index.js';
 import { MetricInfo } from './MetricInfo.js';
+import { NewBadge } from './NewBadge.js';
 
-function Card({ title, icon, children, accent, info }: { title: string; icon: React.ReactNode; children: React.ReactNode; accent?: string; info?: string }) {
+function Card({ title, icon, children, accent, info }: { title: React.ReactNode; icon: React.ReactNode; children: React.ReactNode; accent?: string; info?: string }) {
   return (
     <div className="card p-4">
       <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide muted-2">{icon} {title}{info && <MetricInfo text={info} />}</div>
@@ -99,7 +100,7 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card title={t('scoreView.cardKpmTitle')} icon={<Keyboard size={13} />} info={s.typingKpm > 0 ? t('methodology.kpmTyping') : t('methodology.kpmAvg')}>
+        <Card title={<>{t('scoreView.cardKpmTitle')}<NewBadge feature="typingKpm" /></>} icon={<Keyboard size={13} />} info={s.typingKpm > 0 ? t('methodology.kpmTyping') : t('methodology.kpmAvg')}>
           {s.typingKpm > 0 ? s.typingKpm : s.avgKpm} <span className="text-sm font-normal muted">{t('scoreView.kpmUnit')}</span>
           <div className="mt-1 text-xs font-normal text-emerald-500">{t('scoreView.kpmNote', { n: s.kpmPercentile })} {s.kpmPercentile >= 50 ? '🎉' : ''}</div>
           {s.typingKpm > 0 && s.typingMinutes > 0 && (

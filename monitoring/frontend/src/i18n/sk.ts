@@ -18,6 +18,16 @@ export const sk: typeof cs = {
   userMenu: {
     devMode: 'Vývojársky režim',
     devModeTooltip: 'Zobrazí ⓘ ikonky pri metrikách s vysvetlením, ako sú počítané. Užitočné pre auditora / DPO / debug.',
+    whatsNew: 'Čo je nové',
+    version: 'Verzia',
+  },
+  whatsNew: {
+    title: 'Nová verzia {v} je tu',
+    showHighlights: 'Zobraziť {n} noviniek',
+    collapse: 'Skryť',
+    dismiss: 'Zavrieť a označiť ako prečítané',
+    panelTitle: 'Čo je nové vo FOCUSe',
+    fullChangelogLink: 'Kompletný changelog →',
   },
   methodology: {
     avgScore: 'Priemerné skóre = (work_min / expected_min) × 100 %. Expected = min(workdays × 8 h, čas od nasadenia agenta). Nezaradený čas (UNKNOWN) sa z fondu odpočítava. Dovolenka/PN/sviatky sa nezapočítavajú.',

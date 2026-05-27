@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { LogOut, ChevronDown, ShieldCheck, Code2 } from 'lucide-react';
+import { LogOut, ChevronDown, ShieldCheck, Code2, Sparkles } from 'lucide-react';
 import { useT } from './i18n/index.js';
 import { useDevMode } from './devMode.js';
+import { CURRENT_VERSION } from './releases.js';
+import { WhatsNewPanel } from './WhatsNew.js';
 
 const ROLE_COLOR: Record<string, string> = {
   ADMIN: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
@@ -19,6 +21,7 @@ export function UserMenu({ username, role, onLogout }: { username: string; role:
   const { t } = useT();
   const { devMode, setDevMode } = useDevMode();
   const [open, setOpen] = useState(false);
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -57,6 +60,16 @@ export function UserMenu({ username, role, onLogout }: { username: string; role:
               <span className={`inline-block rounded px-1.5 py-0 font-medium uppercase ${ROLE_COLOR[role] ?? ROLE_COLOR.VIEWER}`}>{role}</span>
             </div>
           </div>
+          <button
+            onClick={() => { setOpen(false); setWhatsNewOpen(true); }}
+            className="flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-slate-800"
+          >
+            <span className="flex items-center gap-2">
+              <Sparkles size={14} className="text-emerald-500" />
+              <span>{t('userMenu.whatsNew')}</span>
+            </span>
+            <span className="text-[10px] font-mono muted-2">v{CURRENT_VERSION}</span>
+          </button>
           {role === 'ADMIN' && (
             <button
               onClick={() => setDevMode(!devMode)}
@@ -81,6 +94,7 @@ export function UserMenu({ username, role, onLogout }: { username: string; role:
           </button>
         </div>
       )}
+      {whatsNewOpen && <WhatsNewPanel onClose={() => setWhatsNewOpen(false)} />}
     </div>
   );
 }
