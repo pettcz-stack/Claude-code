@@ -65,13 +65,13 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 
 # Při startu: migrace → (volitelně) demo seed → server.
 # - Seed se přeskakuje, když je SKIP_SEED=1 (CI smoke-test) nebo když už
-#   sentinel /data/.seeded-v2 existuje (druhý a další start kontejneru).
+#   sentinel /data/.seeded-v3 existuje (druhý a další start kontejneru).
 # - Sentinel je verzovaný: po každém přidání nového typu dat (Print/USB, atd.)
 #   bumpneme suffix, aby se po upgradu image znovu naseedovala nová data.
 # - Lokálně bez nastavení SKIP_SEED se seed spustí jednou pro fresh volume.
 # - Seed je idempotentní (upsert pro mastery, skipDuplicates pro intervaly).
 CMD sh -c "npx prisma migrate deploy && \
   ( [ \"$SKIP_SEED\" = '1' ] && echo 'Seed přeskočen (SKIP_SEED=1)' \
-    || [ -f /data/.seeded-v2 ] && echo 'Seed přeskočen (.seeded-v2 existuje)' \
-    || ( npm run seed && touch /data/.seeded-v2 ) ) && \
+    || [ -f /data/.seeded-v3 ] && echo 'Seed přeskočen (.seeded-v3 existuje)' \
+    || ( npm run seed && touch /data/.seeded-v3 ) ) && \
   node dist/index.js"

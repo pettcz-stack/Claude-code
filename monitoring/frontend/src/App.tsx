@@ -30,6 +30,7 @@ const SettingsView = lazy(() => import('./SettingsView.js').then((m) => ({ defau
 const EmployeeSelfReport = lazy(() => import('./EmployeeSelfReport.js').then((m) => ({ default: m.EmployeeSelfReport })));
 import { useTheme } from './theme.js';
 import { WhatsNewBanner } from './WhatsNew.js';
+import { CURRENT_VERSION } from './releases.js';
 import { useT } from './i18n/index.js';
 import { LanguageSwitcher } from './LanguageSwitcher.js';
 import { UserMenu } from './UserMenu.js';
@@ -286,7 +287,7 @@ export default function App() {
           })}
         </nav>
         <div className="border-t border-gray-200 px-5 py-2.5 text-[10px] muted-2 dark:border-slate-700/70">
-          FOCUS v0.9.1 · © Sinsu Platform s.r.o.
+          FOCUS v{CURRENT_VERSION} · © Sinsu Platform s.r.o.
         </div>
       </aside>
 

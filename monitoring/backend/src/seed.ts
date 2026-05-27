@@ -10,6 +10,8 @@ import { DEFAULT_WEB_RULES } from './services/classify.js';
 import { ensureDefaultTips } from './services/tips.js';
 import { ensureDefaultSites } from './services/sites.js';
 import { saveSettings } from './services/settings.js';
+import { ensureDemoDeviceHealth } from './services/healthDemo.js';
+import { hashPassword } from './auth.js';
 import { floorToDay, addDays, localParts, localDow, zonedToUtc } from './services/tz.js';
 
 // Provozovna podle útvaru (pro lokální IP v demu): 10.30=Hořovice, 10.20=Praha, 10.10=Brno.
@@ -231,9 +233,19 @@ async function main() {
   }
 
   // Demo Print & USB events – sekce v dashboardu by jinak byla prázdná.
-  // Generujeme realistické vzorky: většina uživatelů občas tiskne A4/B&W,
-  // pár "podezřelých" tiskne velké objemy v podivných časech (víkend, noc).
   await seedPrintAndUsb(created);
+
+  // HW health snapshots pro IT > Zdraví zařízení tab.
+  await seedDeviceHealth(created);
+
+  // Další admin účty pro Přístupy sekci (manager, IT, viewer).
+  await seedAdditionalAdmins();
+
+  // Vzorek auditu přístupů – ukáže "Kdo se na koho díval".
+  await seedAccessAuditSamples(created);
+
+  // 2-3 OPEN classification claims (zaměstnanec si stěžuje na kategorizaci).
+  await seedClassificationClaims(created);
 
   const hours = await aggregateAll();
   // eslint-disable-next-line no-console
@@ -387,6 +399,144 @@ function makeRow(c: Person, intervalStart: Date, isHO: boolean): Prisma.Activity
   const ks = active > 120 && TYPING_APPS.has(app) ? rnd(900) : rnd(120);
   const mouse = app === 'sldworks.exe' ? 200 + rnd(400) : active > 60 ? rnd(300) : rnd(30);
   return { ...base, activeSeconds: active, idleSeconds: 300 - active, foregroundApp: app, windowTitle: title, keystrokeCount: ks, mouseEvents: mouse, sessionLocked: active < 30 && Math.random() > 0.6 };
+}
+
+/**
+ * Demo HW snapshots pro IT > Zdraví zařízení. Existující service vrací voidly
+ * (zaměří se na demo devices), tady jen tenký wrapper s logem.
+ */
+async function seedDeviceHealth(_users: Person[]): Promise<void> {
+  const before = await prisma.deviceHealth.count();
+  await ensureDemoDeviceHealth();
+  const after = await prisma.deviceHealth.count();
+  // eslint-disable-next-line no-console
+  console.log(`Demo HW health: ${after - before} novych snapshotu (drive ${before}).`);
+}
+
+/**
+ * Demo admin účty – pro Přístupy sekci. Jeden ADMIN (default), 2× MANAGER
+ * s přiřazenými odděleními, 1× IT, 1× VIEWER. Manageři mají rozsah jen
+ * na svá oddělení, ať uživatel vidí RBAC v praxi.
+ */
+async function seedAdditionalAdmins(): Promise<void> {
+  const existing = await prisma.adminUser.count({ where: { username: { not: 'admin' } } });
+  if (existing > 0) {
+    // eslint-disable-next-line no-console
+    console.log(`Demo admins preskoceny – uz existuje ${existing} dalsi admin uctu.`);
+    return;
+  }
+
+  const password = hashPassword('Demo1234!');
+  const accounts = [
+    { username: 'manager.obchod', fullName: 'Jan Novák – ředitel obchodu', role: 'MANAGER', depts: ['Obchod ČR', 'Obchod Export'] },
+    { username: 'manager.vyroba', fullName: 'Petra Svobodová – vedoucí výroby', role: 'MANAGER', depts: ['Výroba', 'Montáže a servis'] },
+    { username: 'it.spravce', fullName: 'Tomáš Procházka – IT správce', role: 'IT', depts: [] },
+    { username: 'auditor', fullName: 'Hana Veselá – interní audit', role: 'VIEWER', depts: [] },
+  ];
+
+  for (const a of accounts) {
+    const user = await prisma.adminUser.upsert({
+      where: { username: a.username },
+      update: {},
+      create: {
+        username: a.username,
+        passwordHash: password,
+        role: a.role,
+        fullName: a.fullName,
+        email: `${a.username}@sinsu-demo.cz`,
+      },
+    });
+    for (const dept of a.depts) {
+      await prisma.adminUserDepartment.upsert({
+        where: { adminId_department: { adminId: user.id, department: dept } },
+        update: {},
+        create: { adminId: user.id, department: dept },
+      });
+    }
+  }
+  // eslint-disable-next-line no-console
+  console.log(`Demo admins: ${accounts.length} uctu (heslo "Demo1234!" pro vsechny – jen demo).`);
+}
+
+/**
+ * Demo audit přístupů – ukáže "Kdo se na koho díval" v Administraci.
+ * Pár záznamů z posledních dní: admin koukl na top podezřelé, IT exportoval
+ * intervaly, manager prohlížel své oddělení, atd.
+ */
+async function seedAccessAuditSamples(users: Person[]): Promise<void> {
+  const existing = await prisma.accessAudit.count();
+  if (existing > 5) {
+    // eslint-disable-next-line no-console
+    console.log(`Demo audit preskocen – uz existuje ${existing} zaznamu.`);
+    return;
+  }
+  const admins = await prisma.adminUser.findMany({ select: { id: true, username: true } });
+  if (admins.length === 0 || users.length === 0) return;
+
+  const samples: Prisma.AccessAuditCreateManyInput[] = [];
+  const now = Date.now();
+  const action = ['VIEW', 'VIEW', 'VIEW', 'EXPORT', 'LOGIN'] as const;
+  const detail = ['detail uzivatele 30 dni', 'integrity panel', 'score timeline', 'hourly export xlsx', 'admin sign-in'];
+
+  for (let i = 0; i < 18; i++) {
+    const admin = admins[i % admins.length];
+    const target = users[(i * 7) % users.length];
+    samples.push({
+      adminId: admin.id,
+      adminIdentity: admin.username,
+      viewedUserId: action[i % action.length] === 'LOGIN' ? null : target.id,
+      action: action[i % action.length],
+      detail: detail[i % detail.length],
+      createdAt: new Date(now - i * 6 * 3600 * 1000 - rnd(3600 * 1000)),
+    });
+  }
+  await prisma.accessAudit.createMany({ data: samples });
+  // eslint-disable-next-line no-console
+  console.log(`Demo audit: ${samples.length} zaznamu o pristupech.`);
+}
+
+/**
+ * Demo classification claims – pár zaměstnanců si stěžuje, že jejich
+ * pracovní aplikace je nesprávně klasifikovaná. Pro Administrace → Klasifikace
+ * → záložka Claims.
+ */
+async function seedClassificationClaims(users: Person[]): Promise<void> {
+  const existing = await prisma.classificationClaim.count();
+  if (existing > 0) {
+    // eslint-disable-next-line no-console
+    console.log(`Demo claims preskoceny – ${existing} uz existuje.`);
+    return;
+  }
+  if (users.length < 3) return;
+  const claims: Prisma.ClassificationClaimCreateManyInput[] = [
+    {
+      userId: users[0].id,
+      target: 'projectpro.exe',
+      targetKind: 'APP',
+      suggested: 'WORK',
+      note: 'Tohle je naše interní projektová appka, ne zábava. Klasifikujte prosím jako práci.',
+      status: 'OPEN',
+    },
+    {
+      userId: users[5 % users.length].id,
+      target: 'linkedin.com',
+      targetKind: 'TITLE',
+      suggested: 'WORK',
+      note: 'Hledám obchodní leady, není to soukromá zábava.',
+      status: 'OPEN',
+    },
+    {
+      userId: users[12 % users.length].id,
+      target: 'youtube.com',
+      targetKind: 'TITLE',
+      suggested: 'WORK',
+      note: 'Sledoval jsem školicí video o novém CRM. Ne reklamace zatím.',
+      status: 'RESOLVED',
+    },
+  ];
+  await prisma.classificationClaim.createMany({ data: claims });
+  // eslint-disable-next-line no-console
+  console.log(`Demo claims: ${claims.length} reklamaci klasifikace.`);
 }
 
 main()

@@ -38,6 +38,13 @@ Při bumpu **změň všechny tyto soubory** na stejnou verzi (ideálně skriptem
 | `monitoring/agent/WorkView.Agent/AgentInfo.cs` | `Version` (jen kdy se Windows agent mění) |
 | `monitoring/agent/WorkView.Watchdog/WorkView.Watchdog.csproj` | `<Version>` |
 | `installer/Product.wxs` | `Version="…"` (WiX MSI) |
+| `monitoring/frontend/src/releases.ts` | nová položka v `RELEASES[]` (TOP) |
+
+**`releases.ts` je SSOT pro UI:** sidebar footer, UserMenu badge,
+WhatsNewBanner i `<NewBadge />` čtou z `CURRENT_VERSION = RELEASES[0].version`.
+Pokud do `releases.ts` přidáš novou položku s `features: ['xxx']`,
+po deployi se uživateli ukáže banner "Nová verze X.Y.Z je tady" a klíčové
+features dostanou ✨ NEW badge.
 
 ## Postup release
 
