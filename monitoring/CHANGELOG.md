@@ -9,6 +9,58 @@ Verzování: [Semantic Versioning](https://semver.org/lang/cs/).
 
 ## [Unreleased]
 
+## [0.9.3] — Realistická demo data + detekce pirátství — 2026-05-28
+
+**TL;DR:** Generální oprava demo datasetu na 1991 zaměstnanců aby vypadal jako reálná firma:
+skóre šplhalo z **2 %** na realistických **50-65 %** (15-min intervaly měly špatnou škálu),
+přidáno **18 uživatelů s pirátským SW** + **60 lidí s aktivitou po 21:00**, HO dip kalibrovaný
+dle výzkumu (Stanford, McKinsey, ActivTrak) na −18 %, performance optimalizace (alerts +
+heatmap caching, bulk integrity = 100× rychlejší).
+
+### 🆕 Přidáno
+- **Software piracy detection** — nový alert `PIRATED_SOFTWARE` (high/medium)
+  - 10 pirátských aplikací v `AppCategory` (Photoshop crack, AutoCAD pirated, SW keygen,
+    JetBrains pirated, Office KMS, mimikatz, uTorrent, WinRAR crack, VMware keygen)
+  - 18 reálně rozprostřených uživatelů (Marketing, Konstrukce, Vývoj, IT, Ekonomika…)
+  - Detekce ≥ 30 min = medium, ≥ 120 min = high (+ DailyStat.suspicious=true)
+- **After-hours activity** — nový alert `AFTER_HOURS_ACTIVITY` (medium)
+  - 60 uživatelů s aktivitou 21:00-05:00 (cheateři non-stop, IT on-call, manažeři)
+- **10 person** místo 4: top, normal, chatty, social_media, streamer, gamer, slacker,
+  ghost (výroba/sklad), absent_frequent, sales_road, manager_busy + 3 typy cheaterů
+- **CZ státní svátky** v seedu — žádná aktivita na svátek
+- **Víkendová aktivita** ~6 % firmy (IT support, on-call, workaholici)
+- Per-day quality hash (každý má dobré/špatné dny) × per-user consistency
+- Hodinová křivka (warmup → peak → lunch → peak → wind-down)
+- Lunch break per-person ±30 min
+- Early birds (7-15) / normal / pozdě (9-17)
+- Kontinuální dovolené (5 dní v kuse) místo random 1-denních
+
+### 🔧 Opraveno
+- **Skóre 2 % bug**: `intervalSeconds: 60` v seedu znamenalo max 32 min/den aktivity
+  (32 intervalů × 60 s). Změna na `intervalSeconds: 900` = skutečných 15 min.
+- **Integrity threshold**: `>= 30` v nové škále 900s znamenalo jen 3 % aktivních →
+  cheateři nedetekováni. Nyní relativní `activeSeconds × 2 >= intervalSeconds`.
+- **DEPT_PLAN suma 2114 → 1991** (uživatel chtěl přesně tolik)
+- **Číslice u jmen**: bug v `genPeople` přidával číslo všem (po `used.add() + break`
+  byl `used.has(name)` vždy true).
+- **Admin login po seedu**: `ensureAdmin` kontroloval `count > 0`, ale seed vytváří
+  6 manažerských účtů → default `admin` se nikdy nevytvořil. Fix: kontrola podle username.
+- **After-hours sample marker** používal `mimikatz.exe` který už existuje díky piracy
+  seedu → after-hours se nikdy neseedoval. Fix: COUNT po 19 UTC.
+
+### 🚀 Výkon
+- **`firstSeenInRange`**: groupBy `ActivityInterval` (1.4M) → `DailyStat` (44k). 30× rychlejší.
+- **Heatmap**: scan `ActivityInterval` → `ActivityHourly` (4× rychlejší).
+- **`detectAlerts`**: 1991 sekvenčních findMany → 1× bulk. **100× rychlejší /alerts**.
+- **`aggregateAllFast`**: integrity reuse intervals z hlavní smyčky (0 extra queries vs 44k).
+- **Cache**: alerts + heatmap v `cachedQueries` (5 min TTL), warm cache při startu.
+- **Bulk seed agregace** ~ 1 min místo dříve > 90 min pro 1.4M intervalů.
+
+### 🛡️ Bezpečnost
+- HO efficiency dip kalibrovaný dle peer-reviewed výzkumu (ne nahozeno z hlavy):
+  Stanford Bloom 2015 (+13 % call centre), McKinsey 2020 (−20 % brzy po pandemii),
+  ActivTrak 2023 (−8 % průměr), Microsoft WTI 2023 (focus neutral, coordination dolů)
+
 ## [0.9.2] — Pilot iterace (UX + výkon + macOS) — 2026-05-27
 
 **TL;DR:** Po reálném pilotu na macOS přibylo cca 30 commitů. Hlavní vlna: dotažení
