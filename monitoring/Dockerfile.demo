@@ -46,7 +46,11 @@ COPY --from=fe /fe/dist /app/frontend/dist
 
 # DB ukládáme do /data – mountnutelný volume, přežije restart kontejneru.
 RUN mkdir -p /data
-ENV NODE_ENV=production
+# Demo image POUŽÍVÁ záměrně slabé credentials (admin/admin, dev-token), aby
+# bylo "klikni a uvidíš" bez konfigurace. Proto NODE_ENV=development –
+# assertProductionSecrets() guard se aktivuje jen v production režimu a v demu
+# by start zablokoval. Pro reálné nasazení viz Dockerfile (production-grade).
+ENV NODE_ENV=development
 ENV DATABASE_URL=file:/data/demo.db
 ENV PORT=8080
 ENV ADMIN_USER=admin
