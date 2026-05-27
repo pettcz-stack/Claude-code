@@ -1,11 +1,48 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, Download, Upload } from 'lucide-react';
+import { Plus, Trash2, Download, Upload, ChevronDown } from 'lucide-react';
 import { api, type AppCategoryRow, type WebRuleRow, type DeptRuleRow } from './api.js';
 import { chipClass, typeLabel } from './util.js';
 import { useToast } from './Toast.js';
 import { useT } from './i18n/index.js';
 
 const TYPES = ['WORK', 'NON_WORK', 'NEUTRAL', 'UNKNOWN'];
+
+/**
+ * Klikabilní chip s typem, který přepíná na select pro inline reklasifikaci.
+ * Po vybrání typu zavolá `onSave(newType)` a vrátí se zpět na zobrazený chip.
+ * Vlastní stav `editing` jen pro fokusovaný UI – uložení řídí parent.
+ */
+function TypePicker({ value, onSave, canEdit }: { value: string; onSave: (newType: string) => Promise<void> | void; canEdit: boolean }) {
+  const { t } = useT();
+  const [editing, setEditing] = useState(false);
+  if (!canEdit) return <span className={chipClass(value)}>{typeLabel(value)}</span>;
+  if (!editing) {
+    return (
+      <button
+        onClick={() => setEditing(true)}
+        title={t('categoryAdmin.clickToReclassify')}
+        className={`${chipClass(value)} inline-flex items-center gap-0.5 cursor-pointer hover:opacity-80`}
+      >
+        {typeLabel(value)}<ChevronDown size={11} className="opacity-60" />
+      </button>
+    );
+  }
+  return (
+    <select
+      autoFocus
+      value={value}
+      onBlur={() => setEditing(false)}
+      onChange={async (e) => {
+        const newType = e.target.value;
+        setEditing(false);
+        if (newType !== value) await onSave(newType);
+      }}
+      className="field h-7 py-0 text-xs"
+    >
+      {TYPES.map((ty) => <option key={ty} value={ty}>{typeLabel(ty)}</option>)}
+    </select>
+  );
+}
 
 export function CategoryAdmin({ canEdit, from, to }: { canEdit: boolean; from: string; to: string }) {
   const { t } = useT();
@@ -82,7 +119,17 @@ export function CategoryAdmin({ canEdit, from, to }: { canEdit: boolean; from: s
                 <tr key={c.id} className="divide-row">
                   <td className="td font-mono text-xs">{c.appName}</td>
                   <td className="td">{c.category}</td>
-                  <td className="td"><span className={chipClass(c.type)}>{typeLabel(c.type)}</span></td>
+                  <td className="td">
+                    <TypePicker
+                      value={c.type}
+                      canEdit={canEdit}
+                      onSave={async (newType) => {
+                        await api.saveCategory({ appName: c.appName, category: c.category, type: newType });
+                        toast(t('categoryAdmin.saved', { name: c.appName, type: typeLabel(newType) }));
+                        load();
+                      }}
+                    />
+                  </td>
                   {canEdit && <td className="td text-right"><button onClick={async () => { await api.deleteCategory(c.appName); load(); }} className="muted-2 hover:text-red-500"><Trash2 size={15} /></button></td>}
                 </tr>
               ))}
@@ -118,7 +165,17 @@ export function CategoryAdmin({ canEdit, from, to }: { canEdit: boolean; from: s
                 <tr key={r.id} className="divide-row">
                   <td className="td font-mono text-xs">{r.keyword}</td>
                   <td className="td">{r.category}</td>
-                  <td className="td"><span className={chipClass(r.type)}>{typeLabel(r.type)}</span></td>
+                  <td className="td">
+                    <TypePicker
+                      value={r.type}
+                      canEdit={canEdit}
+                      onSave={async (newType) => {
+                        await api.saveWebRule({ keyword: r.keyword, category: r.category, type: newType });
+                        toast(t('categoryAdmin.saved', { name: r.keyword, type: typeLabel(newType) }));
+                        load();
+                      }}
+                    />
+                  </td>
                   {canEdit && <td className="td text-right"><button onClick={async () => { await api.deleteWebRule(r.keyword); load(); }} className="muted-2 hover:text-red-500"><Trash2 size={15} /></button></td>}
                 </tr>
               ))}
@@ -155,7 +212,17 @@ export function CategoryAdmin({ canEdit, from, to }: { canEdit: boolean; from: s
                 <tr key={r.id} className="divide-row">
                   <td className="td">{r.department}</td>
                   <td className="td">{r.category}</td>
-                  <td className="td"><span className={chipClass(r.type)}>{typeLabel(r.type)}</span></td>
+                  <td className="td">
+                    <TypePicker
+                      value={r.type}
+                      canEdit={canEdit}
+                      onSave={async (newType) => {
+                        await api.saveDeptRule({ department: r.department, category: r.category, type: newType });
+                        toast(t('categoryAdmin.saved', { name: r.department, type: typeLabel(newType) }));
+                        load();
+                      }}
+                    />
+                  </td>
                   {canEdit && <td className="td text-right"><button onClick={async () => { await api.deleteDeptRule(r.id); load(); }} className="muted-2 hover:text-red-500"><Trash2 size={15} /></button></td>}
                 </tr>
               ))}

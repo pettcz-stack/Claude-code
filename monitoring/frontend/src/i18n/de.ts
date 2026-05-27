@@ -985,6 +985,8 @@ export const de: typeof cs = {
     deleteFailed: 'Löschen fehlgeschlagen',
   },
   categoryAdmin: {
+    clickToReclassify: 'Klick zum Typ ändern (Arbeit / Freizeit / Neutral / Nicht klassifiziert)',
+    saved: '„{name}" → {type}',
     batchLabel: 'Stapel-Klassifizierung:',
     exportBtn: 'Nicht klassifizierte exportieren',
     importBtn: 'Klassifizierung importieren',

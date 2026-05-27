@@ -991,6 +991,8 @@ export const cs = {
     deleteFailed: 'Smazání selhalo',
   },
   categoryAdmin: {
+    clickToReclassify: 'Klikni pro změnu typu (Práce / Zábava / Neutrální / Nezařazeno)',
+    saved: '„{name}" → {type}',
     batchLabel: 'Dávková klasifikace:',
     exportBtn: 'Export nezařazených',
     importBtn: 'Import zařazení',

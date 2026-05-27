@@ -985,6 +985,8 @@ export const sk: typeof cs = {
     deleteFailed: 'Mazanie zlyhalo',
   },
   categoryAdmin: {
+    clickToReclassify: 'Klikni pre zmenu typu (Práca / Zábava / Neutrálne / Nezaradené)',
+    saved: '„{name}" → {type}',
     batchLabel: 'Dávková klasifikácia:',
     exportBtn: 'Export nezaradených',
     importBtn: 'Import zaradenia',

@@ -985,6 +985,8 @@ export const pl: typeof cs = {
     deleteFailed: 'Usuwanie nie powiodło się',
   },
   categoryAdmin: {
+    clickToReclassify: 'Kliknij, aby zmienić typ (Praca / Rozrywka / Neutralne / Niesklasyfikowane)',
+    saved: '„{name}" → {type}',
     batchLabel: 'Klasyfikacja zbiorcza:',
     exportBtn: 'Eksportuj niesklasyfikowane',
     importBtn: 'Importuj klasyfikację',

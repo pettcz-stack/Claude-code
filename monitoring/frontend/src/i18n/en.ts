@@ -985,6 +985,8 @@ export const en: typeof cs = {
     deleteFailed: 'Delete failed',
   },
   categoryAdmin: {
+    clickToReclassify: 'Click to change type (Work / Fun / Neutral / Unclassified)',
+    saved: '"{name}" → {type}',
     batchLabel: 'Batch classification:',
     exportBtn: 'Export unclassified',
     importBtn: 'Import classification',
