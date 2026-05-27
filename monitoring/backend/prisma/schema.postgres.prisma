@@ -367,14 +367,42 @@ model Site {
 }
 
 /// Účet pro přístup do dashboardu (role ADMIN | VIEWER).
+/// Účet pro přístup do dashboardu.
+/// Role:
+///  - ADMIN   – plný přístup vč. správy účtů, rolí a oddělení (Přístupy panel)
+///  - MANAGER – ředitel oddělení; čte jen data oddělení uvedených v
+///              AdminUserDepartment (pokud žádné, nevidí nic)
+///  - IT      – IT správce; vidí HW health, software/licence, tisk/USB
+///              (technické metriky) bez vhledu do produktivity konkrétních lidí
+///  - VIEWER  – legacy plný read-only přístup (postupně se nahrazuje MANAGER/IT)
 model AdminUser {
   id           String   @id @default(cuid())
   username     String   @unique
   passwordHash String
-  role         String   @default("VIEWER") // ADMIN | VIEWER
+  role         String   @default("VIEWER") // ADMIN | MANAGER | IT | VIEWER
+  fullName     String?  // zobrazované jméno (např. „Petr Novák – ředitel obchodu")
+  email        String?  // pro reset hesla (Fáze pozdější)
   active       Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  departments AdminUserDepartment[]
+}
+
+/// Oddělení, ke kterým má MANAGER role přístup. Pro ostatní role
+/// (ADMIN/IT/VIEWER) je tabulka ignorována (jejich rozsah definuje role sama).
+/// Mapování 1:N – jeden manažer může mít víc oddělení (např. ředitel divize
+/// nad „Obchod ČR" + „Obchod Export").
+model AdminUserDepartment {
+  id         String   @id @default(cuid())
+  adminId    String
+  department String   // textový název oddělení, stejný jako MonitoredUser.department
+  createdAt  DateTime @default(now())
+
+  admin AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@unique([adminId, department])
+  @@index([department])
 }
 
 /// Aktivní session admina. Persistuje se v DB (ne v procesní paměti),

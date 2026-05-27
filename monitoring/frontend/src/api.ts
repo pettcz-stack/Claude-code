@@ -207,7 +207,32 @@ export type UsbEventRow = {
   fileName: string | null; fileExt: string | null; sizeBytes: number | null;
 };
 
-export type Me = { username: string; role: string };
+export type Capabilities = {
+  overview: boolean; scoreboard: boolean; trends: boolean; alerts: boolean;
+  detail: boolean; selfreport: boolean; homeoffice: boolean; calendar: boolean;
+  software: boolean; apps: boolean; summary: boolean; health: boolean; printusb: boolean;
+  admin: boolean; access: boolean; settings: boolean;
+  canSeeSalaries: boolean; canSeeIndividualActivity: boolean; restrictedToDepartments: boolean;
+};
+
+export type Me = {
+  username: string;
+  role: string;
+  capabilities?: Capabilities;
+  departments?: string[] | null; // jen pro MANAGER (povolená oddělení)
+};
+
+export type AccessAdminUser = {
+  id: string;
+  username: string;
+  role: string;
+  fullName: string | null;
+  email: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  departments: string[];
+};
 
 // Admin session se drží v HttpOnly cookie nastavené serverem na /api/v1/login.
 // Cookie není pro JS čitelné (ochrana proti krádeži přes XSS), prohlížeč ji
@@ -418,6 +443,22 @@ export const api = {
     getJson<{ rows: UsbSummaryRow[] }>(`/api/v1/admin/usb/summary?from=${from}&to=${to}`),
   usbUser: (id: string, from: string, to: string) =>
     getJson<{ events: UsbEventRow[] }>(`/api/v1/admin/usb/user/${id}?from=${from}&to=${to}`),
+  // Přístupy – správa admin účtů (jen ADMIN role)
+  accessUsers: () => getJson<{ users: AccessAdminUser[] }>('/api/v1/access/users'),
+  accessDepartments: () => getJson<{ departments: string[] }>('/api/v1/access/departments'),
+  accessCreate: async (data: { username: string; password: string; role: string; fullName?: string; email?: string; departments?: string[] }): Promise<{ id: string }> => {
+    const r = await fetch('/api/v1/access/users', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data) });
+    if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || `${r.status}`); }
+    return r.json();
+  },
+  accessUpdate: async (id: string, data: { role?: string; fullName?: string | null; email?: string | null; active?: boolean; departments?: string[]; newPassword?: string }): Promise<void> => {
+    const r = await fetch(`/api/v1/access/users/${id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(data) });
+    if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || `${r.status}`); }
+  },
+  accessDelete: async (id: string): Promise<void> => {
+    const r = await fetch(`/api/v1/access/users/${id}`, { method: 'DELETE' });
+    if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || `${r.status}`); }
+  },
   securityCheck: () =>
     getJson<{ checks: { id: string; title: string; status: 'pass' | 'warn' | 'fail'; detail: string; remediation?: string }[] }>('/api/v1/admin/security-check'),
   changePassword: async (oldPassword: string, newPassword: string): Promise<void> => {

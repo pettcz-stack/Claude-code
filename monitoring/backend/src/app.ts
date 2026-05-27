@@ -12,10 +12,12 @@ import { ingestRouter } from './routes/ingest.js';
 import { dashboardRouter } from './routes/dashboard.js';
 import { exportRouter } from './routes/export.js';
 import { adminRouter } from './routes/admin.js';
+import { accessRouter } from './routes/access.js';
 import { pushEvent } from './services/eventLog.js';
 import { httpRequests, httpErrors, observeResponseTime, renderMetrics } from './services/metrics.js';
 import { selfRouter } from './routes/self.js';
 import { requireAuth, login, destroySession, readSessionToken, SESSION_COOKIE } from './auth.js';
+import { allowedDepartments, capabilities, type Role } from './services/accessControl.js';
 
 const isTest = process.env.NODE_ENV === 'test';
 
@@ -167,8 +169,15 @@ export function createApp() {
     res.json({ ok: true });
   });
 
-  app.get('/api/v1/me', requireAuth, (req: Request, res: Response) => {
-    res.json({ username: req.admin?.username, role: req.admin?.role });
+  app.get('/api/v1/me', requireAuth, async (req: Request, res: Response) => {
+    const role = req.admin?.role ?? 'VIEWER';
+    const departments = await allowedDepartments(req.admin?.id ?? '', role as Role);
+    res.json({
+      username: req.admin?.username,
+      role,
+      capabilities: capabilities(role),
+      departments, // null = bez restrikce; pole = MANAGER s těmito odděleními
+    });
   });
 
   // --- Ingest (vlastní token agenta + jemné omezení četnosti) ---
@@ -197,6 +206,7 @@ export function createApp() {
   app.use('/api/v1/dashboard', requireAuth, dashboardRouter);
   app.use('/api/v1/export', requireAuth, exportRouter);
   app.use('/api/v1/admin', requireAuth, adminRouter);
+  app.use('/api/v1/access', requireAuth, accessRouter);
 
   // Volitelně servíruje sestavený frontend (single-port nasazení).
   const distDir = path.resolve(process.cwd(), '../frontend/dist');

@@ -14,6 +14,7 @@ import { CalendarView } from './CalendarView.js';
 import { Scoreboard } from './Scoreboard.js';
 import { SummaryView } from './SummaryView.js';
 import { AdminView } from './AdminView.js';
+import { AccessControlView } from './AccessControlView.js';
 import { HardwareHealthView } from './HardwareHealthView.js';
 import { PrintUsbView } from './PrintUsbView.js';
 import { TrendChart } from './TrendChart.js';
@@ -29,44 +30,55 @@ import { useT } from './i18n/index.js';
 import { LanguageSwitcher } from './LanguageSwitcher.js';
 import { isoDate, startOfLocalDay } from './util.js';
 
-type Tab = 'overview' | 'homeoffice' | 'detail' | 'selfreport' | 'scoreboard' | 'alerts' | 'trends' | 'apps' | 'software' | 'calendar' | 'summary' | 'admin' | 'settings' | 'health' | 'printusb';
+type Tab = 'overview' | 'homeoffice' | 'detail' | 'selfreport' | 'scoreboard' | 'alerts' | 'trends' | 'apps' | 'software' | 'calendar' | 'summary' | 'admin' | 'access' | 'settings' | 'health' | 'printusb';
 type PeriodMode = 'day' | 'week' | 'month' | 'custom';
 
 type NavItem = { id: Tab; labelKey: string; Icon: typeof UserIcon };
 // Statická definice – labelKey jsou klíče i18n, popisky se získají přes t() v komponentě.
 const NAV_SECTIONS_STATIC: { titleKey: string; items: NavItem[] }[] = [
+  // ── ANALÝZA – manažerský/výkonný pohled ────────────────────────────────
   {
     titleKey: 'nav.sectionAnalytics',
     items: [
       { id: 'overview', labelKey: 'nav.overview', Icon: LayoutDashboard },
       { id: 'scoreboard', labelKey: 'nav.summary', Icon: Trophy },
       { id: 'trends', labelKey: 'nav.trend', Icon: TrendingUp },
+      { id: 'homeoffice', labelKey: 'nav.homeoffice', Icon: House },
+      { id: 'detail', labelKey: 'nav.detail', Icon: UserIcon },
+      { id: 'calendar', labelKey: 'nav.calendar', Icon: CalendarDays },
       { id: 'alerts', labelKey: 'nav.alerts', Icon: ShieldAlert },
     ],
   },
+  // ── CO VIDÍ UŽIVATEL – samosprávný pohled zaměstnance ──────────────────
   {
-    titleKey: 'nav.sectionPersonal',
+    titleKey: 'nav.sectionEmployee',
     items: [
-      { id: 'detail', labelKey: 'nav.detail', Icon: UserIcon },
       { id: 'selfreport', labelKey: 'nav.selfReport', Icon: BadgeCheck },
-      { id: 'homeoffice', labelKey: 'nav.homeoffice', Icon: House },
-      { id: 'calendar', labelKey: 'nav.calendar', Icon: CalendarDays },
     ],
   },
+  // ── NÁKLADY & SOFTWARE ────────────────────────────────────────────────
   {
-    titleKey: 'nav.software',
+    titleKey: 'nav.sectionCosts',
     items: [
       { id: 'software', labelKey: 'nav.software', Icon: KeyRound },
-      { id: 'apps', labelKey: 'nav.category', Icon: AppWindow },
       { id: 'summary', labelKey: 'nav.summary', Icon: Table2 },
     ],
   },
+  // ── IT – technické metriky pro správce ─────────────────────────────────
+  {
+    titleKey: 'nav.sectionIT',
+    items: [
+      { id: 'health', labelKey: 'nav.health', Icon: HeartPulse },
+      { id: 'printusb', labelKey: 'nav.printUsb', Icon: Printer },
+    ],
+  },
+  // ── ADMINISTRACE – konfigurace + ochrana přístupů ──────────────────────
   {
     titleKey: 'nav.sectionAdmin',
     items: [
       { id: 'admin', labelKey: 'nav.admin', Icon: Shield },
-      { id: 'health', labelKey: 'nav.health', Icon: HeartPulse },
-      { id: 'printusb', labelKey: 'nav.printUsb', Icon: Printer },
+      { id: 'apps', labelKey: 'nav.category', Icon: AppWindow },
+      { id: 'access', labelKey: 'nav.access', Icon: KeyRound },
       { id: 'settings', labelKey: 'nav.settings', Icon: SlidersHorizontal },
     ],
   },
@@ -141,6 +153,18 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // Pokud má aktuální tab disabled v capabilities (např. MANAGER navigoval na
+  // tab který IT vidět nesmí), přepni na první povolený tab (typicky 'overview').
+  useEffect(() => {
+    if (!me?.capabilities) return;
+    const caps = me.capabilities as unknown as Record<string, boolean>;
+    if (caps[tab] === false) {
+      const fallback = (['overview', 'scoreboard', 'health', 'software', 'admin', 'access'] as Tab[])
+        .find((t) => caps[t] !== false);
+      if (fallback) setTab(fallback);
+    }
+  }, [me, tab]);
 
   useEffect(() => {
     if (!me) return;
@@ -228,23 +252,29 @@ export default function App() {
           </div>
         </div>
         <nav className="flex-1 space-y-4 overflow-y-auto px-3 py-1">
-          {NAV_SECTIONS_STATIC.map((section) => (
-            <div key={section.titleKey} className="space-y-1">
-              <div className="px-3 text-[10px] font-semibold uppercase tracking-wider muted-2">{t(section.titleKey)}</div>
-              {section.items.map(({ id, labelKey, Icon }) => {
-                const activeItem = tab === id;
-                return (
-                  <button key={id} onClick={() => setTab(id)} aria-current={activeItem ? 'page' : undefined}
-                    className={`relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm ${
-                      activeItem ? 'bg-emerald-50 font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
-                      : 'muted hover:bg-gray-100 dark:hover:bg-slate-700/50'}`}>
-                    {activeItem && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r bg-emerald-500" />}
-                    <Icon size={18} /> {t(labelKey)}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
+          {NAV_SECTIONS_STATIC.map((section) => {
+            // Filtruj položky dle capabilities (např. MANAGER/IT vidí jen některé taby).
+            const caps = me.capabilities;
+            const visibleItems = section.items.filter(({ id }) => !caps || caps[id as keyof typeof caps] !== false);
+            if (visibleItems.length === 0) return null;
+            return (
+              <div key={section.titleKey} className="space-y-1">
+                <div className="px-3 text-[10px] font-semibold uppercase tracking-wider muted-2">{t(section.titleKey)}</div>
+                {visibleItems.map(({ id, labelKey, Icon }) => {
+                  const activeItem = tab === id;
+                  return (
+                    <button key={id} onClick={() => setTab(id)} aria-current={activeItem ? 'page' : undefined}
+                      className={`relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm ${
+                        activeItem ? 'bg-emerald-50 font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+                        : 'muted hover:bg-gray-100 dark:hover:bg-slate-700/50'}`}>
+                      {activeItem && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r bg-emerald-500" />}
+                      <Icon size={18} /> {t(labelKey)}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
         </nav>
         <div className="space-y-2 border-t border-gray-200 p-3 dark:border-slate-700/70">
           <div className="flex items-center justify-between gap-2">
@@ -344,6 +374,7 @@ export default function App() {
           {tab === 'calendar' && selectedUser && <CalendarView user={selectedUser} day={day} />}
           {tab === 'summary' && <SummaryView from={from} to={to} department={department || undefined} />}
           {tab === 'admin' && <AdminView role={me.role} />}
+          {tab === 'access' && <AccessControlView />}
           {tab === 'health' && <HardwareHealthView />}
           {tab === 'printusb' && <PrintUsbView from={from} to={to} />}
           {tab === 'settings' && <SettingsView canEdit={me.role === 'ADMIN'} />}
