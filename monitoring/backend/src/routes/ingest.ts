@@ -78,14 +78,16 @@ const intervalSchema = z.object({
   intervalSeconds: z.number().int().positive().max(3600).default(60),
   activeSeconds: z.number().int().min(0).max(3600),
   idleSeconds: z.number().int().min(0).max(3600),
-  foregroundApp: z.string().max(260).optional(),
-  windowTitle: z.string().max(512).optional(),
-  appCategory: z.string().max(64).optional(),
+  // .nullish() = optional | null – agenti (zejm. macOS bez Accessibility) posílají
+  // null místo vynechání, což .optional() samotné odmítlo HTTP 400.
+  foregroundApp: z.string().max(260).nullish(),
+  windowTitle: z.string().max(512).nullish(),
+  appCategory: z.string().max(64).nullish(),
   keystrokeCount: z.number().int().min(0),
   mouseEvents: z.number().int().min(0),
   sessionLocked: z.boolean().default(false),
-  monitorCount: z.number().int().min(1).max(16).optional(),
-  clientIp: z.string().max(45).optional(), // lokální privátní IPv4 fyz. adaptéru
+  monitorCount: z.number().int().min(1).max(16).nullish(),
+  clientIp: z.string().max(45).nullish(), // lokální privátní IPv4 fyz. adaptéru
 });
 
 const payloadSchema = z.object({

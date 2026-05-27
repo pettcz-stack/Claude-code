@@ -78,20 +78,22 @@ final class ActivityTracker {
         let topTitle = cfg.captureWindowTitle ? titleSeconds.max(by: { $0.value < $1.value })?.key : nil
 
         let isoStart = ISO8601DateFormatter.iso8601WithMillis.string(from: intervalStart)
-        let record: [String: Any] = [
+        // Stavíme record podmíněně – backend `z.optional()` odmítá `null`, takže
+        // nepřítomné fieldy musíme vynechat úplně (ne posílat jako null).
+        var record: [String: Any] = [
             "intervalStart": isoStart,
             "intervalSeconds": elapsedSeconds,
             "activeSeconds": activeSeconds,
             "idleSeconds": idleSeconds + lockedSeconds,
-            "foregroundApp": topApp as Any,
-            "windowTitle": topTitle as Any,
             "keystrokeCount": ks,
             "mouseEvents": mouse,
             "sessionLocked": lockedSeconds * 2 >= elapsedSeconds,
             "monitorCount": NSScreen.screens.count,
-            "clientIp": NetworkInfo.localIPv4() as Any,
         ]
-        if let data = try? JSONSerialization.data(withJSONObject: record.compactMapValues { ($0 is NSNull) ? nil : $0 }),
+        if let topApp = topApp { record["foregroundApp"] = topApp }
+        if let topTitle = topTitle { record["windowTitle"] = topTitle }
+        if let ip = NetworkInfo.localIPv4() { record["clientIp"] = ip }
+        if let data = try? JSONSerialization.data(withJSONObject: record),
            let json = String(data: data, encoding: .utf8) {
             buffer.enqueue(json)
         }
