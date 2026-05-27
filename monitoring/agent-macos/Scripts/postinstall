@@ -18,7 +18,10 @@ echo "FOCUS postinstall: setting up agent…"
 
 FOCUS_DIR="/Library/Application Support/FOCUS"
 mkdir -p "$FOCUS_DIR"
-chmod 755 "$FOCUS_DIR"
+# Sticky-writable (1777) – agent běží jako user (LaunchAgent), ale potřebuje sem
+# psát agent.log, spool.ndjson, device-token a launchd-{out,err}.log. Sticky bit
+# brání tomu, aby user mazal soubory jiných userů.
+chmod 1777 "$FOCUS_DIR"
 
 # Vytvoř config.plist pokud neexistuje a máme env vars (např. od MDM)
 if [ ! -f "$FOCUS_DIR/config.plist" ] && [ -n "$FOCUS_BACKEND_URL" ] && [ -n "$FOCUS_INGEST_TOKEN" ]; then
@@ -56,6 +59,12 @@ fi
 
 # Binárka musí být spustitelná
 chmod 755 "$FOCUS_DIR/focus-agent" || true
+
+# Pre-create launchd log soubory s user-write povoleními. launchd je nezvládne
+# vytvořit, pokud složka nedovoluje zápis "other"; sticky bit nemění existující
+# soubory, ale pojišťuje, že userské procesy si tu zapsanou state ponechají.
+touch "$FOCUS_DIR/launchd-out.log" "$FOCUS_DIR/launchd-err.log" "$FOCUS_DIR/agent.log"
+chmod 666 "$FOCUS_DIR/launchd-out.log" "$FOCUS_DIR/launchd-err.log" "$FOCUS_DIR/agent.log"
 
 # Aktivuj LaunchAgent pro každého přihlášeného uživatele
 # Přes `launchctl bootstrap` (nový API). Pro každého aktuálně přihlášeného uživatele:

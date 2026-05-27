@@ -40,6 +40,10 @@ jobs:
           mkdir -p build/payload/Library/LaunchAgents
           cp .build/apple/Products/Release/focus-agent "build/payload/Library/Application Support/FOCUS/focus-agent"
           chmod 755 "build/payload/Library/Application Support/FOCUS/focus-agent"
+          # Složka musí být user-writable (1777) – agent běží jako user, launchd
+          # musí umět zapsat stdout/stderr logy. Bez toho `launchctl bootstrap`
+          # selže s "Input/output error".
+          chmod 1777 "build/payload/Library/Application Support/FOCUS"
           cp Resources/com.sinsu.focusagent.plist build/payload/Library/LaunchAgents/com.sinsu.focusagent.plist
           mkdir -p build/scripts
           cp Scripts/postinstall build/scripts/postinstall

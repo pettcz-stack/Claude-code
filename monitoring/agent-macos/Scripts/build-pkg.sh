@@ -32,6 +32,9 @@ mkdir -p "$PAYLOAD_DIR/Library/LaunchAgents"
 
 cp .build/apple/Products/Release/focus-agent "$PAYLOAD_DIR/Library/Application Support/FOCUS/focus-agent"
 chmod 755 "$PAYLOAD_DIR/Library/Application Support/FOCUS/focus-agent"
+# Složka musí být user-writable (1777) – agent běží jako user a launchd sem
+# musí umět zapsat stdout/stderr i agent.log. Postinstall to ještě potvrdí.
+chmod 1777 "$PAYLOAD_DIR/Library/Application Support/FOCUS"
 
 cp Resources/com.sinsu.focusagent.plist "$PAYLOAD_DIR/Library/LaunchAgents/com.sinsu.focusagent.plist"
 chmod 644 "$PAYLOAD_DIR/Library/LaunchAgents/com.sinsu.focusagent.plist"
