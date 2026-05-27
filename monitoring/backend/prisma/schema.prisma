@@ -175,6 +175,12 @@ model ActivityInterval {
   appCategory     String? // volitelná kategorie (doplní agregace dle AppCategory)
   keystrokeCount  Int      @default(0) // POČET úhozů (nikdy obsah)
   mouseEvents     Int      @default(0) // POČET pohybů+kliků (nikdy souřadnice)
+  // Fáze 2 typingKpm: agent měří souvislé "typing sessions" (úhoz-úhoz s gapem < 5s)
+  // a posílá kolik z intervalu strávil reálným psaním. Backend pak počítá:
+  //   typingKpm = typingKeystrokeCount / (typingMs / 60000)
+  // bez ředění pauzami. Starší agenti (před Q2 2026) tato pole neposílali, default 0.
+  typingMs              Int   @default(0) // milisekundy aktivního psaní (souvislé sessions)
+  typingKeystrokeCount  Int   @default(0) // úhozy uvnitř typing sessions
   sessionLocked   Boolean  @default(false)
   monitorCount    Int? // počet připojených monitorů (jen číslo, žádný obsah)
   clientIp        String? // lokální (privátní) IPv4 fyzického adaptéru – pro určení provozovny; NE veřejná IP
@@ -333,6 +339,9 @@ model DailyStat {
   idleMin       Float    @default(0)
   unknownMin    Float    @default(0) // nezařazeno (vyjmuto ze skóre)
   keystroke     Int      @default(0)
+  // Fáze 2 typingKpm (suma za den, pro presny tempo psaní).
+  typingMs              Int   @default(0)
+  typingKeystrokeCount  Int   @default(0)
   monitorTop    Int      @default(0) // nejčastější počet monitorů toho dne
   multiMonitorMin Float  @default(0) // minuty na 2+ monitorech
   domWorkCat    String? // dominantní pracovní kategorie dne (pro doporučení monitorů)

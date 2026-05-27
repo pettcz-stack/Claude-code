@@ -85,6 +85,9 @@ const intervalSchema = z.object({
   appCategory: z.string().max(64).nullish(),
   keystrokeCount: z.number().int().min(0),
   mouseEvents: z.number().int().min(0),
+  // Fáze 2 typingKpm – starší agenti tato pole neposílají, default 0.
+  typingMs: z.number().int().min(0).max(3_600_000).default(0),
+  typingKeystrokeCount: z.number().int().min(0).default(0),
   sessionLocked: z.boolean().default(false),
   monitorCount: z.number().int().min(1).max(16).nullish(),
   clientIp: z.string().max(45).nullish(), // lokální privátní IPv4 fyz. adaptéru
@@ -192,6 +195,8 @@ ingestRouter.post('/', requireIngestAuth, async (req, res) => {
         appCategory: iv.appCategory,
         keystrokeCount: iv.keystrokeCount,
         mouseEvents: iv.mouseEvents,
+        typingMs: iv.typingMs,
+        typingKeystrokeCount: iv.typingKeystrokeCount,
         sessionLocked: iv.sessionLocked,
         monitorCount: iv.monitorCount,
         clientIp: iv.clientIp,
@@ -205,6 +210,8 @@ ingestRouter.post('/', requireIngestAuth, async (req, res) => {
         appCategory: iv.appCategory,
         keystrokeCount: iv.keystrokeCount,
         mouseEvents: iv.mouseEvents,
+        typingMs: iv.typingMs,
+        typingKeystrokeCount: iv.typingKeystrokeCount,
         sessionLocked: iv.sessionLocked,
         monitorCount: iv.monitorCount,
         clientIp: iv.clientIp,

@@ -198,7 +198,7 @@ export async function computeUserScore(userId: string, from: Date, to: Date, opt
   const intervals = await prisma.activityInterval.findMany({
     where: { userId, intervalStart: { gte: from, lt: to } },
     orderBy: { intervalStart: 'asc' },
-    select: { activeSeconds: true, idleSeconds: true, foregroundApp: true, windowTitle: true, keystrokeCount: true, monitorCount: true },
+    select: { activeSeconds: true, idleSeconds: true, foregroundApp: true, windowTitle: true, keystrokeCount: true, monitorCount: true, typingMs: true, typingKeystrokeCount: true },
   });
 
   let workMinutes = 0;
@@ -206,12 +206,15 @@ export async function computeUserScore(userId: string, from: Date, to: Date, opt
   let unknownMinutes = 0; // nezařazeno – vyjmuto ze statistik
   let idleOnMinutes = 0;
   let totalKeystrokes = 0;
-  // Tempo psaní jen pri aktivnim pisani: intervaly s >=10 uhozy povazujeme za
-  // "typing intervaly" (cca >= 1 znak/6s). Beneath that threshold to nejsou
-  // souvisle psaci minuty (jeden klik enter, par znaku do hledani, ...).
-  // Lepsi metodika (timestampy uhozu + 5s gap) vyzaduje agent upgrade.
-  let typingKeystrokes = 0;
-  let typingIntervalMinutes = 0;
+  // Tempo psaní:
+  //  Faze 2 (preferovana): agent posila typingMs + typingKeystrokeCount per interval,
+  //    measured precizne: kazdy uhoz-uhoz s gapem < 5s pocita do "typing session".
+  //  Faze 1 (fallback): pro stare agenty (bez typingMs) bereme intervaly s >= 10
+  //    uhozy a predpokladame ~60s typing per interval.
+  let typingMsTotal = 0;            // suma agentovi typingMs (faze 2)
+  let typingKeystrokesFromAgent = 0;
+  let typingKeystrokes = 0;          // faze 1 fallback
+  let typingIntervalMinutes = 0;     // faze 1 fallback
   const TYPING_INTERVAL_MIN_KEYS = 10;
   const catMinutes = new Map<string, { type: CatType; minutes: number }>();
   const appActive = new Map<string, number>();
@@ -223,7 +226,12 @@ export async function computeUserScore(userId: string, from: Date, to: Date, opt
     const activeMin = it.activeSeconds / 60;
     idleOnMinutes += it.idleSeconds / 60;
     totalKeystrokes += it.keystrokeCount;
-    if (it.keystrokeCount >= TYPING_INTERVAL_MIN_KEYS && activeMin > 0) {
+    if (it.typingMs > 0) {
+      // Faze 2: agent posila presny typing time
+      typingMsTotal += it.typingMs;
+      typingKeystrokesFromAgent += it.typingKeystrokeCount;
+    } else if (it.keystrokeCount >= TYPING_INTERVAL_MIN_KEYS && activeMin > 0) {
+      // Faze 1 fallback: pro stare agenty bez typingMs pole
       typingKeystrokes += it.keystrokeCount;
       typingIntervalMinutes += activeMin;
     }
@@ -282,9 +290,20 @@ export async function computeUserScore(userId: string, from: Date, to: Date, opt
 
   // Klasicke prumerne KPM (vsechen cas) – muze byt zkresleno dlouhymi pauzami.
   const avgKpm = workMinutes + nonWorkMinutes > 0 ? totalKeystrokes / (workMinutes + nonWorkMinutes) : 0;
-  // KPM jen behem skutecneho psani (intervaly s >= 10 uhozy). Spravedlivejsi
-  // pro srovnani: nezredi to pauzy, kdy clovek koukal do dokumentu.
-  const typingKpm = typingIntervalMinutes > 0 ? typingKeystrokes / typingIntervalMinutes : 0;
+  // KPM jen behem skutecneho psani:
+  //  - Faze 2 (typingMs z agenta): typingKeystrokes / (typingMs / 60000)
+  //    presne, gap 5s, neredi se "kratkou pauzou" v 60s intervalu
+  //  - Faze 1 fallback: stare agenty co neposilaji typingMs - heuristika
+  //    intervaly s >= 10 uhozy
+  let typingKpm = 0;
+  let typingIntervalMinutesFinal = typingIntervalMinutes;
+  if (typingMsTotal > 0) {
+    const typingMinutes = typingMsTotal / 60_000;
+    typingKpm = typingMinutes > 0 ? typingKeystrokesFromAgent / typingMinutes : 0;
+    typingIntervalMinutesFinal = typingMinutes;
+  } else if (typingIntervalMinutes > 0) {
+    typingKpm = typingKeystrokes / typingIntervalMinutes;
+  }
   // Cohort se spočítá jednou (předaný) → u žebříčku 100 lidí jen 1 dotaz místo 100.
   const cohort = opts?.kpmCohort ?? (await kpmCohort(from, to));
   const kpmPercentile = percentileOf(avgKpm, cohort);
@@ -338,7 +357,7 @@ export async function computeUserScore(userId: string, from: Date, to: Date, opt
     score,
     avgKpm: Math.round(avgKpm),
     typingKpm: Math.round(typingKpm),
-    typingMinutes: Math.round(typingIntervalMinutes),
+    typingMinutes: Math.round(typingIntervalMinutesFinal),
     kpmPercentile,
     categories,
     topApp,

@@ -43,7 +43,7 @@ export async function aggregateDays(pairs: { userId: string; day: Date }[]): Pro
     const dayEnd = addDays(day, 1); // DST-safe (23/25h dny)
     const intervals = await prisma.activityInterval.findMany({
       where: { userId, intervalStart: { gte: day, lt: dayEnd } },
-      select: { activeSeconds: true, idleSeconds: true, foregroundApp: true, windowTitle: true, keystrokeCount: true, monitorCount: true, clientIp: true },
+      select: { activeSeconds: true, idleSeconds: true, foregroundApp: true, windowTitle: true, keystrokeCount: true, monitorCount: true, clientIp: true, typingMs: true, typingKeystrokeCount: true },
     });
     if (intervals.length === 0) {
       await prisma.dailyStat.deleteMany({ where: { userId, date: day } });
@@ -51,7 +51,7 @@ export async function aggregateDays(pairs: { userId: string; day: Date }[]): Pro
       continue;
     }
 
-    let work = 0, nonwork = 0, idle = 0, unknown = 0, keystroke = 0, multiMon = 0;
+    let work = 0, nonwork = 0, idle = 0, unknown = 0, keystroke = 0, multiMon = 0, typingMs = 0, typingKs = 0;
     const catMin = new Map<string, number>();
     const monMin = new Map<number, number>();
     const locMin = new Map<string, number>(); // pracoviště → aktivní minuty ('' = mimo firmu)
@@ -65,6 +65,8 @@ export async function aggregateDays(pairs: { userId: string; day: Date }[]): Pro
       const aMin = it.activeSeconds / 60;
       idle += it.idleSeconds / 60;
       keystroke += it.keystrokeCount;
+      typingMs += it.typingMs;
+      typingKs += it.typingKeystrokeCount;
       if (aMin <= 0) continue;
       if (it.monitorCount && it.monitorCount > 0) {
         monMin.set(it.monitorCount, (monMin.get(it.monitorCount) ?? 0) + aMin);
@@ -94,7 +96,7 @@ export async function aggregateDays(pairs: { userId: string; day: Date }[]): Pro
     let site: string | null = null, sb = -1; for (const [c, m] of locMin) if (m > sb) { sb = m; site = c || null; }
     const integ = await computeIntegrity(userId, day, dayEnd);
 
-    const data = { workMin: work, nonWorkMin: nonwork, idleMin: idle, unknownMin: unknown, keystroke, monitorTop, multiMonitorMin: multiMon, domWorkCat, site, suspicious: integ.suspicious };
+    const data = { workMin: work, nonWorkMin: nonwork, idleMin: idle, unknownMin: unknown, keystroke, typingMs, typingKeystrokeCount: typingKs, monitorTop, multiMonitorMin: multiMon, domWorkCat, site, suspicious: integ.suspicious };
     await prisma.dailyStat.upsert({
       where: { userId_date: { userId, date: day } },
       create: { userId, date: day, ...data },

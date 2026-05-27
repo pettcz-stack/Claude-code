@@ -73,7 +73,7 @@ final class ActivityTracker {
     }
 
     private func flush() {
-        let (ks, mouse) = input.takeAndReset()
+        let counters = input.takeAndReset()
         let topApp = appSeconds.max(by: { $0.value < $1.value })?.key
         let topTitle = cfg.captureWindowTitle ? titleSeconds.max(by: { $0.value < $1.value })?.key : nil
 
@@ -85,8 +85,13 @@ final class ActivityTracker {
             "intervalSeconds": elapsedSeconds,
             "activeSeconds": activeSeconds,
             "idleSeconds": idleSeconds + lockedSeconds,
-            "keystrokeCount": ks,
-            "mouseEvents": mouse,
+            "keystrokeCount": counters.keystrokes,
+            "mouseEvents": counters.mouse,
+            // Fáze 2 typingKpm – přesný čas a počet úhozů v souvislých
+            // typing sessions (úhoz/úhoz s gapem < 5s). Backend pak počítá
+            // typingKpm = typingKeystrokes / (typingMs / 60000) bez pauz.
+            "typingMs": counters.typingMs,
+            "typingKeystrokeCount": counters.typingKeystrokes,
             "sessionLocked": lockedSeconds * 2 >= elapsedSeconds,
             "monitorCount": NSScreen.screens.count,
         ]

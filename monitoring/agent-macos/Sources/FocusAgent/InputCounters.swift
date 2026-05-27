@@ -5,21 +5,33 @@ import IOKit.hid
 /// Počítadlo kláves a kliků myši. **POUZE COUNT, nikdy obsah** – zákon §316 ZP
 /// (zákaz keyloggeru) i GDPR (minimalizace).
 ///
+/// Měří navíc "typing session" pro spravedlivé KPM:
+///  - session začne první klávesou,
+///  - každá další klávesa do 5 s session prodlouží,
+///  - mezera ≥ 5 s session ukončí.
+/// `typingMs` = součet trvání všech sessionů v intervalu (60 s default),
+/// `typingKeystrokes` = úhozy uvnitř sessionů. Pak kpm = typingKeystrokes /
+/// (typingMs / 60000) bez ředění pauzami.
+///
 /// Implementace přes CGEventTap, který vyžaduje uživatelovo povolení
 /// v System Settings → Privacy & Security → **Input Monitoring** (přidat
-/// `focus-agent` binárku). Bez toho tap selže a vrátí 0/0 – agent funguje
+/// `focus-agent` binárku). Bez toho tap selže a vrátí 0 – agent funguje
 /// dál, jen bez tempa.
 final class InputCounters {
     private var keystrokes: Int = 0
     private var mouseEvents: Int = 0
+    // Typing session state
+    private var lastKeystrokeAt: TimeInterval = 0
+    private var sessionStartedAt: TimeInterval = 0
+    private var sessionKeystrokes: Int = 0
+    private var accumulatedTypingMs: Int = 0
+    private var accumulatedTypingKeystrokes: Int = 0
+    private let typingGapMs: Double = 5000 // 5 s
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private let lock = NSLock()
 
     func install() {
-        // Nejdřív ověř, jestli máme Input Monitoring povolený. Bez něj
-        // CGEvent.tapCreate vrátí non-nil tap, ale ten je "neaktivní" a nikdy
-        // nedostane události – výsledek byl 0 úhozů a uživatel netušil proč.
         let access = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
         switch access {
         case kIOHIDAccessTypeGranted:
@@ -45,8 +57,12 @@ final class InputCounters {
             guard let refcon = refcon else { return nil }
             let self_ = Unmanaged<InputCounters>.fromOpaque(refcon).takeUnretainedValue()
             self_.lock.lock()
-            if type == .keyDown { self_.keystrokes += 1 }
-            else { self_.mouseEvents += 1 }
+            if type == .keyDown {
+                self_.keystrokes += 1
+                self_.recordKeystrokeTimestamp(at: Date().timeIntervalSince1970 * 1000)
+            } else {
+                self_.mouseEvents += 1
+            }
             self_.lock.unlock()
             return nil // .listenOnly – nepřepisujeme událost
         }
@@ -70,13 +86,51 @@ final class InputCounters {
         AgentLog.write("InputCounters: tap nainstalován")
     }
 
-    func takeAndReset() -> (Int, Int) {
+    /// Volá callback při keyDown. lock je už drzeny.
+    private func recordKeystrokeTimestamp(at nowMs: TimeInterval) {
+        if sessionStartedAt == 0 {
+            // Nová session – první úhoz po startu nebo po dlouhé pauze.
+            sessionStartedAt = nowMs
+            sessionKeystrokes = 1
+        } else {
+            let gap = nowMs - lastKeystrokeAt
+            if gap > typingGapMs {
+                // Pauza ≥ 5s ukončila předchozí session – uložíme ji a začneme novou.
+                accumulatedTypingMs += Int(lastKeystrokeAt - sessionStartedAt)
+                accumulatedTypingKeystrokes += sessionKeystrokes
+                sessionStartedAt = nowMs
+                sessionKeystrokes = 1
+            } else {
+                sessionKeystrokes += 1
+            }
+        }
+        lastKeystrokeAt = nowMs
+    }
+
+    /// Vrátí počty za uplynulý interval a resetuje.
+    /// Pokud session ještě běží, neukončuje ji – pokračuje do dalšího intervalu.
+    func takeAndReset() -> (keystrokes: Int, mouse: Int, typingMs: Int, typingKeystrokes: Int) {
         lock.lock()
         defer { lock.unlock() }
         let k = keystrokes
         let m = mouseEvents
+        // "Snapshotneme" aktuálně běžící session do akumulátoru, ale nesmažeme ji –
+        // další úhozy by ji stejně prodloužily. Místo toho po snapshotu posuneme
+        // sessionStartedAt na lastKeystrokeAt, takže další interval bude počítat
+        // session od posledního známého úhozu.
+        var snapMs = accumulatedTypingMs
+        var snapKs = accumulatedTypingKeystrokes
+        if sessionStartedAt > 0 && lastKeystrokeAt > sessionStartedAt {
+            snapMs += Int(lastKeystrokeAt - sessionStartedAt)
+            snapKs += sessionKeystrokes
+            // Reset akumulátoru, ale ponechá session "živou" pro další tick:
+            sessionStartedAt = lastKeystrokeAt
+            sessionKeystrokes = 0
+        }
         keystrokes = 0
         mouseEvents = 0
-        return (k, m)
+        accumulatedTypingMs = 0
+        accumulatedTypingKeystrokes = 0
+        return (k, m, snapMs, snapKs)
     }
 }
