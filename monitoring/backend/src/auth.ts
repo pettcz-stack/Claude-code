@@ -29,10 +29,15 @@ export function verifyPassword(password: string, stored: string): boolean {
   return hash.length === expected.length && crypto.timingSafeEqual(hash, expected);
 }
 
-/** Vytvoří výchozího administrátora z env, pokud žádný účet neexistuje. */
+/**
+ * Vytvoří výchozího administrátora z env, pokud konkrétně tento username
+ * v DB neexistuje. Pozor: NESMÍ kontrolovat `count > 0`, protože seed vytváří
+ * další admin účty (manager.*, auditor) a `count` by pak skipoval i prvotní
+ * vytvoření výchozího `admin`. Demo by pak nešlo přihlásit admin/admin.
+ */
 export async function ensureAdmin(): Promise<void> {
-  const count = await prisma.adminUser.count();
-  if (count > 0) return;
+  const existing = await prisma.adminUser.findUnique({ where: { username: config.adminUser } });
+  if (existing) return;
   await prisma.adminUser.create({
     data: { username: config.adminUser, passwordHash: hashPassword(config.adminPassword), role: 'ADMIN' },
   });
