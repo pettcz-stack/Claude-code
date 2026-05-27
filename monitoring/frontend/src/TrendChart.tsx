@@ -38,24 +38,35 @@ export function TrendChart({ from, to, userId, department, dark }: {
     HOME_OFFICE: { short: t('trendChart.absHoShort'), full: t('trendChart.absHoFull'), color: '#6366f1' },
   }), [t]);
 
-  // Konec dneška – cokoli za tímto bodem je budoucnost a nemá se vizualizovat
-  // jako "0 % skóre" (působilo by to jako "nedělal nic", ale my prostě nevíme).
+  // Dva typy "neměřitelných" dnů:
+  //  1) BUDOUCNOST – dny za dneškem (ještě nebyly).
+  //  2) PŘED NASAZENÍM AGENTA – dny před prvním záznamem aktivity. Když agent
+  //     nikdy neběžel, není čestné to počítat jako "skóre 0 %" – uživatel by
+  //     to vypadal jako úplně nepracující.
+  // Detekujeme to klient-side z `points`: první den s nějakou aktivitou je
+  // začátek měřeného období. Vše před ním je neměřitelné.
   const todayKey = new Date().toISOString().slice(0, 10);
+  const firstActiveDate = points.find(
+    (p) => p.workMinutes > 0 || p.nonWorkMinutes > 0 || p.idleMinutes > 0,
+  )?.date.slice(0, 10);
   const data = points.map((p) => {
     const hol = czHoliday(p.date);
     const abs = p.absence ? ABS_TAG[p.absence] : undefined;
     const tag = hol ? t('trendChart.absHoliday') : abs?.short ?? null;
     const tagFull = hol ?? abs?.full ?? null;
     const tagColor = hol ? '#d97706' : abs?.color ?? '';
-    const isFuture = p.date.slice(0, 10) > todayKey;
+    const dayKey = p.date.slice(0, 10);
+    const isFuture = dayKey > todayKey;
+    const isBeforeDeployment = firstActiveDate != null && dayKey < firstActiveDate;
+    const unmeasurable = isFuture || isBeforeDeployment;
     return {
       ...p,
-      // Skóre pro budoucí dny zahazujeme úplně (recharts vykreslí gap, ne 0).
-      score: isFuture ? null : p.score,
-      workMinutes: isFuture ? null : p.workMinutes,
-      nonWorkMinutes: isFuture ? null : p.nonWorkMinutes,
-      idleMinutes: isFuture ? null : p.idleMinutes,
-      isFuture,
+      // Pro neměřitelné dny zahodime hodnoty – recharts vykreslí gap, ne 0.
+      score: unmeasurable ? null : p.score,
+      workMinutes: unmeasurable ? null : p.workMinutes,
+      nonWorkMinutes: unmeasurable ? null : p.nonWorkMinutes,
+      idleMinutes: unmeasurable ? null : p.idleMinutes,
+      isFuture: unmeasurable,
       label: shortDay(p.date),
       dow: dowShort(p.date),
       weekend: isWeekend(p.date),

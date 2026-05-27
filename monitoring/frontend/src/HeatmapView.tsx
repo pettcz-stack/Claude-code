@@ -23,6 +23,11 @@ export function HeatmapView({ from, to, department, userId }: { from: string; to
   // Konec období je v budoucnosti? Pak hodiny dnes po `now` jsou neměřitelné.
   const toDate = new Date(to);
   const rangeEndsTodayOrLater = toDate.getTime() >= now.getTime();
+  // Backend nově posílá `observed[dow][h]` (počet intervalů, které agent v tom
+  // slotu vůbec zaznamenal). 0 = agent nehlásil → před nasazením / před první
+  // aktivitou v období. Fallback: pokud chybí (starší backend), předpokládá
+  // se observed > 0 vždy, kde rowHasData = true.
+  const observed = data.observed ?? null;
 
   const DAYS = [
     { idx: 1, label: t('heatmap.monday') },
@@ -71,11 +76,15 @@ export function HeatmapView({ from, to, department, userId }: { from: string; to
                   // Měl by pracovat? Po–Pá v 8–16 (klasické jádro pracovní doby).
                   const isWorkHour = d.idx >= 1 && d.idx <= 5 && h >= 8 && h < 17;
                   const noActivity = total === 0;
-                  // "Neměřitelné" = buď budoucí hodina (dnes po `now`, nebo `to` v budoucnu
-                  // a tento DOW v tomto týdnu ještě nepřišel), nebo žádná data pro celý DOW
-                  // (typicky před nasazením zařízení / dovolená přes celé období).
+                  // "Neměřitelné" = buď budoucí hodina (dnes po `now`), nebo žádná
+                  // observace v daném slotu (před nasazením agenta / dovolená přes
+                  // celé období). Když máme `observed` z backendu, je to přesné –
+                  // jinak fallback na "celý řádek bez dat".
                   const isFutureToday = rangeEndsTodayOrLater && d.idx === todayDow && h > nowHour;
-                  const unmeasurable = isFutureToday || !rowHasData[d.idx];
+                  const slotObserved = observed
+                    ? (observed[d.idx]?.[h] ?? 0) > 0
+                    : rowHasData[d.idx];
+                  const unmeasurable = isFutureToday || !slotObserved;
                   const bg = unmeasurable
                     ? 'transparent'                  // budoucnost / před nasazením – nic neoznačovat
                     : noActivity

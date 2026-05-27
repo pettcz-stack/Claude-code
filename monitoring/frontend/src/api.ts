@@ -170,7 +170,17 @@ export type Overview = {
   locations: { site: string; users: number }[];
 };
 export type Site = { id: string; name: string; subnets: string; kind: string; active: boolean };
-export type Heatmap = { matrix: number[][]; work: number[][]; nonwork: number[][]; max: number };
+export type Heatmap = {
+  matrix: number[][];
+  work: number[][];
+  nonwork: number[][];
+  max: number;
+  // observed[dow][h] = počet observovaných intervalů v slotu. 0 = agent nikdy
+  // nehlásil v té době (před nasazením), tedy neměřitelné.
+  observed?: number[][];
+  // Prvni interval v obdobi (pro presnejsi rozliseni "pred nasazenim agents").
+  firstActivityAt?: string | null;
+};
 
 export type HomeOffice = {
   company: { usersWithHo: number; hoDays: number; officeDays: number; hoScore: number; officeScore: number; hoActiveHours: number; officeActiveHours: number; hoNonWorkPct: number; officeNonWorkPct: number };

@@ -437,6 +437,15 @@ export type HeatmapResult = {
   nonwork: number[][];
   /** maximum napříč matrix – pro normalizaci sytosti barvy */
   max: number;
+  /**
+   * Počet observací pro každý (dow, h) slot – kolik intervalů jsme z toho slotu
+   * vůbec dostali (i s nulovou aktivitou). 0 = agent nikdy nehlásil tu hodinu
+   * (před nasazením / mimo dobu provozu). Frontend pak rozliší "nehlásí" od
+   * "PC mlčí v pracovní době".
+   */
+  observed: number[][];
+  /** ISO timestamp prvního zaznamenaného intervalu v období (nebo null). */
+  firstActivityAt: string | null;
 };
 
 /**
@@ -475,11 +484,17 @@ export async function heatmap(from: Date, to: Date, department?: string | string
   const sumActive: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
   const sumWork: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
   const sumNonwork: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  // Počet OBSERVOVANÝCH intervalů (any) – aby frontend rozlišil prázdné sloty
+  // "nikdy nehlásil" (agent nenasazen) vs. "hlásil, ale 0 aktivity".
+  const observed: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  let firstActivityAt: Date | null = null;
   for (const r of rows) {
     const dow = localDow(r.intervalStart);
     const h = localHour(r.intervalStart);
     const min = r.activeSeconds / 60;
     sumActive[dow][h] += min;
+    observed[dow][h] += 1;
+    if (!firstActivityAt || r.intervalStart < firstActivityAt) firstActivityAt = r.intervalStart;
     if (min > 0) {
       const info = classifyActivity(catMap, webRules, r.foregroundApp, r.windowTitle, deptRules, userDept.get(r.userId) ?? null);
       if (info.type === 'WORK' || info.type === 'NEUTRAL') sumWork[dow][h] += min;
@@ -494,7 +509,14 @@ export async function heatmap(from: Date, to: Date, department?: string | string
     );
   const matrix = avgMatrix(sumActive);
   for (const row of matrix) for (const v of row) if (v > max) max = v;
-  return { matrix, work: avgMatrix(sumWork), nonwork: avgMatrix(sumNonwork), max };
+  return {
+    matrix,
+    work: avgMatrix(sumWork),
+    nonwork: avgMatrix(sumNonwork),
+    max,
+    observed,
+    firstActivityAt: firstActivityAt ? firstActivityAt.toISOString() : null,
+  };
 }
 
 // --- Home Office vyhodnocení -------------------------------------------------
