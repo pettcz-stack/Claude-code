@@ -61,9 +61,30 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
     toast(r.skipped ? `Přeskočeno: ${r.skipped}` : `Hotovo – praktiky: ${r.integritySent}, offline: ${r.offlineSent}`, r.skipped ? 'info' : 'success');
   }
 
+  // Sekce na stránce – pomáhá uživateli rychle skočit, kam potřebuje.
+  // Vykresluje se nahoře jako chips lišta s anchor odkazy.
+  const tocItems: { id: string; label: string }[] = [
+    { id: 'alerts', label: t('settings.sections.alerts') },
+    { id: 'privacy', label: t('settings.sections.privacy') },
+    { id: 'employee', label: t('settings.sections.employee') },
+    { id: 'sites', label: t('settings.sections.sites') },
+    { id: 'security', label: t('settings.sections.security') },
+    { id: 'account', label: t('settings.sections.account') },
+    { id: 'diagnostics', label: t('settings.sections.diagnostics') },
+  ];
+
   return (
-    <div className="max-w-2xl space-y-4">
-      <div className="card p-5">
+    <div className="max-w-3xl space-y-4">
+      {/* Quick-nav TOC – kliknutím přeskočíš na sekci. Skrytý na mobilech (overflow). */}
+      <nav aria-label="Nastavení – obsah" className="sticky top-[57px] z-[5] -mx-1 mb-2 hidden flex-wrap gap-1.5 rounded-lg border border-gray-200 bg-white/90 px-2 py-2 text-xs backdrop-blur dark:border-slate-700 dark:bg-slate-900/85 md:flex">
+        {tocItems.map((it) => (
+          <a key={it.id} href={`#${it.id}`} className="rounded-md px-2 py-1 muted-2 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-slate-800 dark:hover:text-white">
+            {it.label}
+          </a>
+        ))}
+      </nav>
+
+      <section id="alerts" className="card p-5 scroll-mt-32">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Bell size={16} className="text-emerald-600" /> E-mailová upozornění</h3>
 
         {!smtp && (
@@ -105,9 +126,9 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
             {msg && <span className="text-sm muted">{msg}</span>}
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="card p-5">
+      <section id="privacy" className="card p-5 scroll-mt-32">
         <h3 className="mb-3 text-sm font-semibold">{t('settings.sections.privacy')}</h3>
 
         <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
@@ -155,9 +176,9 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
             <button onClick={save} className="btn-primary"><Save size={15} /> Uložit</button>
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="card p-5">
+      <section className="card p-5">
         <h3 className="mb-3 text-sm font-semibold">Ukázková (demo) data</h3>
         <label className="flex items-start gap-3 text-sm">
           <input type="checkbox" checked={showDemoDevices} disabled={!canEdit} onChange={(e) => setShowDemoDevices(e.target.checked)} className="mt-1" />
@@ -171,10 +192,10 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
             <button onClick={save} className="btn-primary"><Save size={15} /> Uložit</button>
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="card p-5">
-        <h3 className="mb-3 text-sm font-semibold">Report zaměstnance</h3>
+      <section id="employee" className="card p-5 scroll-mt-32">
+        <h3 className="mb-3 text-sm font-semibold">{t('settings.sections.employee')}</h3>
 
         <label className="mb-4 flex items-start gap-3 rounded-lg bg-emerald-50 p-3 text-sm dark:bg-emerald-500/10">
           <input type="checkbox" checked={employeeReportEnabled} disabled={!canEdit} onChange={(e) => setEmployeeReportEnabled(e.target.checked)} className="mt-1" />
@@ -225,11 +246,13 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
         <p className="mt-4 text-xs muted-2">
           Plánováno: self-service přístup pro zaměstnance (každý jen svá data) a soutěž „Zaměstnanec měsíce".
         </p>
-      </div>
+      </section>
 
-      <SitesAdmin canEdit={canEdit} />
+      <section id="sites" className="scroll-mt-32">
+        <SitesAdmin canEdit={canEdit} />
+      </section>
 
-      <div className="card p-5">
+      <section className="card p-5">
         <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Sparkles size={16} className="text-violet-500" /> Interpretace dat</h3>
         <p className="mb-4 text-xs muted-2">
           Data na serveru zůstávají vždy úplná a nezměněná. Interpretace pouze mění, <em>jak</em> se z nich
@@ -256,15 +279,20 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
         {canEdit && (
           <button onClick={save} className="btn-primary mt-4"><Save size={15} /> Uložit interpretaci</button>
         )}
-      </div>
+      </section>
 
-      <SecurityCheckPanel canEdit={canEdit} />
+      <section id="security" className="scroll-mt-32">
+        <SecurityCheckPanel canEdit={canEdit} />
+      </section>
 
-      <PasswordChangePanel />
+      <section id="account" className="scroll-mt-32 space-y-4">
+        <PasswordChangePanel />
+        <SessionsPanel />
+      </section>
 
-      <SessionsPanel />
-
-      <DiagnosticLog canEdit={canEdit} />
+      <section id="diagnostics" className="scroll-mt-32">
+        <DiagnosticLog canEdit={canEdit} />
+      </section>
     </div>
   );
 }
