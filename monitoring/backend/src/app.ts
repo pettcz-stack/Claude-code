@@ -25,6 +25,14 @@ export function createApp() {
   app.set('trust proxy', 1); // za reverzní proxy (HTTPS terminace) – správné IP pro rate limit
 
   // Bezpečnostní hlavičky vč. konzervativní CSP pro servírovanou SPA.
+  // Žádné inline <script> v naší SPA → `script-src 'self'` bez `unsafe-inline`.
+  // `style-src 'unsafe-inline'` ponecháno, protože recharts generuje inline
+  // styly pro SVG transformace (nelze technicky vypnout); riziko CSS-injection
+  // je proti XSS výrazně menší a chráníme se hodně tvrdými hlavičkami jinde.
+  // `base-uri 'none'` zabraňuje <base href="..."> útoku na relativní URL.
+  // `form-action 'self'` blokuje submit na cizí origin.
+  // `upgrade-insecure-requests` přinutí prohlížeč automaticky upgradeovat
+  // http → https i pro vložené prostředky (bez nutnosti HSTS preloadu).
   app.use(
     helmet({
       contentSecurityPolicy: {
@@ -32,14 +40,21 @@ export function createApp() {
         directives: {
           'default-src': ["'self'"],
           'script-src': ["'self'"],
-          'style-src': ["'self'", "'unsafe-inline'"], // Tailwind/recharts inline styly
+          'style-src': ["'self'", "'unsafe-inline'"],
           'img-src': ["'self'", 'data:'],
           'connect-src': ["'self'"],
           'object-src': ["'none'"],
           'frame-ancestors': ["'none'"],
+          'base-uri': ["'none'"],
+          'form-action': ["'self'"],
+          ...(config.nodeEnv === 'production' ? { 'upgrade-insecure-requests': [] as string[] } : {}),
         },
       },
       crossOriginEmbedderPolicy: false,
+      // HSTS pouze v production – v lokálním dev na http://localhost by
+      // zaheslovala prohlížeč na https.
+      hsts: config.nodeEnv === 'production' ? { maxAge: 31_536_000, includeSubDomains: true, preload: false } : false,
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
     }),
   );
 
