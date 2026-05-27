@@ -1,10 +1,20 @@
-name: CI
+name: CI (Viktor čistič)
 
+# Tento workflow je pro root aplikaci „Viktor čistič". FOCUS (adresář
+# `monitoring/`) má vlastní CI v `monitoring-ci.yml`. Path filtr zaručí,
+# že změny pouze v monitoring/ tento workflow nespouští – jinak by selhával
+# (jiná struktura, jiné endpointy, jiný port).
 on:
   push:
     branches: ["**"]
+    paths-ignore:
+      - "monitoring/**"
+      - ".github/workflows/monitoring-*.yml"
   pull_request:
     branches: [main, master]
+    paths-ignore:
+      - "monitoring/**"
+      - ".github/workflows/monitoring-*.yml"
 
 jobs:
   build-and-test:

@@ -1,26 +1,52 @@
-# All-in-one DEMO image: frontend + backend + SQLite + demo data, jeden port.
+# FOCUS DEMO – all-in-one image: frontend (statika) + backend + SQLite + demo data.
+# Jeden port (8080), žádné externí závislosti, ideální pro „klikni a uvidíš".
+#
 # Build & run:  cd monitoring && docker compose -f docker-compose.demo.yml up
-# Pak otevři:   http://localhost:8080  (admin / admin)
+# Otevři:       http://localhost:8080  (admin / admin)
 
+# ── 1) Frontend build ────────────────────────────────────────────────────────
 FROM node:20-alpine AS fe
 WORKDIR /fe
 COPY frontend/package*.json ./
-RUN npm ci
+RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
 RUN npm run build
 
+# ── 2) Backend build (TypeScript → JS) ───────────────────────────────────────
+FROM node:20-alpine AS be
+RUN apk add --no-cache openssl libc6-compat
+WORKDIR /app
+COPY backend/package*.json ./
+RUN npm ci --no-audit --no-fund
+COPY backend/tsconfig.json ./
+COPY backend/prisma ./prisma
+COPY backend/scripts ./scripts
+COPY backend/src ./src
+# Vygeneruje Prisma client pro SQLite a zkompiluje TypeScript.
+# prisma:sync vytvoří postgres schema z mastera (pro případné nasazení).
+RUN npm run prisma:sync \
+ && npx prisma generate --schema=prisma/schema.prisma \
+ && npm run build
+
+# ── 3) Runtime image (jen prod závislosti + build artefakty) ─────────────────
 FROM node:20-alpine
-# Prisma na Alpine potřebuje OpenSSL (jinak selže schema engine při migraci).
 RUN apk add --no-cache openssl libc6-compat
 WORKDIR /app/backend
+# tsx je potřeba kvůli seed skriptu (zachovejme dev deps).
 COPY backend/package*.json ./
-RUN npm ci
-COPY backend/ ./
-# Frontend build tam, kde ho backend servíruje (../frontend/dist)
+RUN npm ci --no-audit --no-fund && npm cache clean --force
+COPY backend/prisma ./prisma
+COPY backend/scripts ./scripts
+COPY backend/src ./src
+COPY --from=be /app/dist ./dist
+COPY --from=be /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=be /app/node_modules/@prisma ./node_modules/@prisma
+# Frontend build tam, kde ho backend servíruje (../frontend/dist).
 COPY --from=fe /fe/dist /app/frontend/dist
 
-# DB ukládáme do /data, aby se dala mountnout jako volume a přežila restarty.
+# DB ukládáme do /data – mountnutelný volume, přežije restart kontejneru.
 RUN mkdir -p /data
+ENV NODE_ENV=production
 ENV DATABASE_URL=file:/data/demo.db
 ENV PORT=8080
 ENV ADMIN_USER=admin
@@ -29,6 +55,10 @@ ENV INGEST_TOKEN=dev-token
 ENV ENABLE_JOBS=false
 EXPOSE 8080
 
-# Při startu: vygeneruje klienta, vytvoří DB, naseeduje demo data a spustí server.
+# Healthcheck pro docker / kubernetes — Prometheus si /metrics scrapuje sám.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -qO- http://localhost:8080/api/v1/health | grep -q '"status":"ok"' || exit 1
+
+# Při startu: migrace → demo seed → spuštění zkompilovaného serveru.
 # Seed je idempotentní (upsert) – reálná data z agentů zůstávají.
-CMD sh -c "npx prisma generate && npx prisma migrate deploy && npm run seed && npm run dev"
+CMD sh -c "npx prisma migrate deploy && npm run seed && node dist/index.js"

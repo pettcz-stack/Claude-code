@@ -1,6 +1,6 @@
 // WorkView – PRODUKČNÍ varianta datového modelu (PostgreSQL).
-// Obsahově identické se schema.prisma (dev/SQLite), liší se jen datasource.
-// Při nasazení: zkopírovat přes schema.prisma nebo použít --schema.
+// VYGENEROVÁNO automaticky ze schema.prisma. Needituj přímo – uprav master
+// a spusť `npm run prisma:sync`.
 
 generator client {
   provider = "prisma-client-js"
@@ -11,13 +11,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// Firemní zařízení, na kterém běží agent.
 model Device {
   id                  String   @id @default(cuid())
-  machineId           String   @unique
+  machineId           String   @unique // strojové ID (HW/OS), stabilní identifikátor
   hostname            String
-  os                  String?
+  os                  String? // verze Windows / Windows Server
   agentVersion        String?
-  enrollmentTokenHash String?
+  enrollmentTokenHash String? // hash tokenu pro autentizaci agenta
   active              Boolean  @default(true)
   lastSeen            DateTime?
   createdAt           DateTime @default(now())
@@ -25,16 +26,71 @@ model Device {
 
   intervals ActivityInterval[]
   health    DeviceHealth?
+  printJobs PrintJob[]
+  usbEvents UsbFileEvent[]
 
   @@index([active])
   @@index([lastSeen])
 }
 
+/// Tiskové úlohy. Agent zachycuje události Windows Print Spooleru.
+/// Název dokumentu se ukládá JEN pokud je v Settings zapnuté capturePrintDocName
+/// (default false, opt-in, GDPR čl. 5/1/c minimalizace).
+model PrintJob {
+  id           String   @id @default(cuid())
+  deviceId     String
+  userId       String?  // dohledáno přes SID; pokud chybí (úloha bez session), zůstane null
+  printerName  String?  // např. "HP LaserJet M404 (Síťová tiskárna kancelář)"
+  documentName String?  // jen když capturePrintDocName=true; jinak null
+  pages        Int      @default(1) // počet vytisknutých stran (po duplexu = fyzické listy / 2)
+  copies       Int      @default(1) // počet kopií úlohy
+  paperSize    String?  // A4, A3, Letter, Legal, A5, ...
+  color        Boolean? // true=barevně, false=černobíle, null=neznámo
+  duplex       Boolean? // true=oboustranně
+  sizeBytes    Int?     // velikost odeslaného spool souboru (nepřímý ukazatel objemu)
+  jobAt        DateTime // čas zařazení úlohy v queue
+  reportedAt   DateTime @default(now())
+
+  device Device         @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  user   MonitoredUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([deviceId, jobAt])
+  @@index([userId, jobAt])
+  @@index([jobAt])
+}
+
+/// Události souborů přenesených na/z USB zařízení (removable disky).
+/// Název souboru se ukládá JEN pokud je v Settings zapnuté captureUsbFilename
+/// (default false, opt-in). Bez něj ukládáme jen size + hash + příponu.
+model UsbFileEvent {
+  id           String   @id @default(cuid())
+  deviceId     String
+  userId       String?  // dohledáno přes SID
+  action       String   // CREATE | WRITE | DELETE | RENAME | READ
+  driveLetter  String?  // např. "E:"
+  driveLabel   String?  // VID:PID + uživatelský label svazku
+  fileName     String?  // jen když captureUsbFilename=true; jinak null
+  fileExt      String?  // přípona (pdf, docx, jpg) – levný indikátor typu i bez plného jména
+  sizeBytes    BigInt?  // velikost v bytech
+  eventAt      DateTime // čas události na PC
+  reportedAt   DateTime @default(now())
+
+  device Device         @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  user   MonitoredUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([deviceId, eventAt])
+  @@index([userId, eventAt])
+  @@index([eventAt])
+}
+
+/// HW telemetrie zařízení (poslední snapshot). Slouží IT pro prediktivní údržbu.
 model DeviceHealth {
   id          String   @id @default(cuid())
   deviceId    String   @unique
   device      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
   reportedAt  DateTime
+
+  // OS / systém
   osName       String?
   osVersion    String?
   uptimeSec    Int?
@@ -43,37 +99,49 @@ model DeviceHealth {
   serial       String?
   biosVersion  String?
   biosDate     DateTime?
+
+  // CPU / RAM
   cpuModel    String?
-  cpuLoadPct  Int?
+  cpuLoadPct  Int? // 0-100
   ramTotalMB  Int?
-  ramUsedPct  Int?
+  ramUsedPct  Int? // 0-100
+
+  // Baterie
   batteryPresent   Boolean @default(false)
-  batteryChargePct Int?
-  batteryHealthPct Int?
+  batteryChargePct Int? // 0-100
+  batteryHealthPct Int? // 0-100 (fullCharge / designCapacity)
   batteryCycles    Int?
   onAcPower        Boolean?
+
+  // Disky – JSON: [{name,totalGB,freeGB,smartStatus,reallocSectors,pendingSectors,powerOnHours,tempC}]
   disksJson String?
+
+  // Bezpečnost / aktualizace
   antivirusEnabled Boolean?
   antivirusUpdated Boolean?
   pendingUpdates   Int?
   rebootPending    Boolean?
-  status     String
-  issuesJson String
+
+  // Spočítané
+  status     String // OK | WARN | CRITICAL
+  issuesJson String // JSON pole hlášek
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([status])
 }
 
+/// Sledovaný uživatel (zaměstnanec). Identifikován Windows SID.
 model MonitoredUser {
-  id          String   @id @default(cuid())
-  sid         String   @unique
+  id          String  @id @default(cuid())
+  sid         String  @unique // Windows SID
   displayName String?
   department  String?
-  email       String?
-  okbaseId    String?
-  hourlyRate  Float?
-  active      Boolean  @default(true)
+  email       String? // pro budoucí napojení Outlook (Fáze 3)
+  okbaseId    String? // pro budoucí napojení OKbase (Fáze 2)
+  hourlyRate  Float? // hrubá mzda Kč/hod – pro výpočet ceny neproduktivního času
+  active      Boolean @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -81,50 +149,55 @@ model MonitoredUser {
   hourly         ActivityHourly[]
   absences       Absence[]
   calendarEvents CalendarEvent[]
+  printJobs      PrintJob[]
+  usbEvents      UsbFileEvent[]
 
   @@index([department])
   @@index([active])
 }
 
+/// Syrový záznam za interval (výchozí 60 s). Krátká retence – slouží
+/// k detailnímu rozpadu a jako vstup pro hodinovou agregaci.
 model ActivityInterval {
   id              String   @id @default(cuid())
   deviceId        String
   userId          String
-  intervalStart   DateTime
+  intervalStart   DateTime // začátek intervalu (UTC)
   intervalSeconds Int      @default(60)
-  activeSeconds   Int      @default(0)
+  activeSeconds   Int      @default(0) // ne-idle sekundy
   idleSeconds     Int      @default(0)
-  foregroundApp   String?
-  windowTitle     String?
-  appCategory     String?
-  keystrokeCount  Int      @default(0)
-  mouseEvents     Int      @default(0)
+  foregroundApp   String? // název procesu/exe aktivní aplikace
+  windowTitle     String? // titulek aktivního okna (pro klasifikaci práce/zábava); volitelné
+  appCategory     String? // volitelná kategorie (doplní agregace dle AppCategory)
+  keystrokeCount  Int      @default(0) // POČET úhozů (nikdy obsah)
+  mouseEvents     Int      @default(0) // POČET pohybů+kliků (nikdy souřadnice)
   sessionLocked   Boolean  @default(false)
-  monitorCount    Int?
-  clientIp        String?
+  monitorCount    Int? // počet připojených monitorů (jen číslo, žádný obsah)
+  clientIp        String? // lokální (privátní) IPv4 fyzického adaptéru – pro určení provozovny; NE veřejná IP
   createdAt       DateTime @default(now())
 
   device Device        @relation(fields: [deviceId], references: [id], onDelete: Cascade)
   user   MonitoredUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([deviceId, userId, intervalStart])
+  @@unique([deviceId, userId, intervalStart]) // idempotentní ingest
   @@index([userId, intervalStart])
   @@index([intervalStart])
 }
 
+/// Hodinový agregát na uživatele. Dlouhá retence – historická data pro analýzu.
 model ActivityHourly {
   id             String   @id @default(cuid())
   userId         String
-  hourStart      DateTime
+  hourStart      DateTime // zarovnáno na celou hodinu (UTC)
   activeMinutes  Float    @default(0)
   idleMinutes    Float    @default(0)
   lockedMinutes  Float    @default(0)
   topApp         String?
   keystrokeTotal Int      @default(0)
   mouseTotal     Int      @default(0)
-  avgKpm         Float    @default(0)
-  meetingMinutes Float    @default(0)
-  absenceType    String?
+  avgKpm         Float    @default(0) // průměr úhozů za minutu (z aktivního času)
+  meetingMinutes Float    @default(0) // Fáze 3 (Outlook)
+  absenceType    String? // Fáze 2 (OKbase): HOME_OFFICE | DOVOLENA | NEMOC | ...
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -134,11 +207,13 @@ model ActivityHourly {
   @@index([hourStart])
 }
 
+/// Kategorizace aplikací (práce / komunikace / web / hry ...). Doplňuje agregaci.
 model AppCategory {
   id          String   @id @default(cuid())
-  appName     String   @unique
-  category    String
-  type        String   @default("NEUTRAL")
+  appName     String   @unique // např. "winword.exe"
+  category    String // čitelný název, např. "Kancelář", "Hry", "Soukromý e-mail"
+  type        String   @default("NEUTRAL") // WORK | NON_WORK | NEUTRAL
+  // Licenční audit: placená aplikace, počet zakoupených licencí, měsíční cena/licence (CZK)
   licensed    Boolean  @default(false)
   seats       Int?
   costPerSeat Float?
@@ -146,45 +221,50 @@ model AppCategory {
   updatedAt   DateTime @updatedAt
 }
 
+/// Reklamace klasifikace od zaměstnance (omezená kvótou). Admin posoudí.
 model ClassificationClaim {
   id         String   @id @default(cuid())
   userId     String
-  target     String
-  targetKind String   @default("APP")
-  suggested  String
+  target     String // název aplikace nebo klíčové slovo / titulek
+  targetKind String   @default("APP") // APP | TITLE
+  suggested  String // navržený typ: WORK | NON_WORK
   note       String?
-  status     String   @default("OPEN")
+  status     String   @default("OPEN") // OPEN | RESOLVED
   createdAt  DateTime @default(now())
 
   @@index([status])
   @@index([userId])
 }
 
+/// Pravidlo klasifikace podle klíčového slova v titulku okna (zejm. weby).
 model WebRule {
   id        String   @id @default(cuid())
-  keyword   String   @unique
+  keyword   String   @unique // hledá se malými písmeny v titulku
   category  String
-  type      String   @default("NON_WORK")
+  type      String   @default("NON_WORK") // WORK | NON_WORK | NEUTRAL
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
+/// Přepis typu (práce/zábava) pro kategorii podle oddělení. Např. LinkedIn je
+/// pro „Personalistika"/„HR" práce, pro ostatní zábava.
 model DeptClassification {
   id         String   @id @default(cuid())
   department String
   category   String
-  type       String
+  type       String // WORK | NON_WORK | NEUTRAL | UNKNOWN
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   @@unique([department, category])
 }
 
+/// Absence importovaná z OKbase (Fáze 2). Legitimizuje nečinnost v daný den.
 model Absence {
   id        String   @id @default(cuid())
   userId    String
-  date      DateTime
-  type      String
+  date      DateTime // den absence (00:00 UTC)
+  type      String // HOME_OFFICE | DOVOLENA | NEMOC | LEKAR | ...
   source    String   @default("OKBASE")
   createdAt DateTime @default(now())
 
@@ -194,10 +274,11 @@ model Absence {
   @@index([date])
 }
 
+/// Událost z Outlook/Exchange kalendáře (Fáze 3). Drží se POUZE časy meetingu.
 model CalendarEvent {
   id         String   @id @default(cuid())
   userId     String
-  externalId String?
+  externalId String? // ID události v Exchange/Graph (dedupe)
   startsAt   DateTime
   endsAt     DateTime
   kind       String   @default("MEETING")
@@ -209,89 +290,124 @@ model CalendarEvent {
   @@index([userId, startsAt])
 }
 
+/// Konfigurace nastavitelná z UI (klíč–hodnota).
 model Setting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
 }
 
+/// Anti-spam dedup pro odeslaná upozornění (klíč + čas posledního odeslání).
 model SentAlert {
   key        String   @id
   lastSentAt DateTime @default(now())
 }
 
+/// Tipy do reportu zaměstnance (zdravotní mikro-tipy, moudra, „věděl jsi").
+/// Spravované v DB → lze doplňovat/upravovat bez zásahu do kódu.
 model Tip {
   id        String   @id @default(cuid())
-  kind      String
-  category  String?
+  kind      String // HEALTH | GROWTH | FUN
+  category  String? // u HEALTH: stand|move|eyes|breath|water|coffee|ergo|focus|mood|air
   text      String
-  author    String?
+  author    String? // u GROWTH (autor citátu)
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 
   @@index([kind, active])
 }
 
+/// Předpočítaný denní souhrn na uživatele (klasifikovaný čas). Plní se při
+/// agregaci. Dashboard z něj počítá skóre za libovolné období v milisekundách
+/// i nad roky dat (místo klasifikace milionů surových intervalů za běhu).
 model DailyStat {
   id            String   @id @default(cuid())
   userId        String
-  date          DateTime
-  workMin       Float    @default(0)
+  date          DateTime // den (UTC půlnoc)
+  workMin       Float    @default(0) // WORK + NEUTRAL
   nonWorkMin    Float    @default(0)
   idleMin       Float    @default(0)
-  unknownMin    Float    @default(0)
+  unknownMin    Float    @default(0) // nezařazeno (vyjmuto ze skóre)
   keystroke     Int      @default(0)
-  monitorTop    Int      @default(0)
-  multiMonitorMin Float  @default(0)
-  domWorkCat    String?
-  site          String?
-  suspicious    Boolean  @default(false)
+  monitorTop    Int      @default(0) // nejčastější počet monitorů toho dne
+  multiMonitorMin Float  @default(0) // minuty na 2+ monitorech
+  domWorkCat    String? // dominantní pracovní kategorie dne (pro doporučení monitorů)
+  site          String? // převažující pracoviště dne (název provozovny; null = Mimo firmu)
+  suspicious    Boolean  @default(false) // detekce nepovolených praktik v daný den
 
   @@unique([userId, date])
   @@index([date])
 }
 
+/// Předpočítané denní využití aplikací a webů (pro audit softwaru a „Top aplikace/weby").
+/// Kolabuje stovky intervalů na pár řádků na uživatele a den → rychlé i nad roky dat.
 model DailyAppStat {
   id        String   @id @default(cuid())
   userId    String
   date      DateTime
-  kind      String
-  label     String
+  kind      String // APP | SITE
+  label     String // proces (chrome.exe) nebo titulek okna
   category  String
-  type      String
+  type      String // WORK | NON_WORK | NEUTRAL | UNKNOWN
   activeMin Float    @default(0)
 
   @@unique([userId, date, kind, label])
   @@index([date, kind])
 }
 
+/// Provozovny / pobočky / výrobní závody – číselník pro určení pracoviště
+/// podle lokální (privátní) podsítě, do které je PC připojené.
 model Site {
   id        String   @id @default(cuid())
-  name      String
-  subnets   String
-  kind      String   @default("VLASTNI")
+  name      String // "Brno", "Praha", "Areál Hořovice"
+  subnets   String // CSV CIDR, např. "10.10.0.0/16,10.11.0.0/16"; prázdné = zatím neměřitelné
+  kind      String   @default("VLASTNI") // VLASTNI | PARTNER
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 }
 
+/// Účet pro přístup do dashboardu (role ADMIN | VIEWER).
 model AdminUser {
   id           String   @id @default(cuid())
   username     String   @unique
   passwordHash String
-  role         String   @default("VIEWER")
+  role         String   @default("VIEWER") // ADMIN | VIEWER
   active       Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
 
+/// Aktivní session admina. Persistuje se v DB (ne v procesní paměti),
+/// takže přežije restart serveru a lze ji centrálně revokovat.
+/// `tokenHash` = sha256(token) – samotný token se nikdy neukládá.
+model AdminSession {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  adminId    String
+  username   String
+  role       String
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  lastUsedAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([expiresAt])
+}
+
+/// Audit přístupů administrátorů k datům zaměstnanců (požadavek GDPR čl. 32).
+/// Drží jak immutable adminId (cuid AdminUsera v okamžiku akce – nezávislé na
+/// pozdějším přejmenování / smazání), tak snapshot adminIdentity (username
+/// v okamžiku akce). Forenzní záznam je takhle stabilní i po rotacích účtů.
 model AccessAudit {
   id            String   @id @default(cuid())
-  adminIdentity String
-  viewedUserId  String?
-  action        String
+  adminId       String?  // immutable FK do AdminUser.id (nullable kvůli starým záznamům)
+  adminIdentity String // snapshot username v okamžiku akce
+  viewedUserId  String? // čí data si prohlížel
+  action        String // VIEW | EXPORT | DELETE | LOGIN ...
   detail        String?
   createdAt     DateTime @default(now())
 
   @@index([createdAt])
   @@index([adminIdentity])
+  @@index([adminId])
 }
