@@ -1,6 +1,6 @@
 {
   "name": "focus-backend",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "private": true,
   "description": "FOCUS \u2013 backend pro monitoring pracovn\u00ed aktivity (ingest, agregace, API)",
   "main": "dist/index.js",

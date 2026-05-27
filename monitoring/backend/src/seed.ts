@@ -568,8 +568,8 @@ async function main() {
       const machineId = `DEMO-PC-${idx + 1}`;
       const device = await prisma.device.upsert({
         where: { machineId },
-        update: { lastSeen: new Date(), agentVersion: '0.9.2', os: idx % 5 === 0 ? 'macOS 14' : 'Windows 11' },
-        create: { machineId, hostname: `SINSU-PC-${String(idx + 1).padStart(4, '0')}`, os: idx % 5 === 0 ? 'macOS 14' : 'Windows 11', agentVersion: '0.9.2', lastSeen: new Date() },
+        update: { lastSeen: new Date(), agentVersion: '0.9.3', os: idx % 5 === 0 ? 'macOS 14' : 'Windows 11' },
+        create: { machineId, hostname: `SINSU-PC-${String(idx + 1).padStart(4, '0')}`, os: idx % 5 === 0 ? 'macOS 14' : 'Windows 11', agentVersion: '0.9.3', lastSeen: new Date() },
       });
       created.push({
         id: user.id,
@@ -1262,14 +1262,14 @@ async function seedPiracyActivity(users: Person[]): Promise<void> {
  * nedetekuje – nechávám pro budoucí "unusual hours" detector.
  */
 async function seedAfterHoursActivity(users: Person[]): Promise<void> {
-  const existing = await prisma.activityInterval.count({
-    where: { intervalStart: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
-  });
-  // pokud už něco máme, nedoplňujeme znovu (gate na celkové intervaly by ale byl moc agresivní)
-  const sample = await prisma.activityInterval.findFirst({
-    where: { foregroundApp: 'mimikatz.exe' }, // sample marker - když mimikatz existuje, after-hours už proběhl
-  });
-  if (sample) { console.log('Demo after-hours preskocen.'); return; }
+  // Sample marker: hledáme intervaly po 21:00 UTC (= ~23:00 CEST). Pokud
+  // existují, after-hours seed už proběhl. Žádný "normální" interval z hlavní
+  // smyčky nemůže být po 21 UTC (work window končí v 16 lokálně = max 14 UTC).
+  const sample = await prisma.$queryRawUnsafe<Array<{ c: number }>>(
+    "SELECT COUNT(*) as c FROM ActivityInterval WHERE CAST(strftime('%H', intervalStart) AS INTEGER) >= 19",
+  );
+  const sampleCount = Number(sample?.[0]?.c ?? 0);
+  if (sampleCount > 100) { console.log(`Demo after-hours preskocen – uz existuje ${sampleCount} intervalu.`); return; }
 
   // Vyber ~60 uživatelů (3 %) s pozdně-noční aktivitou.
   // Cheateři automaticky (boti běží non-stop), zbytek random workaholici / "stahovači"

@@ -26,6 +26,29 @@ export type ReleaseHighlight = {
 /** Aktuální release - na začátku pole. Po release+1 sjede na index 1 atd. */
 export const RELEASES: ReleaseHighlight[] = [
   {
+    version: '0.9.3',
+    date: '2026-05-28',
+    title: 'Realistická demo data + detekce pirátství',
+    highlights: [
+      '18 uživatelů s pirátským softwarem (Photoshop crack, AutoCAD pirated, JetBrains pirated, mimikatz, uTorrent…) — nový alert typ PIRATED_SOFTWARE',
+      '~60 uživatelů s aktivitou po 21:00 — nový alert AFTER_HOURS_ACTIVITY (workaholici, IT on-call, ale i botové)',
+      'Realistická škála aktivního času — 15-min intervaly správně reprezentují 15 minut (skóre 2 % → ~ 55 %)',
+      'Svátky a víkendy: seed respektuje státní svátky CZ, ~6 % firmy má víkendovou aktivitu (IT support, on-call)',
+      'Home office dip dle výzkumu — průměrně −15-20 %, persona-specific (slacker −45 %, top −8 %)',
+      '10 person s širokou variance baseDiligence (top 0.94-0.99, slacker 0.25-0.50)',
+      'Performance: alerts + heatmap cached, +warm cache při startu',
+      'Bulk integrity check: 1991 sekvenčních query → 1 bulk (100× rychlejší /alerts)',
+    ],
+    features: [
+      'piratedSoftware',
+      'afterHoursActivity',
+      'realisticDemoData',
+      'holidaysWeekends',
+      'homeOfficeDip',
+      'broadPersonaVariance',
+    ],
+  },
+  {
     version: '0.9.2',
     date: '2026-05-27',
     title: 'Pilot iterace: UX, výkon, macOS',
