@@ -41,15 +41,21 @@ export async function ensureAdmin(): Promise<void> {
 }
 
 // --- Session tokeny (po přihlášení) -------------------------------------------------
-// Krátkodobé bezpečné tokeny v paměti. Scrypt se počítá jen 1× při přihlášení,
-// ne na každý požadavek (ochrana proti DoS a standardní vzor).
+// Session se ukládá do DB jako AdminSession{tokenHash, adminId, expires}.
+// Důvod: (a) přežije restart serveru – admin si nemusí znovu přihlásit,
+// (b) lze ji centrálně revokovat (logout všech zařízení, ban accounted),
+// (c) máme metadata (lastUsedAt) pro auditní pohled "aktivní sessions".
+// Samotný token se NIKDY neukládá – jen jeho sha256 hash. Únik DB nezpřístupní
+// existující session.
 
-type Session = { id: string; username: string; role: string; expires: number };
-const sessions = new Map<string, Session>();
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 h
 
 function newToken(): string {
   return crypto.randomBytes(32).toString('hex');
+}
+
+function hashSessionToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
 }
 
 /** Ověří jméno/heslo a vydá session token. Vrací null při neúspěchu. */
@@ -57,22 +63,39 @@ export async function login(username: string, password: string): Promise<{ token
   const user = await prisma.adminUser.findUnique({ where: { username } });
   if (!user || !user.active || !verifyPassword(password, user.passwordHash)) return null;
   const token = newToken();
-  sessions.set(token, { id: user.id, username: user.username, role: user.role, expires: Date.now() + SESSION_TTL_MS });
+  await prisma.adminSession.create({
+    data: {
+      tokenHash: hashSessionToken(token),
+      adminId: user.id,
+      username: user.username,
+      role: user.role,
+      expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+    },
+  });
   return { token, role: user.role, username: user.username };
 }
 
-export function destroySession(token: string): void {
-  sessions.delete(token);
+export async function destroySession(token: string): Promise<void> {
+  await prisma.adminSession.deleteMany({ where: { tokenHash: hashSessionToken(token) } }).catch(() => undefined);
 }
 
-function getSession(token: string): Session | null {
-  const s = sessions.get(token);
+async function getSession(token: string): Promise<{ id: string; username: string; role: string } | null> {
+  const s = await prisma.adminSession.findUnique({ where: { tokenHash: hashSessionToken(token) } });
   if (!s) return null;
-  if (s.expires < Date.now()) {
-    sessions.delete(token);
+  if (s.expiresAt.getTime() < Date.now()) {
+    // Lazy GC – při dotazu na expirovanou session ji rovnou smažeme.
+    await prisma.adminSession.deleteMany({ where: { tokenHash: s.tokenHash } }).catch(() => undefined);
     return null;
   }
-  return s;
+  // Update lastUsedAt v pozadí – test neblokujeme.
+  prisma.adminSession.update({ where: { id: s.id }, data: { lastUsedAt: new Date() } }).catch(() => undefined);
+  return { id: s.adminId, username: s.username, role: s.role };
+}
+
+/** Plánovaný úkol pro mazání expirovaných sessions (volat ze startu serveru). */
+export async function pruneExpiredSessions(): Promise<number> {
+  const r = await prisma.adminSession.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+  return r.count;
 }
 
 /** Název HttpOnly cookie pro session. Stejný řetězec sdílí backend i frontend. */
@@ -90,9 +113,9 @@ export function readSessionToken(req: Request): string {
 }
 
 /** Autentizace primárně přes HttpOnly cookie, fallback Bearer header (legacy klienti). */
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const token = readSessionToken(req);
-  const s = token ? getSession(token) : null;
+  const s = token ? await getSession(token) : null;
   if (!s) {
     res.status(401).json({ error: 'unauthorized' });
     return;

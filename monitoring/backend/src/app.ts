@@ -160,9 +160,9 @@ export function createApp() {
     res.json(result);
   });
 
-  app.post('/api/v1/logout', (req: Request, res: Response) => {
+  app.post('/api/v1/logout', async (req: Request, res: Response) => {
     const token = readSessionToken(req);
-    if (token) destroySession(token);
+    if (token) await destroySession(token);
     clearSessionCookie(res);
     res.json({ ok: true });
   });

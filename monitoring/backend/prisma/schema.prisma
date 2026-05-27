@@ -327,6 +327,23 @@ model AdminUser {
   updatedAt    DateTime @updatedAt
 }
 
+/// Aktivní session admina. Persistuje se v DB (ne v procesní paměti),
+/// takže přežije restart serveru a lze ji centrálně revokovat.
+/// `tokenHash` = sha256(token) – samotný token se nikdy neukládá.
+model AdminSession {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  adminId    String
+  username   String
+  role       String
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  lastUsedAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([expiresAt])
+}
+
 /// Audit přístupů administrátorů k datům zaměstnanců (požadavek GDPR čl. 32).
 /// Drží jak immutable adminId (cuid AdminUsera v okamžiku akce – nezávislé na
 /// pozdějším přejmenování / smazání), tak snapshot adminIdentity (username

@@ -4,7 +4,7 @@ import { prisma } from './db.js';
 import { createApp } from './app.js';
 import { aggregateRecent } from './services/aggregate.js';
 import { runRetention } from './jobs/retention.js';
-import { ensureAdmin } from './auth.js';
+import { ensureAdmin, pruneExpiredSessions } from './auth.js';
 import { ensureDefaultCategories } from './services/categories.js';
 import { ensureDefaultWebRules } from './services/classify.js';
 import { ensureDefaultTips } from './services/tips.js';
@@ -82,6 +82,18 @@ if (config.enableJobs) {
       } catch (e) {
         // eslint-disable-next-line no-console
         console.error('runRetention selhalo', e);
+      }
+    }),
+  );
+  // Lazy GC expirovaných admin sessions – jednou za hodinu.
+  // Session se mažou i lazy při pokusu o použití, tohle jen drží tabulku štíhlou.
+  jobs.push(
+    cron.schedule('15 * * * *', async () => {
+      try {
+        const n = await pruneExpiredSessions();
+        if (n > 0) console.log(`Session prune: smazáno ${n} expirovaných sessions`);
+      } catch (e) {
+        console.error('pruneExpiredSessions selhalo', e);
       }
     }),
   );
