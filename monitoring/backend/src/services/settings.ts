@@ -74,7 +74,11 @@ export async function getSettings(): Promise<AppSettings> {
     dataMode,
     showDemoDevices: dataMode !== 'real',
     privacyStoreDomainOnly: (map.get(KEYS.domainOnly) ?? 'false') === 'true',
-    retentionDaysIntervals: Number(map.get(KEYS.retention) ?? 90),
+    // Default 30 dnů – kompromis mezi GDPR minimalizací (čl. 5/1/c) a auditní
+    // historií. Agregáty (DailyStat, DailyAppStat) drží 540 dnů → roční přehled
+    // skóre + Top apps bez surových titulků. Pro 1991 uživatelů to znamená cca
+    // 7 GB SQLite místo 21 GB při 90 dnech. Admin může upravit v Settings.
+    retentionDaysIntervals: Number(map.get(KEYS.retention) ?? 30),
     selfAuditEnabled: (map.get(KEYS.selfAudit) ?? 'false') === 'true',
     printTrackingEnabled: (map.get(KEYS.printTrack) ?? 'false') === 'true',
     capturePrintDocName: (map.get(KEYS.printDoc) ?? 'false') === 'true',

@@ -81,7 +81,7 @@ const intervalSchema = z.object({
   // .nullish() = optional | null – agenti (zejm. macOS bez Accessibility) posílají
   // null místo vynechání, což .optional() samotné odmítlo HTTP 400.
   foregroundApp: z.string().max(260).nullish(),
-  windowTitle: z.string().max(512).nullish(),
+  windowTitle: z.string().max(512).nullish(), // až 512 přijmeme, sanitizeWindowTitle pak ořízne na 120 (úspora místa)
   appCategory: z.string().max(64).nullish(),
   keystrokeCount: z.number().int().min(0),
   mouseEvents: z.number().int().min(0),

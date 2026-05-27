@@ -268,7 +268,45 @@ async function main() {
   }
 
   // ─── 2) 1991 uživatelů + zařízení ────────────────────────────────────────
-  console.log(`Seeduji ${DEPT_PLAN.reduce((s, d) => s + d.size, 0)} uživatelů v ${DEPT_PLAN.length} odděleních…`);
+  // Nejprve smazat všechny STARÉ demo záznamy (z předchozích seed iterací
+  // s jiným SID rozsahem nebo strukturou). Bez tohoto by se po update vrstvily
+  // staré "duchové" uživatelé – uvidíš třeba 2114 místo 1991, protože stará
+  // verze měla SIDy mimo aktuální rozsah a upsert je nesmaže.
+  // Cascade smazání (intervaly, dailyStat, atd.) se postará Prisma onDelete.
+  const planned = DEPT_PLAN.reduce((s, d) => s + d.size, 0);
+  const validSids = new Set<string>();
+  for (let i = 0; i < planned; i++) validSids.add(`S-1-5-21-DEMO-${1000 + i}`);
+  const validMachineIds = new Set<string>();
+  for (let i = 0; i < planned; i++) validMachineIds.add(`DEMO-PC-${i + 1}`);
+
+  const allDemoUsers = await prisma.monitoredUser.findMany({
+    where: { sid: { startsWith: 'S-1-5-21-DEMO-' } },
+    select: { id: true, sid: true },
+  });
+  const stale = allDemoUsers.filter((u) => !validSids.has(u.sid));
+  if (stale.length > 0) {
+    console.log(`Mažu ${stale.length} starých demo uživatelů (mimo aktuální rozsah)…`);
+    // SQLite limit – dávkové delete po 500
+    for (let i = 0; i < stale.length; i += 500) {
+      const ids = stale.slice(i, i + 500).map((u) => u.id);
+      await prisma.monitoredUser.deleteMany({ where: { id: { in: ids } } });
+    }
+  }
+
+  const allDemoDevices = await prisma.device.findMany({
+    where: { machineId: { startsWith: 'DEMO-PC-' } },
+    select: { id: true, machineId: true },
+  });
+  const staleDevices = allDemoDevices.filter((d) => !validMachineIds.has(d.machineId));
+  if (staleDevices.length > 0) {
+    console.log(`Mažu ${staleDevices.length} starých demo zařízení…`);
+    for (let i = 0; i < staleDevices.length; i += 500) {
+      const ids = staleDevices.slice(i, i + 500).map((d) => d.id);
+      await prisma.device.deleteMany({ where: { id: { in: ids } } });
+    }
+  }
+
+  console.log(`Seeduji ${planned} uživatelů v ${DEPT_PLAN.length} odděleních…`);
   const PEOPLE = genPeople();
 
   // Vytvoříme/aktualizujeme všechny v jediné transakci po batchích.

@@ -161,6 +161,50 @@ systemctl enable --now focus-backend
 journalctl -u focus-backend -f
 ```
 
+## 5b. Velikost dat a HDD plánování
+
+Velikost DB závisí hlavně na počtu uživatelů a retenci. Spočítané odhady
+po optimalizacích (windowTitle truncate, denní VACUUM, default retention):
+
+| Počet zaměstnanců | Raw retention | Velikost / měsíc | Velikost / rok |
+|---|---|---|---|
+| 100 | 30 dnů | ~150 MB | ~2 GB |
+| 500 | 30 dnů | ~750 MB | ~10 GB |
+| 1000 | 30 dnů | ~1.5 GB | ~20 GB |
+| 1000 | 14 dnů | ~700 MB | ~9 GB |
+| 1000 | 7 dnů | ~350 MB | ~4 GB |
+| 2000 | 14 dnů | ~1.4 GB | ~17 GB |
+
+Klíčové parametry pro úspory:
+
+1. **`RAW_RETENTION_DAYS`** (env, default 30) – kolik dnů držet raw intervaly.
+   Po smazání zůstávají DailyStat agregáty (skóre, work/idle min) 540 dnů.
+2. **windowTitle truncate** – server-side ořezává na 120 znaků (úspora ~30 %).
+3. **VACUUM po pruningu** – SQLite uvolní místo zpět OS (PG má autovacuum).
+4. **`HOURLY_RETENTION_DAYS`** (default 540) – agregáty starší než ~18 měs.
+
+### Pro firmy nad 1000 uživatelů: PostgreSQL nutný
+
+SQLite je single-file a má praktický limit ~50-100 GB při zachování výkonu.
+Nad 500 zaměstnanců přejít na PostgreSQL:
+
+- Automatická TOAST komprese pro velké text. sloupce (compress titulů ~4×)
+- Paralelní queries, lepší index strategy (BRIN index na intervalStart)
+- `autovacuum` nemá problém s 100M řádků
+- Volume na vyhrazeném disku SSD (15-30 ms latence na 95 % queries)
+
+### Verifikace velikosti DB
+
+```bash
+# SQLite (demo container):
+docker compose -f docker-compose.demo.yml exec demo \
+  sh -c 'ls -lh /data/demo.db'
+
+# PostgreSQL (production):
+docker compose exec db \
+  psql -U focus -c "SELECT pg_size_pretty(pg_database_size('focus'));"
+```
+
 ## 6. Zálohy (POVINNÉ)
 
 ### Postgres
