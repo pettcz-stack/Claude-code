@@ -17,6 +17,11 @@ services:
     volumes:
       - focus-db:/data
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
 
 volumes:
   focus-db:

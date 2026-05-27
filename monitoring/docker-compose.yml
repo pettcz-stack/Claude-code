@@ -2,6 +2,14 @@
 # Spuštění:  docker compose up -d --build
 # Dashboard: http://localhost:8080   (přihlášení: ADMIN_USER / ADMIN_PASSWORD)
 
+# Default logging pro všechny services – json-file driver s rotací,
+# aby disk neumřel po pár týdnech provozu. 3× 10 MB = 30 MB max per container.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
 services:
   db:
     image: postgres:16-alpine
@@ -16,6 +24,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    logging: *default-logging
+    restart: unless-stopped
 
   backend:
     build: ./backend
@@ -37,6 +47,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    logging: *default-logging
+    restart: unless-stopped
 
   frontend:
     build: ./frontend
@@ -44,6 +56,8 @@ services:
       - '8080:80'
     depends_on:
       - backend
+    logging: *default-logging
+    restart: unless-stopped
 
 volumes:
   focus-db:
