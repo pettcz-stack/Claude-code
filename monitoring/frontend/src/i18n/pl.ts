@@ -594,6 +594,7 @@ export const pl: typeof cs = {
     costColPcoff: 'Poza PC w godz. pracy (h)',
     costColTotal: 'Koszt łącznie (zł)',
     auditTitle: 'Audyt oprogramowania i licencji',
+    searchAppPlaceholder: 'Szukaj aplikacji lub kategorii…',
     auditHint: 'Realne wykorzystanie aplikacji. Przy aplikacjach płatnych widać, ile licencji leży bezczynnie.',
     utilLegendTitle: 'Kolumna „Wykorzystanie":',
     utilLegendGood: '80–100 % dobrze wykorzystane',

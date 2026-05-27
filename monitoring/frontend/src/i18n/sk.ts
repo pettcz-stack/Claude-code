@@ -594,6 +594,7 @@ export const sk: typeof cs = {
     costColPcoff: 'Mimo PC v prac. čase (h)',
     costColTotal: 'Náklad celkom (€)',
     auditTitle: 'Audit softvéru a licencií',
+    searchAppPlaceholder: 'Hľadať aplikáciu alebo kategóriu…',
     auditHint: 'Reálne využitie aplikácií. Pri platených aplikáciách vidíte, koľko licencií leží ladom.',
     utilLegendTitle: 'Stĺpec „Využitie":',
     utilLegendGood: '80–100 % dobre využité',

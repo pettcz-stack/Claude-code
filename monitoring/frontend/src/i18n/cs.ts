@@ -596,6 +596,7 @@ export const cs = {
     costColPcoff: 'Mimo PC v prac. době (h)',
     costColTotal: 'Náklad celkem (Kč)',
     auditTitle: 'Audit softwaru a licencí',
+    searchAppPlaceholder: 'Hledat aplikaci nebo kategorii…',
     auditHint: 'Reálné využití aplikací. U placených aplikací vidíte, kolik licencí leží ladem.',
     utilLegendTitle: 'Sloupec „Využití":',
     utilLegendGood: '80–100 % dobře využité',

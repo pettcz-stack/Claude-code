@@ -594,6 +594,7 @@ export const en: typeof cs = {
     costColPcoff: 'Away from PC during work (h)',
     costColTotal: 'Total cost (CZK)',
     auditTitle: 'Software and licence audit',
+    searchAppPlaceholder: 'Search app or category…',
     auditHint: 'Real application usage. For paid apps you see how many licences sit idle.',
     utilLegendTitle: 'Column "Usage":',
     utilLegendGood: '80–100 % well utilised',

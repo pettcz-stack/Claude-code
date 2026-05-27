@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
-import { Boxes, KeyRound, Wallet, Save, Coins, AlertTriangle } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Boxes, KeyRound, Wallet, Save, Coins, AlertTriangle, Search } from 'lucide-react';
 import { api, type SoftwareAudit, type SoftwareItem, type CostResult } from './api.js';
 import { PageSkeleton } from './Skeleton.js';
 import { useToast } from './Toast.js';
 import { AppIcon, useAppName } from './appMeta.js';
 import { useT } from './i18n/index.js';
+import { useSort, SortHeader } from './tableSort.js';
 
 export function SoftwareView({ from, to, department, canEdit }: { from: string; to: string; department?: string; canEdit: boolean }) {
   const { t } = useT();
@@ -13,6 +14,7 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
   const [cost, setCost] = useState<CostResult | null>(null);
   const [edit, setEdit] = useState<Record<string, { licensed: boolean; seats: string; cost: string }>>({});
   const [period, setPeriod] = useState<'month' | 'year'>('month');
+  const [appSearch, setAppSearch] = useState('');
   const toast = useToast();
   const mult = period === 'year' ? 12 : 1;
   const unit = period === 'year' ? t('software.periodYear') : t('software.periodMonth');
@@ -29,6 +31,14 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
     if (canEdit) api.cost(from, to, department).then(setCost).catch(() => setCost(null));
   }
   useEffect(load, [from, to, department]);
+  // Filter SW audit polozek podle searchu (app jmeno + kategorie).
+  const filteredItems = useMemo(() => {
+    const items = data?.items ?? [];
+    const q = appSearch.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((i) => i.app.toLowerCase().includes(q) || (i.category ?? '').toLowerCase().includes(q));
+  }, [data, appSearch]);
+  const { sorted: sortedItems, key: itemsKey, dir: itemsDir, setSort: setItemsSort } = useSort(filteredItems, 'activeHours', 'desc');
   if (!data) return <PageSkeleton kpi={3} />;
 
   async function saveLicense(it: SoftwareItem) {
@@ -114,7 +124,14 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
       )}
 
       <div className="card p-5">
-        <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><KeyRound size={16} className="text-emerald-600" /> {t('software.auditTitle')}</h3>
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="flex items-center gap-2 text-sm font-semibold"><KeyRound size={16} className="text-emerald-600" /> {t('software.auditTitle')}</h3>
+          <div className="flex items-center gap-2">
+            <Search size={14} className="muted-2" />
+            <input value={appSearch} onChange={(e) => setAppSearch(e.target.value)} placeholder={t('software.searchAppPlaceholder')} className="field w-56" />
+            <span className="text-xs muted-2">{t('common.shownOfTotal', { shown: sortedItems.length, total: data.items.length })}</span>
+          </div>
+        </div>
         <p className="mb-2 text-xs muted-2">{t('software.auditHint')}</p>
         <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-slate-800/60 dark:text-slate-300">
           <span className="font-semibold">{t('software.utilLegendTitle')}</span>
@@ -126,15 +143,20 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
           <table className="w-full">
             <thead>
               <tr>
-                <th className="th">{t('software.colApp')}</th><th className="th">{t('software.colCategory')}</th>
-                <th className="th text-right">{t('software.colActiveHours')}</th><th className="th text-right">{t('software.colUsersCount')}</th>
-                <th className="th text-center">{t('software.colLicensed')}</th><th className="th text-right">{t('software.colSeats')}</th>
-                <th className="th text-right">{t('software.colCostPerSeat')}</th><th className="th text-right">{t('software.colUtilization')}</th>
-                <th className="th text-right">{t('software.colWasteUnit', { unit })}</th>{canEdit && <th className="th"></th>}
+                <SortHeader sortKey="app" current={itemsKey} dir={itemsDir} onChange={setItemsSort}>{t('software.colApp')}</SortHeader>
+                <SortHeader sortKey="category" current={itemsKey} dir={itemsDir} onChange={setItemsSort}>{t('software.colCategory')}</SortHeader>
+                <SortHeader sortKey="activeHours" current={itemsKey} dir={itemsDir} onChange={setItemsSort} align="right">{t('software.colActiveHours')}</SortHeader>
+                <SortHeader sortKey="users" current={itemsKey} dir={itemsDir} onChange={setItemsSort} align="right">{t('software.colUsersCount')}</SortHeader>
+                <th className="th text-center">{t('software.colLicensed')}</th>
+                <SortHeader sortKey="seats" current={itemsKey} dir={itemsDir} onChange={setItemsSort} align="right">{t('software.colSeats')}</SortHeader>
+                <SortHeader sortKey="costPerSeat" current={itemsKey} dir={itemsDir} onChange={setItemsSort} align="right">{t('software.colCostPerSeat')}</SortHeader>
+                <SortHeader sortKey="utilizationPct" current={itemsKey} dir={itemsDir} onChange={setItemsSort} align="right">{t('software.colUtilization')}</SortHeader>
+                <SortHeader sortKey="wasteCost" current={itemsKey} dir={itemsDir} onChange={setItemsSort} align="right">{t('software.colWasteUnit', { unit })}</SortHeader>
+                {canEdit && <th className="th"></th>}
               </tr>
             </thead>
             <tbody>
-              {data.items.map((i) => {
+              {sortedItems.map((i) => {
                 const e = edit[i.app] ?? { licensed: false, seats: '', cost: '' };
                 const util = i.utilizationPct;
                 const utilColor = util == null ? '' : util >= 80 ? 'text-emerald-500' : util >= 40 ? 'text-amber-500' : 'text-red-500';
