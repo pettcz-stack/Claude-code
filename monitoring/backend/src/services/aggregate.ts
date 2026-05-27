@@ -232,6 +232,196 @@ export async function aggregateAll(): Promise<number> {
 }
 
 /**
+ * Rychlá full agregace pro seed/bulk backfill.
+ *
+ * Proč: standardní `aggregateAll()` dělá pro každou (user, hour) i (user, day)
+ * dvojici zvlášť `findMany` + `upsert`. Pro 1991 uživatelů × 30 dní × 8 h je
+ * to ~700k sekvenčních SQLite roundtripů → 45–90 min na běžném HW.
+ *
+ * Tato varianta načte všechny intervaly jednoho uživatele jedním dotazem,
+ * v JS spočítá hodinové i denní agregáty + per-app/per-site rozpady, a zapíše
+ * je 3× `createMany`. Celkem ~8k queries pro 1991 uživatelů → < 1 minuty.
+ *
+ * Lossless – výsledek je identický s `aggregateAll()`, jen výrazně rychleji.
+ * Vyčistí existující agregáty (full rebuild) – proto je vhodné jen pro seed.
+ */
+export async function aggregateAllFast(): Promise<{ users: number; hours: number; days: number }> {
+  const users = await prisma.monitoredUser.findMany({ select: { id: true, department: true } });
+  if (users.length === 0) return { users: 0, hours: 0, days: 0 };
+
+  const catMap = await getCategoryMap();
+  const webRules = await getWebRules();
+  const sites = await getSites();
+  const deptRules = await getDeptRules();
+
+  // Wipe staré agregáty (full rebuild).
+  await prisma.activityHourly.deleteMany({});
+  await prisma.dailyStat.deleteMany({});
+  await prisma.dailyAppStat.deleteMany({});
+
+  // SQLite zrychlení – v rámci seedu je OK (data jsou idempotentně regenerovatelná).
+  try {
+    await prisma.$executeRawUnsafe('PRAGMA synchronous = OFF');
+    await prisma.$executeRawUnsafe('PRAGMA journal_mode = MEMORY');
+  } catch { /* MySQL/Postgres – PRAGMA neexistuje, ignoruj */ }
+
+  let hoursTotal = 0;
+  let daysTotal = 0;
+  let processed = 0;
+
+  for (const u of users) {
+    const intervals = await prisma.activityInterval.findMany({
+      where: { userId: u.id },
+      select: {
+        intervalStart: true, intervalSeconds: true, activeSeconds: true, idleSeconds: true,
+        sessionLocked: true, foregroundApp: true, windowTitle: true, keystrokeCount: true,
+        mouseEvents: true, monitorCount: true, clientIp: true, typingMs: true, typingKeystrokeCount: true,
+      },
+    });
+    processed++;
+    if (intervals.length === 0) continue;
+
+    // Hodinové agregáty: klíč = hourStart.getTime()
+    type HourAgg = {
+      hourStart: Date;
+      activeSeconds: number; idleSeconds: number; lockedSeconds: number;
+      keystrokeTotal: number; mouseTotal: number;
+      appActive: Map<string, number>;
+    };
+    const hourMap = new Map<number, HourAgg>();
+
+    // Denní agregáty
+    type DayAgg = {
+      day: Date;
+      work: number; nonwork: number; idle: number; unknown: number;
+      keystroke: number; typingMs: number; typingKs: number;
+      multiMon: number;
+      catMin: Map<string, number>;
+      monMin: Map<number, number>;
+      locMin: Map<string, number>;
+      appAgg: Map<string, { category: string; type: string; min: number }>;
+      siteAgg: Map<string, { category: string; type: string; min: number }>;
+    };
+    const dayMap = new Map<number, DayAgg>();
+
+    for (const it of intervals) {
+      const hStart = floorToHour(it.intervalStart);
+      const dStart = floorToDay(it.intervalStart);
+      const hKey = hStart.getTime();
+      const dKey = dStart.getTime();
+
+      let h = hourMap.get(hKey);
+      if (!h) { h = { hourStart: hStart, activeSeconds: 0, idleSeconds: 0, lockedSeconds: 0, keystrokeTotal: 0, mouseTotal: 0, appActive: new Map() }; hourMap.set(hKey, h); }
+      h.activeSeconds += it.activeSeconds;
+      h.idleSeconds += it.idleSeconds;
+      if (it.sessionLocked) h.lockedSeconds += it.intervalSeconds;
+      h.keystrokeTotal += it.keystrokeCount;
+      h.mouseTotal += it.mouseEvents;
+      if (it.foregroundApp) h.appActive.set(it.foregroundApp, (h.appActive.get(it.foregroundApp) ?? 0) + it.activeSeconds);
+
+      let d = dayMap.get(dKey);
+      if (!d) {
+        d = { day: dStart, work: 0, nonwork: 0, idle: 0, unknown: 0, keystroke: 0, typingMs: 0, typingKs: 0, multiMon: 0,
+              catMin: new Map(), monMin: new Map(), locMin: new Map(), appAgg: new Map(), siteAgg: new Map() };
+        dayMap.set(dKey, d);
+      }
+      const aMin = it.activeSeconds / 60;
+      d.idle += it.idleSeconds / 60;
+      d.keystroke += it.keystrokeCount;
+      d.typingMs += it.typingMs;
+      d.typingKs += it.typingKeystrokeCount;
+      if (aMin <= 0) continue;
+      if (it.monitorCount && it.monitorCount > 0) {
+        d.monMin.set(it.monitorCount, (d.monMin.get(it.monitorCount) ?? 0) + aMin);
+        if (it.monitorCount >= 2) d.multiMon += aMin;
+      }
+      const loc = resolveSite(it.clientIp, sites) ?? '';
+      d.locMin.set(loc, (d.locMin.get(loc) ?? 0) + aMin);
+      const info = classifyActivity(catMap, webRules, it.foregroundApp, it.windowTitle, deptRules, u.department);
+      if (info.type === 'NON_WORK') d.nonwork += aMin;
+      else if (info.type === 'UNKNOWN') d.unknown += aMin;
+      else { d.work += aMin; d.catMin.set(info.category, (d.catMin.get(info.category) ?? 0) + aMin); }
+      if (it.foregroundApp) {
+        const a = d.appAgg.get(it.foregroundApp) ?? { category: info.category, type: info.type, min: 0 };
+        a.min += aMin; d.appAgg.set(it.foregroundApp, a);
+        if (isBrowser(it.foregroundApp)) {
+          const label = extractSiteLabel(it.foregroundApp, it.windowTitle);
+          if (label) {
+            const s = d.siteAgg.get(label) ?? { category: info.category, type: info.type, min: 0 };
+            s.min += aMin; d.siteAgg.set(label, s);
+          }
+        }
+      }
+    }
+
+    // Bulk insert ActivityHourly
+    const hourlyRows = [...hourMap.values()].map((h) => {
+      let topApp: string | null = null; let best = -1;
+      for (const [app, secs] of h.appActive) if (secs > best) { best = secs; topApp = app; }
+      const activeMinutes = h.activeSeconds / 60;
+      return {
+        userId: u.id, hourStart: h.hourStart,
+        activeMinutes,
+        idleMinutes: h.idleSeconds / 60,
+        lockedMinutes: h.lockedSeconds / 60,
+        topApp,
+        keystrokeTotal: h.keystrokeTotal,
+        mouseTotal: h.mouseTotal,
+        avgKpm: activeMinutes > 0 ? h.keystrokeTotal / activeMinutes : 0,
+      };
+    });
+    if (hourlyRows.length) {
+      for (let i = 0; i < hourlyRows.length; i += 500) {
+        await prisma.activityHourly.createMany({ data: hourlyRows.slice(i, i + 500) });
+      }
+      hoursTotal += hourlyRows.length;
+    }
+
+    // Bulk insert DailyStat + DailyAppStat
+    const dailyRows: { userId: string; date: Date; workMin: number; nonWorkMin: number; idleMin: number; unknownMin: number; keystroke: number; typingMs: number; typingKeystrokeCount: number; monitorTop: number; multiMonitorMin: number; domWorkCat: string | null; site: string | null; suspicious: boolean }[] = [];
+    const dailyAppRows: { userId: string; date: Date; kind: string; label: string; category: string; type: string; activeMin: number }[] = [];
+    for (const d of dayMap.values()) {
+      let monitorTop = 0, mb = -1; for (const [c, m] of d.monMin) if (m > mb) { mb = m; monitorTop = c; }
+      let domWorkCat: string | null = null, db = -1; for (const [c, m] of d.catMin) if (m > db) { db = m; domWorkCat = c; }
+      let site: string | null = null, sb = -1; for (const [c, m] of d.locMin) if (m > sb) { sb = m; site = c || null; }
+      const integ = await computeIntegrity(u.id, d.day, addDays(d.day, 1));
+      dailyRows.push({
+        userId: u.id, date: d.day,
+        workMin: d.work, nonWorkMin: d.nonwork, idleMin: d.idle, unknownMin: d.unknown,
+        keystroke: d.keystroke, typingMs: d.typingMs, typingKeystrokeCount: d.typingKs,
+        monitorTop, multiMonitorMin: d.multiMon, domWorkCat, site, suspicious: integ.suspicious,
+      });
+      for (const [label, a] of d.appAgg) dailyAppRows.push({ userId: u.id, date: d.day, kind: 'APP', label, category: a.category, type: a.type, activeMin: a.min });
+      for (const [label, a] of d.siteAgg) dailyAppRows.push({ userId: u.id, date: d.day, kind: 'SITE', label, category: a.category, type: a.type, activeMin: a.min });
+    }
+    if (dailyRows.length) {
+      for (let i = 0; i < dailyRows.length; i += 500) {
+        await prisma.dailyStat.createMany({ data: dailyRows.slice(i, i + 500) });
+      }
+      daysTotal += dailyRows.length;
+    }
+    if (dailyAppRows.length) {
+      for (let i = 0; i < dailyAppRows.length; i += 500) {
+        await prisma.dailyAppStat.createMany({ data: dailyAppRows.slice(i, i + 500) });
+      }
+    }
+
+    if (processed % 100 === 0) {
+      // eslint-disable-next-line no-console
+      console.log(`  agregace: ${processed} / ${users.length} uživatelů (${hoursTotal} h, ${daysTotal} d)`);
+    }
+  }
+
+  // Resetuj PRAGMA do bezpečného stavu pro provoz.
+  try {
+    await prisma.$executeRawUnsafe('PRAGMA synchronous = NORMAL');
+    await prisma.$executeRawUnsafe('PRAGMA journal_mode = WAL');
+  } catch { /* ignoruj */ }
+
+  return { users: processed, hours: hoursTotal, days: daysTotal };
+}
+
+/**
  * Cílená reagregace po změně klasifikačního pravidla. Místo `aggregateAll()`
  * (která projde miliony intervalů) přepočítá jen intervaly, kterých se
  * pravidlo skutečně dotýká:

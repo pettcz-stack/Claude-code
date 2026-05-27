@@ -15,7 +15,7 @@
 
 import { Prisma } from '@prisma/client';
 import { prisma } from './db.js';
-import { aggregateAll } from './services/aggregate.js';
+import { aggregateAllFast } from './services/aggregate.js';
 import { ensureDefaultCategories } from './services/categories.js';
 import { DEFAULT_WEB_RULES } from './services/classify.js';
 import { ensureDefaultTips } from './services/tips.js';
@@ -454,9 +454,11 @@ async function main() {
     showDemoDevices: true,
   });
 
-  console.log('Spouštím agregaci (může trvat 1-3 min při 1.4M intervalech)…');
-  const hours = await aggregateAll();
-  console.log(`Seed hotov: ${created.length} uživatelů, ${absences.length} absencí, ${hours} agregačních párů.`);
+  console.log('Spouštím rychlou bulk agregaci (1× findMany + bulk insert per uživatel)…');
+  const aggT0 = Date.now();
+  const agg = await aggregateAllFast();
+  const aggSec = Math.round((Date.now() - aggT0) / 1000);
+  console.log(`Seed hotov: ${created.length} uživatelů, ${absences.length} absencí, ${agg.hours} hodinových agregátů, ${agg.days} denních (agregace ${aggSec}s).`);
 }
 
 /** Vyrobí 1 interval pro uživatele v konkrétní 15-min slot. */
