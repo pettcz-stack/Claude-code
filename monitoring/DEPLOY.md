@@ -196,13 +196,48 @@ docker compose exec postgres dropdb -U focus focus_restore_test
 
 ## 7. Monitorování provozu
 
-- Logy: `journalctl -u focus-backend` nebo `docker logs focus-backend`
-- Healthcheck: `GET https://focus.firma.cz/api/v1/health` → `{"status":"ok"}`
-- Doporučené metriky (vyžaduje Prometheus, viz roadmap):
-  - response time `/api/v1/ingest`
-  - active devices (= POST za poslední hodinu)
-  - DB connection pool utilization
-- Uptime monitor (Uptime Kuma, Statuscake) na `/api/v1/health`.
+### Healthcheck
+- `GET https://focus.firma.cz/api/v1/health` → `{"status":"ok"}`
+- Uptime monitor (Uptime Kuma, Statuscake) na tento endpoint.
+
+### Prometheus metriky
+Backend vystavuje metriky v Prometheus text formátu na `/api/v1/metrics`
+(public, bez auth – obsahuje jen agregáty, ne osobní data).
+
+```yaml
+# /etc/prometheus/prometheus.yml
+scrape_configs:
+  - job_name: 'focus'
+    metrics_path: '/api/v1/metrics'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['focus.firma.cz:443']
+    scheme: https
+```
+
+Dostupné metriky:
+- `focus_http_requests_total` – count všech HTTP requestů (counter)
+- `focus_http_errors_total` – HTTP responses ≥ 400 (counter)
+- `focus_ingest_success_total` / `focus_ingest_rejected_total` – ingest stats
+- `focus_login_success_total` / `focus_login_failed_total` – brute-force detekce
+- `focus_access_audit_events_total` – počet auditních zápisů
+- `focus_devices_active` – zařízení s ingest v posledních 60 min (gauge)
+- `focus_users_total` – počet aktivních monitorovaných uživatelů (gauge)
+- `focus_http_response_time_ms` – histogram latence
+
+### Doporučené alerty (Grafana Alerting / Prometheus)
+| Alert | Podmínka | Severita |
+|---|---|---|
+| Backend down | `up == 0` 2 min | critical |
+| Žádný ingest | `rate(focus_ingest_success_total[10m]) == 0` 30 min v pracovní době | warning |
+| Brute force | `rate(focus_login_failed_total[5m]) > 5/min` | critical |
+| Vysoké chybovosti | `rate(focus_http_errors_total[5m]) / rate(focus_http_requests_total[5m]) > 0.05` | warning |
+| Málo zařízení online | `focus_devices_active < očekávaný_počet * 0.5` v pracovní době | warning |
+
+### Logy
+- Docker: `docker compose logs -f backend`
+- Systemd: `journalctl -u focus-backend -f`
+- Doporučená rotace: `/etc/logrotate.d/focus` (Docker rotuje sám podle `--log-opt max-size`).
 
 ## 8. Aktualizace
 
