@@ -15,6 +15,11 @@ namespace WorkView.Agent
     {
         private static readonly object _lock = new object();
         private const int MAX_BUFFER = 200;
+        // Maximální velikost agent.log na disku. Při překročení se zrotuje na
+        // agent.log.1 (přepsání předchozího) a začne se nový agent.log.
+        // 1 MiB stačí pro několik dní debug výstupu; bez rotace by soubor rostl
+        // donekonečna a zůstal by na disku i po vyřazení PC (data leak).
+        private const long MAX_LOG_BYTES = 1024L * 1024L;
         private static readonly Queue<LogEntry> _buffer = new Queue<LogEntry>(MAX_BUFFER);
 
         public sealed class LogEntry
@@ -26,12 +31,20 @@ namespace WorkView.Agent
         public static void Write(string message)
         {
             string ts = DateTime.UtcNow.ToString("o");
-            // Soubor (best-effort)
+            // Soubor (best-effort) + rotace, když překročí limit.
             try
             {
                 string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "WorkView");
                 Directory.CreateDirectory(dir);
-                File.AppendAllText(Path.Combine(dir, "agent.log"), ts + "\t" + message + "\n");
+                string path = Path.Combine(dir, "agent.log");
+                FileInfo fi = new FileInfo(path);
+                if (fi.Exists && fi.Length > MAX_LOG_BYTES)
+                {
+                    string old = path + ".1";
+                    try { if (File.Exists(old)) File.Delete(old); } catch { }
+                    try { File.Move(path, old); } catch { }
+                }
+                File.AppendAllText(path, ts + "\t" + message + "\n");
             }
             catch { /* logování nesmí shodit agenta */ }
             // Buffer pro odeslání do dashboardu
