@@ -231,26 +231,50 @@ async function perUser(userIds: string[], from: Date, to: Date): Promise<Map<str
 }
 
 /**
- * Nejstarší den s daty pro každého uživatele (z dailyStat). Slouží k tomu,
- * abychom skóre / "Mimo PC" počítali jen od nasazení agenta a ne za celý
- * měsíc – jinak nově nasazený zaměstnanec vypadá jako celý měsíc neaktivní.
+ * Skutečný timestamp prvního intervalu (ne půlnoc dne) pro každého uživatele.
+ * Pokud agent nasazen v 14:00, vrátí 14:00 – pak "Mimo PC" nepočítá 8-14
+ * jako "PC vypnuté", protože jsme tehdy ještě neměřili.
  *
- * Bere v potaz i hranici `from` – pokud byl agent nasazen ještě dřív, vrátíme
- * `from` (řezeme jen okno, ne historii).
+ * Bere v potaz hranici `from` – pokud byl agent nasazen dřív, vrátíme `from`
+ * (jen ořežeme okno).
  */
 async function firstSeenInRange(userIds: string[], from: Date): Promise<Map<string, Date>> {
-  const rows = await prisma.dailyStat.groupBy({
+  const rows = await prisma.activityInterval.groupBy({
     by: ['userId'],
     where: { userId: { in: userIds } },
-    _min: { date: true },
+    _min: { intervalStart: true },
   });
   const map = new Map<string, Date>();
   for (const r of rows) {
-    if (!r._min.date) continue;
-    const firstDate = r._min.date > from ? r._min.date : from;
-    map.set(r.userId, firstDate);
+    if (!r._min.intervalStart) continue;
+    const firstTs = r._min.intervalStart > from ? r._min.intervalStart : from;
+    map.set(r.userId, firstTs);
   }
   return map;
+}
+
+/**
+ * Spočítá očekávané pracovní minuty pro uživatele s ohledem na:
+ * 1) den nasazení agenta (žádné expected před prvním intervalem),
+ * 2) skutečně uplynulý čas (žádné expected v budoucnosti),
+ * 3) workdays + svátky + dovolenou.
+ *
+ * Strop = effectiveWorkdays × 8 h. Dno = uplynulé minuty od nasazení.
+ * `min(strop, uplynulé)` zabrání tomu, aby nově nasazený agent vykazoval
+ * "Mimo PC: 6h" jen proto, že dnes je workday s 8h fondem.
+ */
+function computeExpectedMinutes(
+  userFrom: Date,
+  to: Date,
+  holidays: Set<string>,
+  absenceDays: Set<string> | undefined,
+  workHoursPerDay: number,
+): number {
+  const now = Date.now();
+  const cap = Math.min(to.getTime(), now);
+  const calendar = effectiveWorkdays(userFrom, to, holidays, absenceDays) * workHoursPerDay * 60;
+  const elapsedMinutes = Math.max(0, (cap - userFrom.getTime()) / 60_000);
+  return Math.min(calendar, elapsedMinutes);
 }
 
 const clampPct = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
@@ -339,13 +363,14 @@ export async function overview(from: Date, to: Date, department?: string | strin
   // Fond na uživatele bez svátků a jeho dovolené/nemoci → volno nesnižuje skóre.
   const holidays = holidayWeekdaySet(from, to);
   const absMap = await absenceByUser(ids, from, to, holidays);
-  // Pro každého uživatele používáme efektivní začátek = max(from, firstSeenAt).
-  // Bez tohoto by nově nasazený agent vypadal jako "Mimo PC celý měsíc",
-  // protože expected hours by se počítaly i pro dny, kdy agent ještě neběžel.
+  // Pro každého uživatele používáme efektivní začátek = max(from, prvni
+  // skutecny intervalStart) a expected je strop = effectiveWorkdays × 8h
+  // ale soucasne dno = uplynule minuty od prvni aktivity.
+  // Bez tohoto by nově nasazený agent vypadal jako "Mimo PC celý měsíc".
   const firstSeen = await firstSeenInRange(ids, from);
   const expOf = (id: string) => {
     const userFrom = firstSeen.get(id) ?? from;
-    return effectiveWorkdays(userFrom, to, holidays, absMap.get(id)?.days) * config.expectedWorkHoursPerDay * 60;
+    return computeExpectedMinutes(userFrom, to, holidays, absMap.get(id)?.days, config.expectedWorkHoursPerDay);
   };
 
   const cur = await perUser(ids, from, to);

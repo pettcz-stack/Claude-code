@@ -388,7 +388,9 @@ export default function App() {
           )}
           {tab === 'apps' && (
             <div className="space-y-4">
-              <TopActivities from={from} to={to} department={department || undefined} />
+              {/* V Klasifikaci je TopActivities editovatelne – admin muze
+                  inline reklasifikovat aplikace/weby kliknutim na chip. */}
+              <TopActivities from={from} to={to} department={department || undefined} editable={me.role === 'ADMIN'} />
               <CategoryAdmin canEdit={me.role === 'ADMIN'} from={from} to={to} />
             </div>
           )}
