@@ -230,3 +230,57 @@ export async function aggregateAll(): Promise<number> {
   });
   return aggregateForIntervals(rows);
 }
+
+/**
+ * Cílená reagregace po změně klasifikačního pravidla. Místo `aggregateAll()`
+ * (která projde miliony intervalů) přepočítá jen intervaly, kterých se
+ * pravidlo skutečně dotýká:
+ *
+ *  - `appName`: intervaly s `foregroundApp == appName` (typicky `chrome.exe`)
+ *  - `keyword`: intervaly s `windowTitle LIKE '%keyword%'` (případ webrule)
+ *  - `department`: intervaly všech uživatelů v daném oddělení (deptrule)
+ *
+ * Pro demo (≤ 50 uživatelů × 30 dní) běžně < 100k řádků – < 2s.
+ * Pro produkci 500 uživatelů × 90 dní s 1M intervalů: kdyby pravidlo
+ * trefí 5 % (typický browser), je to 50k řádků = ~5s background job.
+ *
+ * Pokud nic z výše uvedeného nesedí (např. odstranění pravidla), fallback
+ * na aggregateAll.
+ */
+export async function reaggregateByClassificationChange(opts: {
+  appName?: string;
+  keyword?: string;
+  department?: string;
+}): Promise<number> {
+  const filters: { OR?: object[] } = {};
+  const conditions: object[] = [];
+
+  if (opts.appName) {
+    conditions.push({ foregroundApp: opts.appName });
+  }
+  if (opts.keyword) {
+    // SQLite & PostgreSQL: both support contains via Prisma's `contains`.
+    conditions.push({ windowTitle: { contains: opts.keyword } });
+  }
+  if (opts.department) {
+    const userIds = (
+      await prisma.monitoredUser.findMany({
+        where: { department: opts.department },
+        select: { id: true },
+      })
+    ).map((u) => u.id);
+    if (userIds.length > 0) conditions.push({ userId: { in: userIds } });
+  }
+
+  if (conditions.length === 0) {
+    // Žádný cílený filter – musíme přepočítat vše. Fallback chovaní.
+    return aggregateAll();
+  }
+  filters.OR = conditions;
+
+  const rows = await prisma.activityInterval.findMany({
+    where: filters,
+    select: { userId: true, intervalStart: true },
+  });
+  return aggregateForIntervals(rows);
+}

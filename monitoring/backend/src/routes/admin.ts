@@ -7,19 +7,20 @@ import { smtpEnabled } from '../config.js';
 import { getSettings, saveSettings } from '../services/settings.js';
 import { runAlertChecks } from '../services/alerts.js';
 import { clearCache } from '../services/cache.js';
-import { aggregateAll } from '../services/aggregate.js';
+import { reaggregateByClassificationChange } from '../services/aggregate.js';
 
 /**
- * Po každé změně klasifikačních pravidel: smaž cache + spusť reagregaci
- * (přepočítá `type`/`category` všech historických dailyAppStat / dailyStat
- * podle nových pravidel). Reagregace běží na pozadí, response se vrátí hned.
- * Bez tohoto by Top weby / aplikace ukazovaly staré `nezařazeno` i po
- * přidání pravidla.
+ * Po každé změně klasifikačních pravidel: smaž cache + spusť **cílenou**
+ * reagregaci (jen intervaly dotčené tímhle pravidlem, ne všech).
+ * Pro chrome.exe = 5 % všech intervalů místo 100 %. Background fire-and-forget.
  */
-function rebuildClassificationAsync(label: string): void {
+function rebuildClassificationAsync(
+  label: string,
+  scope: { appName?: string; keyword?: string; department?: string },
+): void {
   clearCache();
-  aggregateAll().then((n) => {
-    console.log(`[reaggregate] po změně ${label}: přepočítáno ${n} intervalů`);
+  reaggregateByClassificationChange(scope).then((n) => {
+    console.log(`[reaggregate] po změně ${label}: přepočítáno ${n} intervalů (cílená)`);
   }).catch((err) => {
     console.error(`[reaggregate] ${label} selhalo:`, err);
   });
@@ -457,12 +458,12 @@ adminRouter.post('/categories', requireRole('ADMIN'), async (req, res) => {
       ...(p.data.costPerSeat !== undefined ? { costPerSeat: p.data.costPerSeat } : {}),
     },
   });
-  rebuildClassificationAsync(`category ${p.data.appName} → ${p.data.type}`);
+  rebuildClassificationAsync(`category ${p.data.appName} → ${p.data.type}`, { appName: p.data.appName });
   res.json({ category: row });
 });
 adminRouter.delete('/categories/:appName', requireRole('ADMIN'), async (req, res) => {
   await prisma.appCategory.deleteMany({ where: { appName: req.params.appName } });
-  rebuildClassificationAsync(`delete category ${req.params.appName}`);
+  rebuildClassificationAsync(`delete category ${req.params.appName}`, { appName: req.params.appName });
   res.json({ ok: true });
 });
 
@@ -479,12 +480,12 @@ adminRouter.post('/webrules', requireRole('ADMIN'), async (req, res) => {
     create: p.data,
     update: { category: p.data.category, type: p.data.type },
   });
-  rebuildClassificationAsync(`webrule ${p.data.keyword} → ${p.data.type}`);
+  rebuildClassificationAsync(`webrule ${p.data.keyword} → ${p.data.type}`, { keyword: p.data.keyword });
   res.json({ rule: row });
 });
 adminRouter.delete('/webrules/:keyword', requireRole('ADMIN'), async (req, res) => {
   await prisma.webRule.deleteMany({ where: { keyword: req.params.keyword } });
-  rebuildClassificationAsync(`delete webrule ${req.params.keyword}`);
+  rebuildClassificationAsync(`delete webrule ${req.params.keyword}`, { keyword: req.params.keyword });
   res.json({ ok: true });
 });
 
@@ -506,12 +507,14 @@ adminRouter.post('/dept-rules', requireRole('ADMIN'), async (req, res) => {
     create: p.data,
     update: { type: p.data.type },
   });
-  rebuildClassificationAsync(`dept-rule ${p.data.department}/${p.data.category} → ${p.data.type}`);
+  rebuildClassificationAsync(`dept-rule ${p.data.department}/${p.data.category} → ${p.data.type}`, { department: p.data.department });
   res.json({ rule: row });
 });
 adminRouter.delete('/dept-rules/:id', requireRole('ADMIN'), async (req, res) => {
+  // Najít department PŘED smazáním, abychom mohli reagregovat jen jeho uživatele.
+  const rule = await prisma.deptClassification.findUnique({ where: { id: req.params.id }, select: { department: true } });
   await prisma.deptClassification.deleteMany({ where: { id: req.params.id } });
-  rebuildClassificationAsync(`delete dept-rule ${req.params.id}`);
+  rebuildClassificationAsync(`delete dept-rule ${req.params.id}`, rule ? { department: rule.department } : {});
   res.json({ ok: true });
 });
 
