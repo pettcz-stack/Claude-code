@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { HeartPulse, AlertTriangle, AlertOctagon, CheckCircle2, BatteryLow, HardDrive, Cpu, ShieldOff, RefreshCw, X, Trash2 } from 'lucide-react';
 import { api, type DeviceHealthRow, type DeviceHealthDetail, type HealthStatus } from './api.js';
 import { useT, type Locale } from './i18n/index.js';
+import { useSort, SortHeader } from './tableSort.js';
 
 // Mapování locale → BCP-47 pro toLocale*String (čeština chce 'cs-CZ' atd.)
 function bcp47(locale: Locale): string {
@@ -48,7 +49,11 @@ export function HardwareHealthView() {
   }
   useEffect(load, []);
 
-  const filtered = rows.filter((r) => (filter === 'ALL' || r.status === filter) && (!search || r.hostname.toLowerCase().includes(search.toLowerCase()) || (r.model ?? '').toLowerCase().includes(search.toLowerCase()) || (r.primaryUser ?? '').toLowerCase().includes(search.toLowerCase())));
+  const filtered = useMemo(() => rows.filter((r) => (filter === 'ALL' || r.status === filter) && (!search || r.hostname.toLowerCase().includes(search.toLowerCase()) || (r.model ?? '').toLowerCase().includes(search.toLowerCase()) || (r.primaryUser ?? '').toLowerCase().includes(search.toLowerCase()))), [rows, filter, search]);
+  // Razeni napric sloupci. Vychozi status (critical/warn/ok/unreported jako string),
+  // ale localeCompare zarazuje stejne pri opakovanem kliku, tedy v praxi to znamena
+  // alfabeticky. Manazer pak nejcasteji prepne na batteryHealthPct asc.
+  const { sorted: sortedRows, key: sortKey, dir: sortDir, setSort } = useSort(filtered, 'status', 'asc');
 
   return (
     <div className="space-y-4">
@@ -93,13 +98,19 @@ export function HardwareHealthView() {
         <div className="overflow-auto">
           <table className="w-full">
             <thead><tr className="text-left">
-              <th className="th">{t('health.columnState')}</th><th className="th">{t('health.columnHostUser')}</th><th className="th">{t('health.columnModel')}</th>
-              <th className="th">{t('health.battery')}</th><th className="th">{t('health.columnDisk')}</th><th className="th">{t('health.ram')}</th>
-              <th className="th">{t('health.columnUpdates')}</th><th className="th">{t('health.columnAntivirus')}</th><th className="th">{t('health.columnMessages')}</th>
+              <SortHeader sortKey="status" current={sortKey} dir={sortDir} onChange={setSort}>{t('health.columnState')}</SortHeader>
+              <SortHeader sortKey="hostname" current={sortKey} dir={sortDir} onChange={setSort}>{t('health.columnHostUser')}</SortHeader>
+              <SortHeader sortKey="model" current={sortKey} dir={sortDir} onChange={setSort}>{t('health.columnModel')}</SortHeader>
+              <SortHeader sortKey="batteryHealthPct" current={sortKey} dir={sortDir} onChange={setSort}>{t('health.battery')}</SortHeader>
+              <SortHeader sortKey="diskTopUsedPct" current={sortKey} dir={sortDir} onChange={setSort}>{t('health.columnDisk')}</SortHeader>
+              <SortHeader sortKey="ramUsedPct" current={sortKey} dir={sortDir} onChange={setSort}>{t('health.ram')}</SortHeader>
+              <SortHeader sortKey="pendingUpdates" current={sortKey} dir={sortDir} onChange={setSort}>{t('health.columnUpdates')}</SortHeader>
+              <SortHeader sortKey="antivirusEnabled" current={sortKey} dir={sortDir} onChange={setSort}>{t('health.columnAntivirus')}</SortHeader>
+              <th className="th">{t('health.columnMessages')}</th>
               <th className="th w-10"></th>
             </tr></thead>
             <tbody>
-              {filtered.map((r) => (
+              {sortedRows.map((r) => (
                 <tr key={r.deviceId} className="divide-row cursor-pointer hover:bg-emerald-50/30 dark:hover:bg-emerald-500/5" onClick={() => api.deviceHealthDetail(r.deviceId).then(setOpen)}>
                   <td className="td"><StatusBadge s={r.status} /></td>
                   <td className="td">
@@ -132,7 +143,7 @@ export function HardwareHealthView() {
                   </td>
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td className="td muted-2" colSpan={10}>{loading ? t('common.loading') : t('health.noMatch')}</td></tr>}
+              {sortedRows.length === 0 && <tr><td className="td muted-2" colSpan={10}>{loading ? t('common.loading') : t('health.noMatch')}</td></tr>}
             </tbody>
           </table>
         </div>
