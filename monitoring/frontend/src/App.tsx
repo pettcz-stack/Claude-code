@@ -31,59 +31,63 @@ import { isoDate, startOfLocalDay } from './util.js';
 type Tab = 'overview' | 'homeoffice' | 'detail' | 'selfreport' | 'scoreboard' | 'alerts' | 'trends' | 'apps' | 'software' | 'calendar' | 'summary' | 'admin' | 'settings' | 'health';
 type PeriodMode = 'day' | 'week' | 'month' | 'custom';
 
-type NavItem = { id: Tab; label: string; Icon: typeof UserIcon };
-const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
+type NavItem = { id: Tab; labelKey: string; Icon: typeof UserIcon };
+// Statická definice – labelKey jsou klíče i18n, popisky se získají přes t() v komponentě.
+const NAV_SECTIONS_STATIC: { titleKey: string; items: NavItem[] }[] = [
   {
-    title: 'Přehled',
+    titleKey: 'nav.sectionAnalytics',
     items: [
-      { id: 'overview', label: 'Přehled firmy', Icon: LayoutDashboard },
-      { id: 'scoreboard', label: 'Žebříček', Icon: Trophy },
-      { id: 'trends', label: 'Trendy', Icon: TrendingUp },
-      { id: 'alerts', label: 'Upozornění', Icon: ShieldAlert },
+      { id: 'overview', labelKey: 'nav.overview', Icon: LayoutDashboard },
+      { id: 'scoreboard', labelKey: 'nav.summary', Icon: Trophy },
+      { id: 'trends', labelKey: 'nav.trend', Icon: TrendingUp },
+      { id: 'alerts', labelKey: 'nav.alerts', Icon: ShieldAlert },
     ],
   },
   {
-    title: 'Zaměstnanci',
+    titleKey: 'nav.sectionPersonal',
     items: [
-      { id: 'detail', label: 'Detail uživatele', Icon: UserIcon },
-      { id: 'selfreport', label: 'Report zaměstnance', Icon: BadgeCheck },
-      { id: 'homeoffice', label: 'Home Office', Icon: House },
-      { id: 'calendar', label: 'Kalendář', Icon: CalendarDays },
+      { id: 'detail', labelKey: 'nav.detail', Icon: UserIcon },
+      { id: 'selfreport', labelKey: 'nav.selfReport', Icon: BadgeCheck },
+      { id: 'homeoffice', labelKey: 'nav.homeoffice', Icon: House },
+      { id: 'calendar', labelKey: 'nav.calendar', Icon: CalendarDays },
     ],
   },
   {
-    title: 'Náklady & software',
+    titleKey: 'nav.software',
     items: [
-      { id: 'software', label: 'Software & náklady', Icon: KeyRound },
-      { id: 'apps', label: 'Aplikace & weby', Icon: AppWindow },
-      { id: 'summary', label: 'Firemní přehled', Icon: Table2 },
+      { id: 'software', labelKey: 'nav.software', Icon: KeyRound },
+      { id: 'apps', labelKey: 'nav.category', Icon: AppWindow },
+      { id: 'summary', labelKey: 'nav.summary', Icon: Table2 },
     ],
   },
   {
-    title: 'Systém',
+    titleKey: 'nav.sectionAdmin',
     items: [
-      { id: 'admin', label: 'Správa', Icon: Shield },
-      { id: 'health', label: 'IT – zdraví zařízení', Icon: HeartPulse },
-      { id: 'settings', label: 'Nastavení', Icon: SlidersHorizontal },
+      { id: 'admin', labelKey: 'nav.admin', Icon: Shield },
+      { id: 'health', labelKey: 'nav.health', Icon: HeartPulse },
+      { id: 'settings', labelKey: 'nav.settings', Icon: SlidersHorizontal },
     ],
   },
 ];
-const NAV: NavItem[] = NAV_SECTIONS.flatMap((s) => s.items);
+const NAV_FLAT: NavItem[] = NAV_SECTIONS_STATIC.flatMap((s) => s.items);
 
 function WarmingScreen() {
+  // useT lze volat protože komponenta je render uvnitř I18nProvider.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { t } = useT();
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-50 dark:bg-slate-900">
       <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-gray-200 border-t-emerald-500 dark:border-slate-700 dark:border-t-emerald-400" />
       <div className="text-center">
-        <div className="text-sm font-semibold">Připravuji přehledy…</div>
-        <div className="mt-1 text-xs muted-2">Načítám a předpočítávám data, ať je vše svižné.</div>
+        <div className="text-sm font-semibold">{t('warming.title')}</div>
+        <div className="mt-1 text-xs muted-2">{t('warming.subtitle')}</div>
       </div>
     </div>
   );
 }
 
 export default function App() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [theme, toggleTheme] = useTheme();
   const [me, setMe] = useState<Me | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -164,15 +168,15 @@ export default function App() {
   const dark = theme === 'dark';
 
   const commands: Command[] = useMemo(() => {
-    const pages: Command[] = NAV.map((n) => ({ id: 'p:' + n.id, label: n.label, hint: 'stránka', onSelect: () => setTab(n.id) }));
+    const pages: Command[] = NAV_FLAT.map((n) => ({ id: 'p:' + n.id, label: t(n.labelKey), hint: t('common.settings'), onSelect: () => setTab(n.id) }));
     const people: Command[] = users.map((u) => ({
       id: 'u:' + u.id,
       label: u.displayName ?? u.sid,
-      hint: u.department ?? 'zaměstnanec',
+      hint: u.department ?? t('common.user'),
       onSelect: () => { setUserId(u.id); setTab('detail'); },
     }));
     return [...pages, ...people];
-  }, [users]);
+  }, [users, t]);
 
   const { from, to } = useMemo(() => {
     const todayStart = startOfLocalDay(new Date());
@@ -187,17 +191,19 @@ export default function App() {
   function shiftDay(delta: number) { setDay((d) => { const x = new Date(d); x.setDate(x.getDate() + delta); return x; }); }
 
   if (selfToken) return <EmployeeSelfReport token={selfToken} />;
-  if (!authChecked) return <div className="p-6 muted-2">Načítám…</div>;
+  if (!authChecked) return <div className="p-6 muted-2">{t('common.loading')}</div>;
   if (!me) return <Login onLogin={setMe} />;
   if (!warmed) return <WarmingScreen />;
 
   const needsUser = tab === 'detail' || tab === 'calendar' || tab === 'selfreport';
   const needsPeriod = tab === 'overview' || tab === 'homeoffice' || tab === 'detail' || tab === 'selfreport' || tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'software' || tab === 'trends' || tab === 'alerts';
   const needsDept = tab === 'overview' || tab === 'homeoffice' || tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'software' || tab === 'trends' || tab === 'alerts';
-  const title = NAV.find((n) => n.id === tab)?.label ?? '';
+  const titleKey = NAV_FLAT.find((n) => n.id === tab)?.labelKey ?? '';
+  const title = titleKey ? t(titleKey) : '';
 
   // čitelný rozsah období do hlavičky (to je exkluzivní konec → −1 den)
-  const fmt = (iso: string) => new Date(iso).toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric' });
+  const bcp47 = locale === 'cs' ? 'cs-CZ' : locale === 'sk' ? 'sk-SK' : locale === 'en' ? 'en-GB' : locale === 'pl' ? 'pl-PL' : 'de-DE';
+  const fmt = (iso: string) => new Date(iso).toLocaleDateString(bcp47, { day: 'numeric', month: 'numeric', year: 'numeric' });
   const rangeLabel = tab === 'calendar'
     ? isoDate(day)
     : `${fmt(from)} – ${fmt(new Date(new Date(to).getTime() - 86400000).toISOString())}`;
@@ -220,10 +226,10 @@ export default function App() {
           </div>
         </div>
         <nav className="flex-1 space-y-4 overflow-y-auto px-3 py-1">
-          {NAV_SECTIONS.map((section) => (
-            <div key={section.title} className="space-y-1">
-              <div className="px-3 text-[10px] font-semibold uppercase tracking-wider muted-2">{section.title}</div>
-              {section.items.map(({ id, label, Icon }) => {
+          {NAV_SECTIONS_STATIC.map((section) => (
+            <div key={section.titleKey} className="space-y-1">
+              <div className="px-3 text-[10px] font-semibold uppercase tracking-wider muted-2">{t(section.titleKey)}</div>
+              {section.items.map(({ id, labelKey, Icon }) => {
                 const activeItem = tab === id;
                 return (
                   <button key={id} onClick={() => setTab(id)} aria-current={activeItem ? 'page' : undefined}
@@ -231,7 +237,7 @@ export default function App() {
                       activeItem ? 'bg-emerald-50 font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
                       : 'muted hover:bg-gray-100 dark:hover:bg-slate-700/50'}`}>
                     {activeItem && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r bg-emerald-500" />}
-                    <Icon size={18} /> {label}
+                    <Icon size={18} /> {t(labelKey)}
                   </button>
                 );
               })}
@@ -242,7 +248,7 @@ export default function App() {
           <div className="flex items-center justify-between gap-2">
             <button onClick={toggleTheme} className="btn-ghost flex-1 justify-start">
               {dark ? <Sun size={16} /> : <Moon size={16} />}
-              <span className="hidden lg:inline">{dark ? t('common.off') === 'Off' ? 'Light mode' : 'Světlý režim' : 'Dark'}</span>
+              <span className="hidden lg:inline">{dark ? t('common.lightMode') : t('common.darkMode')}</span>
             </button>
             <LanguageSwitcher compact />
           </div>
@@ -256,13 +262,13 @@ export default function App() {
       {/* Obsah */}
       <div className="flex-1 overflow-x-hidden">
         <header className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-gray-200 bg-gray-50/80 px-4 py-3 backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/80 sm:px-6">
-          <button onClick={() => setSidebarOpen(true)} className="btn-ghost px-2 lg:hidden" title="Menu"><Menu size={18} /></button>
+          <button onClick={() => setSidebarOpen(true)} className="btn-ghost px-2 lg:hidden" title={t('common.menu')}><Menu size={18} /></button>
           <div>
             <h1 className="text-lg font-semibold leading-tight">{title}</h1>
             {(needsPeriod || tab === 'calendar') && <div className="text-xs muted-2">{rangeLabel}</div>}
           </div>
-          <button onClick={() => setCmdOpen(true)} className="btn-ghost ml-2 hidden items-center gap-2 sm:flex" title="Hledat (Ctrl+K)">
-            <Search size={15} /> <span className="muted-2">Hledat</span>
+          <button onClick={() => setCmdOpen(true)} className="btn-ghost ml-2 hidden items-center gap-2 sm:flex" title={t('common.search') + ' (Ctrl+K)'}>
+            <Search size={15} /> <span className="muted-2">{t('common.search')}</span>
             <span className="rounded border border-gray-300 px-1.5 py-0.5 text-[10px] muted-2 dark:border-slate-600">⌘K</span>
           </button>
           <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -284,7 +290,7 @@ export default function App() {
                   {(['day', 'week', 'month', 'custom'] as PeriodMode[]).map((m) => (
                     <button key={m} onClick={() => setMode(m)}
                       className={`rounded px-3 py-1 ${mode === m ? 'bg-white shadow-sm dark:bg-slate-700' : 'muted'}`}>
-                      {m === 'day' ? 'Den' : m === 'week' ? 'Týden' : m === 'month' ? 'Měsíc' : 'Vlastní'}
+                      {t(`common.${m}`)}
                     </button>
                   ))}
                 </div>
@@ -306,7 +312,7 @@ export default function App() {
             )}
             {needsDept && (
               <select value={department} onChange={(e) => setDepartment(e.target.value)} className="field">
-                <option value="">Všechna oddělení</option>
+                <option value="">{t('common.allDepartments')}</option>
                 {departments.map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
             )}
