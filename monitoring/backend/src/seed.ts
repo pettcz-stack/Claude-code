@@ -741,6 +741,29 @@ async function main() {
  *   4) `isLunch` – 30 min locked uprostřed dne
  *   5) Friday/Monday dow multiplikátor aplikovaný v `dayMul` callerem
  */
+/**
+ * Vyrobí 1 interval pro uživatele v konkrétní 15-min slot.
+ *
+ * DŮLEŽITÉ – škála:
+ *   intervalSeconds: 900 (= 15 min reálného času)
+ *   activeSeconds:   0-900 (= reálný čas aktivity v tom 15-min okně)
+ *   keystrokeCount:  0-3000 (~ 200 kps/min × 15 min při focused typing)
+ *   mouseEvents:     0-1000
+ *   typingMs:        0-900_000
+ *
+ * Pozn.: Production agent posílá 60s intervaly, ale agregace sčítá activeSeconds
+ * napříč všemi intervaly v hodině/dni, takže škála demo dat = škála produkce
+ * (480 min/den max work pro 8h prac. doby).
+ *
+ * Variance vrstvy:
+ *   1) `dayMul` ∈ 0.55-1.45 (per-day kvalita, hash userId+den × consistency)
+ *   2) `hourCurve` ∈ 0.15-1.10 (warmup, lunch, peak)
+ *   3) `persona` – 14 typů s různými app pooly
+ *   4) `c.lockProb` per-user (sales/manageři často mimo PC)
+ *   5) `isLunch` – obědová pauza
+ *   6) Friday/Monday dow multiplikátor aplikovaný v `dayMul` callerem
+ */
+const INT_SEC = 900; // 15 min v sekundách
 function makeRow(
   c: Person, intervalStart: Date, isHO: boolean,
   hour: number, minute: number, dayMul: number,
@@ -753,7 +776,7 @@ function makeRow(
     userId: c.id,
     deviceId: c.deviceId,
     intervalStart,
-    intervalSeconds: 60,
+    intervalSeconds: INT_SEC,
     activeSeconds: 0,
     idleSeconds: 0,
     keystrokeCount: 0,
@@ -765,45 +788,45 @@ function makeRow(
     typingKeystrokeCount: 0,
   };
 
-  // Lunch break (30 min uprostřed dne) – krátká pauza, idle (ne locked, většina lidí
-  // zamkne až když odchází ze stolu, na obědě jen někteří)
+  // Lunch break – idle, většina jen necháva PC zapnutý
   if (isLunch) {
     return Math.random() < 0.40
-      ? { ...base, sessionLocked: true, activeSeconds: 0, idleSeconds: 60 }
-      : { ...base, sessionLocked: false, activeSeconds: 0, idleSeconds: 60 };
+      ? { ...base, sessionLocked: true, idleSeconds: INT_SEC }
+      : { ...base, idleSeconds: INT_SEC };
   }
 
-  // Cheateři – konstantní strojový vzor (cheater_subtle filtrován v calleru, ten chodí přes normální cestu)
+  // Cheateři – konstantní strojový vzor po celých 15 min
+  // (mouse jiggler: ~52 events/min × 15 = ~780; keyboard bot: ~180/min × 15 = ~2700)
   if (persona === 'cheater_mouse') {
-    return { ...base, activeSeconds: 60, idleSeconds: 0, foregroundApp: 'chrome.exe', windowTitle: 'YouTube', mouseEvents: 52 + rnd(5), keystrokeCount: 0 };
+    return { ...base, activeSeconds: INT_SEC, foregroundApp: 'chrome.exe', windowTitle: 'YouTube', mouseEvents: 780 + rnd(80), keystrokeCount: 0 };
   }
   if (persona === 'cheater_keyboard') {
-    return { ...base, activeSeconds: 60, idleSeconds: 0, foregroundApp: 'winword.exe', windowTitle: null, keystrokeCount: 180 + rnd(8), mouseEvents: rnd(3), typingMs: 60_000, typingKeystrokeCount: 180 + rnd(8) };
+    const ks = 2700 + rnd(120);
+    return { ...base, activeSeconds: INT_SEC, foregroundApp: 'winword.exe', windowTitle: null, keystrokeCount: ks, mouseEvents: rnd(15), typingMs: INT_SEC * 1000, typingKeystrokeCount: ks };
   }
 
-  // ── "Mimo PC" rozhodnutí: per-user lockProb × hourCurve faktor.
-  // Toto je hlavní zdroj rozdílů v PC času mezi lidmi. Lock prob je per-persona,
-  // ale modulovaná hodinou (lunch i mimo lunch méně lock, ráno víc).
+  // Mimo PC rozhodnutí – per-user lockProb modulovaný hodinou
   const hMul = hourCurve(hour, minute);
-  const lockMul = hMul < 0.5 ? 1.4 : hMul > 1.0 ? 0.6 : 1.0; // ráno/pozdě častěji mimo PC, v peaku méně
+  const lockMul = hMul < 0.5 ? 1.4 : hMul > 1.0 ? 0.6 : 1.0;
   if (Math.random() < c.lockProb * lockMul) {
-    return { ...base, sessionLocked: true, activeSeconds: 0, idleSeconds: 60 };
+    return { ...base, sessionLocked: true, idleSeconds: INT_SEC };
   }
 
   // Gameři: 12:30-13:00 sneak hra (jen Po/St/Pá)
   const dow = new Date(intervalStart).getUTCDay();
   if (persona === 'gamer' && hour === 12 && minute >= 30 && (dow === 1 || dow === 3 || dow === 5)) {
-    return { ...base, activeSeconds: 55, idleSeconds: 5, foregroundApp: 'steam.exe', windowTitle: pick(['Counter-Strike 2', 'Dota 2', 'League of Legends']), mouseEvents: 80 + rnd(40), keystrokeCount: 40 + rnd(40) };
+    return { ...base, activeSeconds: 800, idleSeconds: 100, foregroundApp: 'steam.exe', windowTitle: pick(['Counter-Strike 2', 'Dota 2', 'League of Legends']), mouseEvents: 1200 + rnd(600), keystrokeCount: 600 + rnd(600) };
   }
 
   // ── Když JE u PC: výkon = baseDiligence × dayMul × hodinová křivka × HO dip ──
   const dipFactor = isHO ? 1 - c.hoDip : 1;
   const effectiveDiligence = Math.max(0.15, Math.min(0.98, c.baseDiligence * dayMul * dipFactor));
 
-  // Hodinová křivka teď ovlivňuje JEN šíři "active" pásma, ne celkové processing.
-  // Tj. v peak hour je člověk plně aktivní (55s), v warmup jen 30-40s.
-  const peakActive = Math.round(effectiveDiligence * 60); // max 60s
-  const hourScale = 0.65 + hMul * 0.30; // 0.65 - 0.99 (peak vs warmup)
+  // Aktivní čas v rámci 15-min slotu (max 900s):
+  //   peakActive = baseline pro tento interval (kolik z 900s je aktivní)
+  //   hourScale = škála dle hodiny (warmup 65%, peak 99%)
+  const peakActive = Math.round(effectiveDiligence * INT_SEC); // 0-900
+  const hourScale = 0.65 + hMul * 0.30;
 
   // Per-persona "non-work" pravděpodobnost
   let nonWorkProb: number;
@@ -824,46 +847,54 @@ function makeRow(
 
   if (persona === 'streamer' && hour >= 14 && Math.random() < 0.35) {
     app = 'chrome.exe'; title = pick(['YouTube – Long video essay', 'Netflix – Watching', 'Twitch – streamer live']);
-    active = 10 + rnd(15);
+    active = 150 + rnd(300); // 2.5-7.5 min ze 15 (běží to v pozadí)
   } else if (persona === 'social_media' && Math.random() < 0.18) {
     app = 'chrome.exe'; title = pick(['Facebook', 'Instagram', 'LinkedIn – feed']);
-    active = Math.round((25 + rnd(20)) * hourScale);
+    active = Math.round((400 + rnd(300)) * hourScale);
   } else if (persona === 'chatty' && Math.random() < 0.45) {
     app = Math.random() < 0.7 ? 'teams.exe' : 'slack.exe';
     title = pick(['Obecné – chat', 'Tým call', 'Direct message']);
-    active = Math.round((40 + rnd(15)) * hourScale);
+    active = Math.round((600 + rnd(250)) * hourScale);
   } else if (r < nonWorkProb) {
     if (Math.random() < 0.6) { app = 'chrome.exe'; title = pick(BROWSER_NONWORK_TITLES); }
     else { app = pick(NONWORK_APPS); }
-    active = Math.round((30 + rnd(20)) * hourScale);
+    active = Math.round((450 + rnd(300)) * hourScale);
   } else if (r < nonWorkProb + 0.10) {
     app = 'chrome.exe'; title = pick(BROWSER_WORK_TITLES);
-    active = Math.round((peakActive - rnd(8)) * hourScale);
+    active = Math.round((peakActive - rnd(120)) * hourScale);
   } else if (Math.random() < 0.03) {
     app = pick(UNKNOWN_APPS);
-    active = Math.round((35 + rnd(15)) * hourScale);
+    active = Math.round((550 + rnd(250)) * hourScale);
   } else {
     const w = pick(c.workPool);
     app = w[0]; title = w[1];
-    // Většina intervalů aktivních blízko maximu (peakActive), občas "thinking" interval
-    active = Math.random() > 0.88 ? rnd(15) : Math.round(peakActive * hourScale * (0.85 + Math.random() * 0.15));
+    // Většina intervalů aktivních blízko peakActive, občas "thinking" interval
+    active = Math.random() > 0.88 ? rnd(200) : Math.round(peakActive * hourScale * (0.85 + Math.random() * 0.15));
   }
 
-  active = Math.max(0, Math.min(60, active));
+  active = Math.max(0, Math.min(INT_SEC, active));
 
-  const ks = active > 30 && TYPING_APPS.has(app) ? Math.round((40 + rnd(180)) * dayMul) : rnd(30);
-  const mouse = app === 'sldworks.exe' ? 50 + rnd(100) : active > 15 ? 10 + rnd(60) : rnd(8);
-  const typingMs = ks > 30 ? Math.min(60_000, ks * 200) : 0;
+  // Klávesy: pri active > 7 min a TYPING app, 600-3000 kláves (~typing rate 200/min)
+  // dayMul modeluje že nějaký den někdo píše víc.
+  const ks = active > 420 && TYPING_APPS.has(app)
+    ? Math.round((600 + rnd(2400)) * dayMul)
+    : Math.round(rnd(400));
+  // Myš: pro CAD intenzivní (sldworks), jinak proporčně k aktivitě
+  const mouse = app === 'sldworks.exe'
+    ? 800 + rnd(1500)
+    : active > 200 ? 150 + rnd(800) : rnd(120);
+  // Typing session ms (0-900_000 = max 15 min)
+  const typingMs = ks > 400 ? Math.min(INT_SEC * 1000, ks * 200) : 0;
 
   return {
     ...base,
     activeSeconds: active,
-    idleSeconds: 60 - active,
+    idleSeconds: INT_SEC - active,
     foregroundApp: app,
     windowTitle: title,
     keystrokeCount: ks,
     mouseEvents: mouse,
-    sessionLocked: active < 5 && Math.random() > 0.7,
+    sessionLocked: active < 60 && Math.random() > 0.7,
     typingMs,
     typingKeystrokeCount: typingMs > 0 ? ks : 0,
   };
