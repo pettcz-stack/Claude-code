@@ -1,48 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, Download, Upload, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Download, Upload } from 'lucide-react';
 import { api, type AppCategoryRow, type WebRuleRow, type DeptRuleRow } from './api.js';
-import { chipClass, typeLabel } from './util.js';
+import { typeLabel } from './util.js';
 import { useToast } from './Toast.js';
 import { useT } from './i18n/index.js';
+import { TypePicker } from './TypePicker.js';
 
 const TYPES = ['WORK', 'NON_WORK', 'NEUTRAL', 'UNKNOWN'];
-
-/**
- * Klikabilní chip s typem, který přepíná na select pro inline reklasifikaci.
- * Po vybrání typu zavolá `onSave(newType)` a vrátí se zpět na zobrazený chip.
- * Vlastní stav `editing` jen pro fokusovaný UI – uložení řídí parent.
- */
-function TypePicker({ value, onSave, canEdit }: { value: string; onSave: (newType: string) => Promise<void> | void; canEdit: boolean }) {
-  const { t } = useT();
-  const [editing, setEditing] = useState(false);
-  if (!canEdit) return <span className={chipClass(value)}>{typeLabel(value)}</span>;
-  if (!editing) {
-    return (
-      <button
-        onClick={() => setEditing(true)}
-        title={t('categoryAdmin.clickToReclassify')}
-        className={`${chipClass(value)} inline-flex items-center gap-0.5 cursor-pointer hover:opacity-80`}
-      >
-        {typeLabel(value)}<ChevronDown size={11} className="opacity-60" />
-      </button>
-    );
-  }
-  return (
-    <select
-      autoFocus
-      value={value}
-      onBlur={() => setEditing(false)}
-      onChange={async (e) => {
-        const newType = e.target.value;
-        setEditing(false);
-        if (newType !== value) await onSave(newType);
-      }}
-      className="field h-7 py-0 text-xs"
-    >
-      {TYPES.map((ty) => <option key={ty} value={ty}>{typeLabel(ty)}</option>)}
-    </select>
-  );
-}
 
 export function CategoryAdmin({ canEdit, from, to }: { canEdit: boolean; from: string; to: string }) {
   const { t } = useT();
