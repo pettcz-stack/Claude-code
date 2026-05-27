@@ -1,7 +1,8 @@
 name: Monitoring CI
 
-# Typecheck, build a otestuje monitoring app (backend + frontend) na Linuxu.
-# Windows agent/MSI se staví zvlášť v monitoring-agent-build.yml.
+# Typecheck, build, lint, testy a license guard pro monitoring app
+# (backend + frontend) na Linuxu. Windows agent/MSI staví zvlášť
+# v monitoring-agent-build.yml. Docker images validuje monitoring-docker.yml.
 on:
   push:
     branches: ["**"]
@@ -54,16 +55,7 @@ jobs:
       - name: Typecheck + build
         run: npm run build
 
-      - name: Unit tests
-        run: npm test
-
-      - name: License guard (no GPL/LGPL/AGPL drift)
-        run: |
-          npx --yes license-checker --production \
-            --onlyAllow "MIT;MIT*;MIT-0;Apache-2.0;ISC;BSD-2-Clause;BSD-3-Clause;0BSD;Unlicense;CC0-1.0;CC-BY-4.0;MIT AND ISC" \
-            --excludePackages "focus-frontend@$(node -p 'require(\"./package.json\").version')"
-
-    - name: Run tests
+      - name: Run tests
         run: npm test
 
       - name: License guard (no GPL/LGPL/AGPL drift)
@@ -108,3 +100,12 @@ jobs:
 
       - name: Typecheck + build
         run: npm run build
+
+      - name: Unit tests
+        run: npm test
+
+      - name: License guard (no GPL/LGPL/AGPL drift)
+        run: |
+          npx --yes license-checker --production \
+            --onlyAllow "MIT;MIT*;MIT-0;Apache-2.0;ISC;BSD-2-Clause;BSD-3-Clause;0BSD;Unlicense;CC0-1.0;CC-BY-4.0;MIT AND ISC" \
+            --excludePackages "focus-frontend@$(node -p 'require(\"./package.json\").version')"
