@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Printer, Usb, ChevronLeft, FileText, AlertTriangle, Search } from 'lucide-react';
+import { Printer, Usb, ChevronLeft, ChevronRight, FileText, AlertTriangle, Search } from 'lucide-react';
 import { api, type PrintSummaryRow, type PrintJobRow, type UsbSummaryRow, type UsbEventRow, type AppSettings } from './api.js';
 import { useT, type Locale } from './i18n/index.js';
 import { useSort, SortHeader } from './tableSort.js';
@@ -137,10 +137,11 @@ function PrintSummaryTable({ rows, onDrill }: { rows: PrintSummaryRow[]; onDrill
               <SortHeader sortKey="a3Pages" current={key} dir={dir} onChange={setSort} align="right">{t('printUsb.colA3')}</SortHeader>
               <SortHeader sortKey="colorPages" current={key} dir={dir} onChange={setSort} align="right">{t('printUsb.colColor')}</SortHeader>
               <SortHeader sortKey="duplexPages" current={key} dir={dir} onChange={setSort} align="right">{t('printUsb.colDuplex')}</SortHeader>
+              <th className="th w-10"></th>
             </tr></thead>
             <tbody>
               {sorted.map((r) => (
-                <tr key={r.userId ?? r.displayName} className="divide-row cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50" onClick={() => onDrill(r)}>
+                <tr key={r.userId ?? r.displayName} className="divide-row cursor-pointer hover:bg-emerald-50/40 dark:hover:bg-emerald-500/5" onClick={() => onDrill(r)}>
                   <td className="td font-medium">{r.displayName}</td>
                   <td className="td muted">{r.department ?? '—'}</td>
                   <td className="td text-right tabular-nums">{r.jobs}</td>
@@ -149,9 +150,10 @@ function PrintSummaryTable({ rows, onDrill }: { rows: PrintSummaryRow[]; onDrill
                   <td className="td text-right tabular-nums muted">{r.a3Pages}</td>
                   <td className="td text-right tabular-nums muted">{r.colorPages}</td>
                   <td className="td text-right tabular-nums muted">{r.duplexPages}</td>
+                  <td className="td text-right"><ChevronRight size={15} className="text-emerald-500 opacity-60" /></td>
                 </tr>
               ))}
-              {sorted.length === 0 && <tr><td colSpan={8} className="td py-6 text-center muted-2">{t('common.noData')}</td></tr>}
+              {sorted.length === 0 && <tr><td colSpan={9} className="td py-6 text-center muted-2">{t('common.noData')}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -194,10 +196,11 @@ function UsbSummaryTable({ rows, bcp47, onDrill }: { rows: UsbSummaryRow[]; bcp4
               <SortHeader sortKey="deleteEvents" current={key} dir={dir} onChange={setSort} align="right">{t('printUsb.colDeleteEvents')}</SortHeader>
               <SortHeader sortKey="writeBytes" current={key} dir={dir} onChange={setSort} align="right">{t('printUsb.colWriteSize')}</SortHeader>
               <SortHeader sortKey="totalBytes" current={key} dir={dir} onChange={setSort} align="right">{t('printUsb.colTotalSize')}</SortHeader>
+              <th className="th w-10"></th>
             </tr></thead>
             <tbody>
               {sorted.map((r) => (
-                <tr key={r.userId ?? r.displayName} className="divide-row cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50" onClick={() => onDrill(r)}>
+                <tr key={r.userId ?? r.displayName} className="divide-row cursor-pointer hover:bg-emerald-50/40 dark:hover:bg-emerald-500/5" onClick={() => onDrill(r)}>
                   <td className="td font-medium">{r.displayName}</td>
                   <td className="td muted">{r.department ?? '—'}</td>
                   <td className="td text-right tabular-nums">{r.events}</td>
@@ -206,9 +209,10 @@ function UsbSummaryTable({ rows, bcp47, onDrill }: { rows: UsbSummaryRow[]; bcp4
                   <td className="td text-right tabular-nums muted">{r.deleteEvents}</td>
                   <td className="td text-right tabular-nums font-semibold">{formatBytes(r.writeBytes, bcp47)}</td>
                   <td className="td text-right tabular-nums muted">{formatBytes(r.totalBytes, bcp47)}</td>
+                  <td className="td text-right"><ChevronRight size={15} className="text-emerald-500 opacity-60" /></td>
                 </tr>
               ))}
-              {sorted.length === 0 && <tr><td colSpan={8} className="td py-6 text-center muted-2">{t('common.noData')}</td></tr>}
+              {sorted.length === 0 && <tr><td colSpan={9} className="td py-6 text-center muted-2">{t('common.noData')}</td></tr>}
             </tbody>
           </table>
         </div>

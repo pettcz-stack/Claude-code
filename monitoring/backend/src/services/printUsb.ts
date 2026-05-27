@@ -1,12 +1,12 @@
 import { prisma } from '../db.js';
-import { demoUserWhere } from './demoFilter.js';
+import { hiddenDemoUserIds } from './demoFilter.js';
 
 /**
  * Souhrn tisku za období – per uživatel. Vrací top N podle počtu stran.
  * Pro dashboard sekci "Tisk & USB" – analyticky čtivý přehled, kdo nejvíc tiskne.
  */
 export async function printSummary(from: Date, to: Date, limit = 100) {
-  const userFilter = await demoUserWhere();
+  const hiddenIds = await hiddenDemoUserIds(); // null = vse zobrazit, [] / [ids] = skryt
   const rows = await prisma.$queryRaw<Array<{
     userId: string | null;
     displayName: string | null;
@@ -38,16 +38,8 @@ export async function printSummary(from: Date, to: Date, limit = 100) {
     LIMIT ${limit}
   `;
 
-  // Filtruj demo uživatele (where uplatnit na MonitoredUser – pokud existuje filter)
-  const filtered = rows.filter((r) => {
-    if (!r.userId) return true;
-    // demo filter je where klauzule typu { id: { in: [...] } } – aplikujeme ručně přes id check
-    if (typeof userFilter === 'object' && 'id' in userFilter) {
-      const f = userFilter as { id?: { in?: string[] } };
-      if (f.id?.in) return f.id.in.includes(r.userId);
-    }
-    return true;
-  });
+  // Filtruj demo uzivatele kdyz je showDemoDevices=false
+  const filtered = hiddenIds === null ? rows : rows.filter((r) => !r.userId || !hiddenIds.includes(r.userId));
 
   return filtered.map((r) => ({
     userId: r.userId,
@@ -81,7 +73,7 @@ export async function userPrintJobs(userId: string, from: Date, to: Date, limit 
  * Klíčový ukazatel pro DLP (data loss prevention) compliance.
  */
 export async function usbSummary(from: Date, to: Date, limit = 100) {
-  const userFilter = await demoUserWhere();
+  const hiddenIds = await hiddenDemoUserIds();
   const rows = await prisma.$queryRaw<Array<{
     userId: string | null;
     displayName: string | null;
@@ -111,14 +103,7 @@ export async function usbSummary(from: Date, to: Date, limit = 100) {
     LIMIT ${limit}
   `;
 
-  const filtered = rows.filter((r) => {
-    if (!r.userId) return true;
-    if (typeof userFilter === 'object' && 'id' in userFilter) {
-      const f = userFilter as { id?: { in?: string[] } };
-      if (f.id?.in) return f.id.in.includes(r.userId);
-    }
-    return true;
-  });
+  const filtered = hiddenIds === null ? rows : rows.filter((r) => !r.userId || !hiddenIds.includes(r.userId));
 
   return filtered.map((r) => ({
     userId: r.userId,
