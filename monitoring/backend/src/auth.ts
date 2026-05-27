@@ -75,10 +75,23 @@ function getSession(token: string): Session | null {
   return s;
 }
 
-/** Autentizace přes Bearer session token. */
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+/** Název HttpOnly cookie pro session. Stejný řetězec sdílí backend i frontend. */
+export const SESSION_COOKIE = 'focus_session';
+
+/** Vytáhne session token z HttpOnly cookie nebo (legacy) z Authorization headeru. */
+export function readSessionToken(req: Request): string {
+  const cookieHeader = req.header('cookie') ?? '';
+  // Jednoduchý parse jednoho jmenovaného cookie – bez závislosti na cookie-parser.
+  const match = new RegExp(`(?:^|; )${SESSION_COOKIE}=([^;]+)`).exec(cookieHeader);
+  if (match) return decodeURIComponent(match[1]);
   const header = req.header('authorization') ?? '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+  if (header.startsWith('Bearer ')) return header.slice(7);
+  return '';
+}
+
+/** Autentizace primárně přes HttpOnly cookie, fallback Bearer header (legacy klienti). */
+export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+  const token = readSessionToken(req);
   const s = token ? getSession(token) : null;
   if (!s) {
     res.status(401).json({ error: 'unauthorized' });

@@ -189,25 +189,32 @@ export type AppSettings = { alertsEnabled: boolean; alertRecipients: string[]; o
 
 export type Me = { username: string; role: string };
 
-const STORAGE_KEY = 'focus_token';
+// Admin session se drží v HttpOnly cookie nastavené serverem na /api/v1/login.
+// Cookie není pro JS čitelné (ochrana proti krádeži přes XSS), prohlížeč ji
+// posílá automaticky same-origin requestem. Frontend si jen pamatuje boolean
+// "jsem přihlášený?" v sessionStorage, aby věděl, kdy zobrazit dashboard.
+const LOGGED_FLAG = 'focus_logged_in';
 
-export function getToken(): string | null {
-  return sessionStorage.getItem(STORAGE_KEY);
+export function isLoggedIn(): boolean {
+  return sessionStorage.getItem(LOGGED_FLAG) === '1';
 }
-function setToken(t: string | null) {
-  if (t) sessionStorage.setItem(STORAGE_KEY, t);
-  else sessionStorage.removeItem(STORAGE_KEY);
+function setLogged(v: boolean) {
+  if (v) sessionStorage.setItem(LOGGED_FLAG, '1');
+  else sessionStorage.removeItem(LOGGED_FLAG);
 }
 
+// Cookie chodí automaticky same-origin → authHeader už nemá co přidávat,
+// ale ponecháváme jeho podpis (vrací prázdný objekt), aby všechna existující
+// volání typu `{ ...authHeader(), 'content-type': 'application/json' }`
+// fungovala bez změny. Můžeme později smazat.
 function authHeader(): Record<string, string> {
-  const t = getToken();
-  return t ? { authorization: `Bearer ${t}` } : {};
+  return {};
 }
 
 async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, { headers: authHeader() });
+  const res = await fetch(url);
   if (res.status === 401) {
-    setToken(null);
+    setLogged(false);
     throw new Error('unauthorized');
   }
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
@@ -215,7 +222,7 @@ async function getJson<T>(url: string): Promise<T> {
 }
 
 async function downloadFile(url: string, filename: string): Promise<void> {
-  const res = await fetch(url, { headers: authHeader() });
+  const res = await fetch(url);
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   const blob = await res.blob();
   const a = document.createElement('a');
@@ -227,23 +234,24 @@ async function downloadFile(url: string, filename: string): Promise<void> {
 
 export const auth = {
   async login(username: string, password: string): Promise<Me> {
+    // Server odpoví Set-Cookie: focus_session=… (HttpOnly). Prohlížeč si ji uloží
+    // sám – tady už token nesaháme. Jen si zapamatujeme, že jsme přihlášení.
     const res = await fetch('/api/v1/login', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ username, password }),
     });
     if (!res.ok) throw new Error('Neplatné přihlašovací údaje');
-    const data = (await res.json()) as { token: string; username: string; role: string };
-    setToken(data.token);
+    const data = (await res.json()) as { username: string; role: string };
+    setLogged(true);
     return { username: data.username, role: data.role };
   },
   logout() {
-    const t = getToken();
-    if (t) void fetch('/api/v1/logout', { method: 'POST', headers: { authorization: `Bearer ${t}` } });
-    setToken(null);
+    void fetch('/api/v1/logout', { method: 'POST' });
+    setLogged(false);
   },
   me: () => getJson<Me>('/api/v1/me'),
-  isLoggedIn: () => getToken() !== null,
+  isLoggedIn,
 };
 
 export const api = {
@@ -415,7 +423,7 @@ export const api = {
     }),
   // GDPR čl. 20 – stáhne JSON se všemi daty zaměstnance (admin export)
   exportUser: async (id: string): Promise<void> => {
-    const r = await fetch(`/api/v1/admin/users/${id}/export`, { headers: authHeader() });
+    const r = await fetch(`/api/v1/admin/users/${id}/export`);
     if (!r.ok) throw new Error(`${r.status}`);
     const blob = await r.blob();
     const url = URL.createObjectURL(blob);

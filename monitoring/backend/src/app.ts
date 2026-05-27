@@ -14,7 +14,7 @@ import { exportRouter } from './routes/export.js';
 import { adminRouter } from './routes/admin.js';
 import { pushEvent } from './services/eventLog.js';
 import { selfRouter } from './routes/self.js';
-import { requireAuth, login, destroySession } from './auth.js';
+import { requireAuth, login, destroySession, readSessionToken, SESSION_COOKIE } from './auth.js';
 
 const isTest = process.env.NODE_ENV === 'test';
 
@@ -89,6 +89,29 @@ export function createApp() {
     skip: () => isTest,
     message: { error: 'too_many_attempts' },
   });
+  // Session token zapisujeme do HttpOnly + Secure + SameSite=Strict cookie.
+  // To znamená:
+  //   - JS na stránce ji nikdy nepřečte (XSS = útočník vidí DOM, ne token).
+  //   - Prohlížeč ji POŠLE jen v same-origin / first-party requestech
+  //     (SameSite=Strict) → bez ručního CSRF tokenu se cookie nepřipojí
+  //     k cross-origin POSTu z útočníkova webu.
+  //   - Secure = nesmí přes HTTP. Pro lokální dev (HTTPS=off) se Secure
+  //     vynechává, ať lze testovat na http://localhost.
+  function setSessionCookie(res: Response, token: string) {
+    const parts = [
+      `${SESSION_COOKIE}=${encodeURIComponent(token)}`,
+      'HttpOnly',
+      'SameSite=Strict',
+      'Path=/',
+      `Max-Age=${12 * 60 * 60}`,
+    ];
+    if (config.nodeEnv === 'production') parts.push('Secure');
+    res.setHeader('Set-Cookie', parts.join('; '));
+  }
+  function clearSessionCookie(res: Response) {
+    res.setHeader('Set-Cookie', `${SESSION_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`);
+  }
+
   app.post('/api/v1/login', loginLimiter, async (req: Request, res: Response) => {
     const { username, password } = (req.body ?? {}) as { username?: string; password?: string };
     if (!username || !password) {
@@ -100,12 +123,16 @@ export function createApp() {
       res.status(401).json({ error: 'invalid_credentials' });
       return;
     }
+    setSessionCookie(res, result.token);
+    // Token vracíme i v JSON tělě kvůli legacy / e2e testům, ale frontend
+    // ho už neukládá – využívá HttpOnly cookie nastavený výše.
     res.json(result);
   });
 
   app.post('/api/v1/logout', (req: Request, res: Response) => {
-    const header = req.header('authorization') ?? '';
-    if (header.startsWith('Bearer ')) destroySession(header.slice(7));
+    const token = readSessionToken(req);
+    if (token) destroySession(token);
+    clearSessionCookie(res);
     res.json({ ok: true });
   });
 
