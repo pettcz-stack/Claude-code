@@ -31,6 +31,13 @@ export type UserScore = ScoreBreakdown & {
   displayName: string | null;
   department: string | null;
   avgKpm: number;
+  /**
+   * Průměrné úhozy za minutu jen v intervalech kdy uživatel reálně psal
+   * (>= 10 úhozů za 60s). Vylučuje pauzy ze srovnání – fér metrika.
+   */
+  typingKpm: number;
+  /** Minuty (typing) – kolik času celkem strávil aktivním psaním. */
+  typingMinutes: number;
   kpmPercentile: number; // „lepší než X % firmy"
   categories: CategorySlice[];
   topApp: string | null;
@@ -199,6 +206,13 @@ export async function computeUserScore(userId: string, from: Date, to: Date, opt
   let unknownMinutes = 0; // nezařazeno – vyjmuto ze statistik
   let idleOnMinutes = 0;
   let totalKeystrokes = 0;
+  // Tempo psaní jen pri aktivnim pisani: intervaly s >=10 uhozy povazujeme za
+  // "typing intervaly" (cca >= 1 znak/6s). Beneath that threshold to nejsou
+  // souvisle psaci minuty (jeden klik enter, par znaku do hledani, ...).
+  // Lepsi metodika (timestampy uhozu + 5s gap) vyzaduje agent upgrade.
+  let typingKeystrokes = 0;
+  let typingIntervalMinutes = 0;
+  const TYPING_INTERVAL_MIN_KEYS = 10;
   const catMinutes = new Map<string, { type: CatType; minutes: number }>();
   const appActive = new Map<string, number>();
   const monitorMinutes = new Map<number, number>(); // počet monitorů → aktivní minuty
@@ -209,6 +223,10 @@ export async function computeUserScore(userId: string, from: Date, to: Date, opt
     const activeMin = it.activeSeconds / 60;
     idleOnMinutes += it.idleSeconds / 60;
     totalKeystrokes += it.keystrokeCount;
+    if (it.keystrokeCount >= TYPING_INTERVAL_MIN_KEYS && activeMin > 0) {
+      typingKeystrokes += it.keystrokeCount;
+      typingIntervalMinutes += activeMin;
+    }
     if (activeMin <= 0) continue;
     if (it.monitorCount && it.monitorCount > 0) {
       monitorMinutes.set(it.monitorCount, (monitorMinutes.get(it.monitorCount) ?? 0) + activeMin);
@@ -262,7 +280,11 @@ export async function computeUserScore(userId: string, from: Date, to: Date, opt
   // DEMO: část „PC off" připíšeme poradám (nahradí Outlook). Jen ilustrace.
   const meetingMinutes = Math.round(pcOffMinutes * 0.35);
 
+  // Klasicke prumerne KPM (vsechen cas) – muze byt zkresleno dlouhymi pauzami.
   const avgKpm = workMinutes + nonWorkMinutes > 0 ? totalKeystrokes / (workMinutes + nonWorkMinutes) : 0;
+  // KPM jen behem skutecneho psani (intervaly s >= 10 uhozy). Spravedlivejsi
+  // pro srovnani: nezredi to pauzy, kdy clovek koukal do dokumentu.
+  const typingKpm = typingIntervalMinutes > 0 ? typingKeystrokes / typingIntervalMinutes : 0;
   // Cohort se spočítá jednou (předaný) → u žebříčku 100 lidí jen 1 dotaz místo 100.
   const cohort = opts?.kpmCohort ?? (await kpmCohort(from, to));
   const kpmPercentile = percentileOf(avgKpm, cohort);
@@ -315,6 +337,8 @@ export async function computeUserScore(userId: string, from: Date, to: Date, opt
     pcOffPct: pct(pcOffMinutes, expectedMinutes),
     score,
     avgKpm: Math.round(avgKpm),
+    typingKpm: Math.round(typingKpm),
+    typingMinutes: Math.round(typingIntervalMinutes),
     kpmPercentile,
     categories,
     topApp,

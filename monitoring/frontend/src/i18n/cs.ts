@@ -894,6 +894,8 @@ export const cs = {
     cardKpmTitle: 'Tempo psaní (úhozů/min)',
     kpmUnit: 'úhozů/min',
     kpmNote: 'píše rychleji než {n} % firmy',
+    kpmTypingNote: 'jen při psaní · měřeno {mins}',
+    kpmTypingMethodology: 'Tempo se počítá jen v 60s intervalech, ve kterých uživatel napsal ≥ 10 znaků (eliminuje pauzy mezi větami). Přesnější fáze přijde s agent upgradem (timestampy úhozů + 5s gap).',
     cardActiveWork: 'Aktivní práce (hodiny:minuty)',
     cardFun: 'Zábava (hodiny:minuty)',
     cardTopApp: 'Nejpoužívanější aplikace',

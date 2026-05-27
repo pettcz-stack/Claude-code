@@ -892,6 +892,8 @@ export const en: typeof cs = {
     cardKpmTitle: 'Typing speed (keystrokes/min)',
     kpmUnit: 'keystrokes/min',
     kpmNote: 'types faster than {n} % of the company',
+    kpmTypingNote: 'only while typing · measured {mins}',
+    kpmTypingMethodology: 'Rate is counted only in 60s intervals where user typed ≥ 10 chars (excludes pauses between sentences). More accurate measurement (keystroke timestamps + 5s gap) coming with agent upgrade.',
     cardActiveWork: 'Active work (hours:minutes)',
     cardFun: 'Fun (hours:minutes)',
     cardTopApp: 'Most used application',

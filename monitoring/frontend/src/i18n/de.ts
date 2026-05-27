@@ -892,6 +892,8 @@ export const de: typeof cs = {
     cardKpmTitle: 'Tipptempo (Anschläge/min)',
     kpmUnit: 'Anschläge/min',
     kpmNote: 'tippt schneller als {n} % der Firma',
+    kpmTypingNote: 'nur beim Tippen · gemessen {mins}',
+    kpmTypingMethodology: 'Tempo wird nur in 60s-Intervallen mit ≥ 10 Zeichen gezählt (Pausen zwischen Sätzen ausgeschlossen). Präziser (Keystroke-Zeitstempel + 5s Lücke) kommt mit Agent-Upgrade.',
     cardActiveWork: 'Aktive Arbeit (Stunden:Minuten)',
     cardFun: 'Vergnügen (Stunden:Minuten)',
     cardTopApp: 'Meistgenutzte Anwendung',

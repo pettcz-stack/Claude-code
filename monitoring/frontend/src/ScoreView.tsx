@@ -99,8 +99,13 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card title={t('scoreView.cardKpmTitle')} icon={<Keyboard size={13} />}>
-          {s.avgKpm} <span className="text-sm font-normal muted">{t('scoreView.kpmUnit')}</span>
+          {s.typingKpm > 0 ? s.typingKpm : s.avgKpm} <span className="text-sm font-normal muted">{t('scoreView.kpmUnit')}</span>
           <div className="mt-1 text-xs font-normal text-emerald-500">{t('scoreView.kpmNote', { n: s.kpmPercentile })} {s.kpmPercentile >= 50 ? '🎉' : ''}</div>
+          {s.typingKpm > 0 && s.typingMinutes > 0 && (
+            <div className="mt-1 text-[11px] muted-2" title={t('scoreView.kpmTypingMethodology')}>
+              {t('scoreView.kpmTypingNote', { mins: minutesToHm(s.typingMinutes) })}
+            </div>
+          )}
         </Card>
         <Card title={t('scoreView.cardActiveWork')} icon={<Clock size={13} />} accent="text-emerald-500">{minutesToHm(s.workMinutes)}</Card>
         <Card title={t('scoreView.cardFun')} icon={<AlertTriangle size={13} />} accent="text-red-500">{minutesToHm(s.nonWorkMinutes)}</Card>

@@ -74,6 +74,8 @@ export type UserScore = {
   pcOffPct: number;
   score: number;
   avgKpm: number;
+  typingKpm: number;
+  typingMinutes: number;
   kpmPercentile: number;
   categories: CategorySlice[];
   topApp: string | null;

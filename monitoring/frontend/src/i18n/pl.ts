@@ -892,6 +892,8 @@ export const pl: typeof cs = {
     cardKpmTitle: 'Tempo pisania (uderzeń/min)',
     kpmUnit: 'uderzeń/min',
     kpmNote: 'pisze szybciej niż {n} % firmy',
+    kpmTypingNote: 'tylko podczas pisania · zmierzone {mins}',
+    kpmTypingMethodology: 'Tempo liczone tylko w interwałach 60s, gdy użytkownik napisał ≥ 10 znaków (eliminuje przerwy między zdaniami). Dokładniejszy pomiar (znaczniki czasu + 5s gap) z aktualizacją agenta.',
     cardActiveWork: 'Aktywna praca (godziny:minuty)',
     cardFun: 'Rozrywka (godziny:minuty)',
     cardTopApp: 'Najczęściej używana aplikacja',

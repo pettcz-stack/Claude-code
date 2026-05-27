@@ -892,6 +892,8 @@ export const sk: typeof cs = {
     cardKpmTitle: 'Tempo písania (úderov/min)',
     kpmUnit: 'úderov/min',
     kpmNote: 'píše rýchlejšie ako {n} % firmy',
+    kpmTypingNote: 'len pri písaní · merané {mins}',
+    kpmTypingMethodology: 'Tempo sa počíta len v 60s intervaloch, v ktorých používateľ napísal ≥ 10 znakov (eliminuje pauzy medzi vetami). Presnejšia fáza príde s agent upgradom (časové známky úhozov + 5s gap).',
     cardActiveWork: 'Aktívna práca (hodiny:minúty)',
     cardFun: 'Zábava (hodiny:minúty)',
     cardTopApp: 'Najpoužívanejšia aplikácia',
