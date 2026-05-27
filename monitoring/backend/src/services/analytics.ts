@@ -263,7 +263,7 @@ async function firstSeenInRange(userIds: string[], from: Date): Promise<Map<stri
  * `min(strop, uplynulé)` zabrání tomu, aby nově nasazený agent vykazoval
  * "Mimo PC: 6h" jen proto, že dnes je workday s 8h fondem.
  */
-function computeExpectedMinutes(
+export function computeExpectedMinutes(
   userFrom: Date,
   to: Date,
   holidays: Set<string>,
@@ -275,6 +275,29 @@ function computeExpectedMinutes(
   const calendar = effectiveWorkdays(userFrom, to, holidays, absenceDays) * workHoursPerDay * 60;
   const elapsedMinutes = Math.max(0, (cap - userFrom.getTime()) / 60_000);
   return Math.min(calendar, elapsedMinutes);
+}
+
+/**
+ * Jednotný helper pro VŠECHNY analytické funkce. Vrátí closure expOf(userId)
+ * která dává očekávané pracovní minuty pro daného uživatele s respektem
+ * k jeho prvnímu nasazení agenta.
+ *
+ * Používá se v overview, homeOffice, monitorsComparison, costAudit,
+ * selfReport, scoreboardRows, computeUserScore – jednotná logika "nepocitej
+ * dny pred nasazenim ani v budoucnosti".
+ */
+export async function buildExpectedOf(
+  userIds: string[],
+  from: Date,
+  to: Date,
+  holidays: Set<string>,
+  absMap: Map<string, { days: Set<string> }>,
+): Promise<(userId: string) => number> {
+  const firstSeen = await firstSeenInRange(userIds, from);
+  return (userId: string) => {
+    const userFrom = firstSeen.get(userId) ?? from;
+    return computeExpectedMinutes(userFrom, to, holidays, absMap.get(userId)?.days, config.expectedWorkHoursPerDay);
+  };
 }
 
 const clampPct = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
@@ -636,10 +659,14 @@ export async function homeOffice(from: Date, to: Date, department?: string | str
   const deptMap = new Map<string, { hoWork: number; officeWork: number; hoDays: number; officeDays: number }>();
   const perUser: HomeOfficeResult['perUser'] = [];
 
+  // Strop expected (v dnech) bere v potaz prvni nasazeni agenta – pro noveho
+  // uzivatele tedy nepocita "office days" za period pred nasazenim.
+  const firstSeen = await firstSeenInRange(ids, from);
   for (const u of users) {
     const a = acc.get(u.id)!;
     const hoDays = hoDaysByUser.get(u.id)?.size ?? 0;
-    const workdays = effectiveWorkdays(from, to, holidays, absMap.get(u.id)?.days);
+    const userFrom = firstSeen.get(u.id) ?? from;
+    const workdays = effectiveWorkdays(userFrom, to, holidays, absMap.get(u.id)?.days);
     const officeDays = Math.max(workdays - hoDays, 0);
     if (hoDays > 0) usersWithHo++;
     cHoWork += a.ho.work; cOfficeWork += a.office.work; cHoNon += a.ho.nonwork; cOfficeNon += a.office.nonwork;
@@ -710,7 +737,11 @@ export type SelfReport = {
 export async function selfReport(userId: string, from: Date, to: Date): Promise<SelfReport> {
   const users = await prisma.monitoredUser.findMany({ where: { active: true, ...(await demoUserWhere()) }, select: { id: true, department: true } });
   const ids = users.map((u) => u.id);
-  const expected = countWorkdays(from, to) * config.expectedWorkHoursPerDay * 60;
+  // Per-user expected vcetne clampu na den nasazeni agenta.
+  const holidays = holidayWeekdaySet(from, to);
+  const absMap = await absenceByUser(ids, from, to, holidays);
+  const expOfUser = await buildExpectedOf(ids, from, to, holidays, absMap);
+  const expected = expOfUser(userId);
 
   const scores = await perUser(ids, from, to);
   const { interpretMonitors } = await getSettings();
@@ -806,7 +837,10 @@ export async function monitorsComparison(from: Date, to: Date, department?: stri
     select: { id: true, displayName: true, department: true },
   });
   const ids = users.map((u) => u.id);
-  const expected = countWorkdays(from, to) * config.expectedWorkHoursPerDay * 60;
+  // Per-user expected vcetne clampu na den nasazeni agenta (jednotne s overview).
+  const holidays = holidayWeekdaySet(from, to);
+  const absMap = await absenceByUser(ids, from, to, holidays);
+  const expOfUser = await buildExpectedOf(ids, from, to, holidays, absMap);
   const scores = await perUser(ids, from, to);
 
   // typický počet monitorů + dominantní pracovní kategorie z denních souhrnů
@@ -840,7 +874,7 @@ export async function monitorsComparison(from: Date, to: Date, department?: stri
   const single: number[] = [], multi: number[] = [];
   const singleHours: number[] = [], multiHours: number[] = [];
   for (const u of users) {
-    const score = userScorePct(scores.get(u.id) ?? EMPTY_ACC, expected);
+    const score = userScorePct(scores.get(u.id) ?? EMPTY_ACC, expOfUser(u.id));
     const hours = (scores.get(u.id)?.work ?? 0) / 60;
     const mon = typicalOf(u.id);
     perUserOut.push({ userId: u.id, displayName: u.displayName, department: u.department, monitors: mon, score });
@@ -1003,10 +1037,12 @@ export async function costAudit(from: Date, to: Date, department?: string | stri
   const cur = await perUser(ids, from, to);
 
   let tNon = 0, tIdle = 0, tPcoff = 0, withRate = 0;
+  // Per-user expected vcetne clampu na den nasazeni agenta.
+  const expOfUser = await buildExpectedOf(ids, from, to, holidays, absMap);
   const perUserOut: CostResult['perUser'] = [];
   for (const u of users) {
     const a = cur.get(u.id) ?? EMPTY_ACC;
-    const expected = effectiveWorkdays(from, to, holidays, absMap.get(u.id)?.days) * config.expectedWorkHoursPerDay * 60;
+    const expected = expOfUser(u.id);
     const adjExpected = Math.max(expected - a.unknown, 1);
     const pcoff = Math.max(adjExpected - (a.work + a.nonwork + a.idle), 0);
     const rate = u.hourlyRate ?? null;
