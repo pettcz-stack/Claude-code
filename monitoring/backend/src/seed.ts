@@ -218,18 +218,20 @@ function hoDipFor(p: Persona): number {
  * v dashboardu. Tj. baseDiligence 0.80 → ~80% aktivně, 20% idle.
  */
 function baseDiligenceRangeFor(p: Persona): [number, number] {
+  // Hodnoty kalibrovány na realisticky úspěšnou firmu:
+  //   firm-wide skóre ~ 70 %, top ~ 90 %, normal ~ 75 %, slackeři ~ 30 %
   switch (p) {
-    case 'top':             return [0.82, 0.94];
-    case 'normal':          return [0.62, 0.84]; // většina firmy spadne sem
-    case 'chatty':          return [0.55, 0.78];
-    case 'social_media':    return [0.50, 0.72];
-    case 'streamer':        return [0.42, 0.65];
-    case 'gamer':           return [0.45, 0.68];
-    case 'slacker':         return [0.20, 0.45];
-    case 'ghost':           return [0.65, 0.85];
-    case 'absent_frequent': return [0.55, 0.78];
-    case 'sales_road':      return [0.70, 0.88];
-    case 'manager_busy':    return [0.58, 0.78];
+    case 'top':             return [0.94, 0.99];
+    case 'normal':          return [0.82, 0.94]; // většina firmy spadne sem (~70-80% skóre)
+    case 'chatty':          return [0.65, 0.85];
+    case 'social_media':    return [0.55, 0.80];
+    case 'streamer':        return [0.50, 0.72];
+    case 'gamer':           return [0.50, 0.75];
+    case 'slacker':         return [0.25, 0.50];
+    case 'ghost':           return [0.75, 0.92]; // operátor u stroje – když u PC tak makají
+    case 'absent_frequent': return [0.65, 0.85];
+    case 'sales_road':      return [0.78, 0.93]; // krátké soustředěné bursty
+    case 'manager_busy':    return [0.70, 0.88];
     case 'cheater_mouse':
     case 'cheater_keyboard':
     case 'cheater_subtle':  return [0.95, 0.98];
@@ -260,8 +262,8 @@ function lockProbabilityFor(p: Persona): number {
     case 'social_media':    return 0.12;
     case 'streamer':        return 0.08;
     case 'gamer':           return 0.10;
-    case 'top':             return 0.06;
-    case 'normal':          return 0.10;
+    case 'top':             return 0.03; // top performeři skoro pořád u PC
+    case 'normal':          return 0.07;
     case 'cheater_mouse':
     case 'cheater_keyboard':
     case 'cheater_subtle':  return 0;
@@ -826,7 +828,7 @@ function makeRow(
   //   peakActive = baseline pro tento interval (kolik z 900s je aktivní)
   //   hourScale = škála dle hodiny (warmup 65%, peak 99%)
   const peakActive = Math.round(effectiveDiligence * INT_SEC); // 0-900
-  const hourScale = 0.65 + hMul * 0.30;
+  const hourScale = 0.85 + hMul * 0.13; // 0.85-1.00 (mírnější penalty v warmup/wind-down)
 
   // Per-persona "non-work" pravděpodobnost
   let nonWorkProb: number;
@@ -868,8 +870,8 @@ function makeRow(
   } else {
     const w = pick(c.workPool);
     app = w[0]; title = w[1];
-    // Většina intervalů aktivních blízko peakActive, občas "thinking" interval
-    active = Math.random() > 0.88 ? rnd(200) : Math.round(peakActive * hourScale * (0.85 + Math.random() * 0.15));
+    // Většina intervalů aktivních blízko peakActive (95 %), občas "thinking" interval (5 %)
+    active = Math.random() > 0.95 ? rnd(200) : Math.round(peakActive * hourScale * (0.92 + Math.random() * 0.08));
   }
 
   active = Math.max(0, Math.min(INT_SEC, active));

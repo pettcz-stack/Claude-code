@@ -36,9 +36,11 @@ export async function computeIntegrity(userId: string, from: Date, to: Date): Pr
     select: { intervalStart: true, intervalSeconds: true, activeSeconds: true, keystrokeCount: true, mouseEvents: true, foregroundApp: true },
   });
 
-  // Bereme jen výrazně aktivní intervaly (>= 30 s aktivní z 60 s intervalu = aspoň půlka).
-  // Pozn.: dříve >= 120 s, ale agent posílá 60s intervaly → nikdy se to netriggerlo.
-  const active = intervals.filter((i) => i.activeSeconds >= 30);
+  // Bereme jen výrazně aktivní intervaly (>= 50 % intervalu aktivních).
+  // Demo: 900s intervaly => >= 450 s; Production: 60s intervaly => >= 30 s.
+  // Bez tohoto relativního přístupu by buď cheateři nefungovali (threshold 120
+  // pro 60s) nebo by všichni vypadali aktivně (threshold 30 pro 900s).
+  const active = intervals.filter((i) => i.activeSeconds * 2 >= i.intervalSeconds);
   const flags: IntegrityFlag[] = [];
   const minutesOf = (n: number) => Math.round((n * 5) ); // intervaly jsou ~5 min v demu; orientačně
 
@@ -153,13 +155,15 @@ export async function detectAlerts(from: Date, to: Date, department?: string | s
   return alerts;
 }
 
-/** Synchronní jádro integrity – přijme už načtené intervaly. Pro bulk path. */
+/** Synchronní jádro integrity – přijme intervaly (jakékoli active úrovně) a sám si je vyfiltruje na >= 50 % active. */
 export function computeIntegrityFromIntervals(
   userId: string,
-  active: Array<{ intervalStart: Date; intervalSeconds: number; activeSeconds: number; keystrokeCount: number; mouseEvents: number; foregroundApp: string | null }>,
+  intervals: Array<{ intervalStart: Date; intervalSeconds: number; activeSeconds: number; keystrokeCount: number; mouseEvents: number; foregroundApp: string | null }>,
 ): IntegrityResult {
   const flags: IntegrityFlag[] = [];
   const minutesOf = (n: number) => Math.round((n * 5));
+  // Relativní filter (funguje pro 60s i 900s intervaly)
+  const active = intervals.filter((i) => i.activeSeconds * 2 >= i.intervalSeconds);
 
   if (active.length >= 12) {
     const total = active.length;

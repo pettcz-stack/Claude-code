@@ -312,7 +312,7 @@ export async function aggregateAllFast(): Promise<{ users: number; hours: number
       const dStart = floorToDay(it.intervalStart);
       const hKey = hStart.getTime();
       const dKey = dStart.getTime();
-      if (it.activeSeconds >= 30) {
+      if (it.activeSeconds * 2 >= it.intervalSeconds) {
         let arr = dayActiveMap.get(dKey);
         if (!arr) { arr = []; dayActiveMap.set(dKey, arr); }
         arr.push({ intervalStart: it.intervalStart, intervalSeconds: it.intervalSeconds, activeSeconds: it.activeSeconds, keystrokeCount: it.keystrokeCount, mouseEvents: it.mouseEvents, foregroundApp: it.foregroundApp });
