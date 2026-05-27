@@ -5,6 +5,31 @@ Verzování: [Semantic Versioning](https://semver.org/lang/cs/).
 
 ## [Unreleased]
 
+### v0.9.1 — Release-candidate (pilot-ready)
+
+Verze sjednocena napříč na **0.9.1**. Aplikace je připravená pro:
+
+- ✅ **interní pilot** u 1–3 vybraných zákazníků
+- ✅ právní rámec: poučení §316 ZP, DPIA, balanční test, RRPP záznam, DPA,
+  Privacy Policy, Incident response, souhrnný právní manuál
+  (`docs/pravni/01–08`)
+- ✅ 5jazyčné UI (CS / SK / EN / PL / DE) s automatickým přepínačem
+- ✅ Bezpečnost: per-device tokeny, HttpOnly + SameSite=Strict cookie, CSP +
+  HSTS, audit log s immutable adminId, fail-fast credentials, TLS guard
+- ✅ GDPR čl. 17 + 20: DELETE + EXPORT endpointy (admin i self-service),
+  retenční politika, audit log retence
+- ✅ Observability: structured logger, Prometheus `/api/v1/metrics`
+- ✅ CI: 31 backend + 5 frontend testů zelená, license guard, Dependabot
+- ✅ Funkce: aktivita, HW telemetrie, Tisk & USB monitoring (opt-in)
+
+**Co stále zbývá před GA (Sprint 2 po pilotu):**
+
+- ⏳ MSI digitální podpis (vyžaduje EV cert ~5–15 tis. Kč/rok)
+- ⏳ Externí penetrační test (~60–120 tis. Kč v ČR)
+- ⏳ Schválení všech `docs/pravni/` šablon advokátem + DPO
+  (s konkrétními údaji zákazníka)
+- ⏳ Reálné nasazení a load test na 100+ PC v doménovém AD prostředí
+
 ### v0.3.0 — Tisk & USB monitoring
 
 Nová samostatná funkce pro sledování tiskových úloh a přesunů souborů na USB.
