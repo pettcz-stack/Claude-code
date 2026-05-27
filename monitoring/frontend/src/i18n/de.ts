@@ -860,6 +860,7 @@ export const de: typeof cs = {
     title: 'Zugriffe',
     subtitle: 'Verwaltung von Admin-Konten, ihren Rollen und den Abteilungen, auf die sie zugreifen können. Nur die Rolle ADMIN kann dies sehen und verwalten.',
     searchPlaceholder: 'Benutzer oder Namen suchen…',
+    selfDeleteHint: 'Eigener Account kann nicht gelöscht werden – frage einen anderen Admin.',
     rolesLegendTitle: 'Rollen und ihre Möglichkeiten',
     roleAdmin: 'ADMIN',
     roleAdminDesc: 'Voller Zugriff. Verwaltet Konten, Rollen, Kategorien, Einstellungen, darf alle Daten einschließlich Gehälter sehen.',

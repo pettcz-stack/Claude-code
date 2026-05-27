@@ -173,6 +173,7 @@ export function createApp() {
     const role = req.admin?.role ?? 'VIEWER';
     const departments = await allowedDepartments(req.admin?.id ?? '', role as Role);
     res.json({
+      id: req.admin?.id,
       username: req.admin?.username,
       role,
       capabilities: capabilities(role),

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Shield, UserPlus, Save, Trash2, KeyRound, X, AlertTriangle, Search } from 'lucide-react';
-import { api, type AccessAdminUser } from './api.js';
+import { api, auth, type AccessAdminUser } from './api.js';
 import { useT } from './i18n/index.js';
 import { useSort, SortHeader } from './tableSort.js';
 import { usePagination } from './pagination.js';
@@ -19,6 +19,10 @@ export function AccessControlView() {
   const [users, setUsers] = useState<AccessAdminUser[] | null>(null);
   const [departments, setDepartments] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [myId, setMyId] = useState<string | null>(null);
+
+  // Načti vlastní ID, ať můžeme blokovat self-delete v UI (backend taky chrání).
+  useEffect(() => { auth.me().then((m) => setMyId(m.id ?? null)).catch(() => undefined); }, []);
   const [editing, setEditing] = useState<AccessAdminUser | 'new' | null>(null);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<Role | 'ALL'>('ALL');
@@ -153,7 +157,12 @@ export function AccessControlView() {
                           <button onClick={() => setEditing(u)} className="btn-ghost text-xs" title={t('common.edit')}>
                             <KeyRound size={13} /> {t('common.edit')}
                           </button>
-                          <button onClick={() => handleDelete(u)} className="btn-ghost text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" title={t('common.delete')}>
+                          <button
+                            onClick={() => handleDelete(u)}
+                            disabled={u.id === myId}
+                            className="btn-ghost text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent dark:hover:bg-red-900/20"
+                            title={u.id === myId ? t('access.selfDeleteHint') : t('common.delete')}
+                          >
                             <Trash2 size={13} />
                           </button>
                         </div>

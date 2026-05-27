@@ -228,6 +228,7 @@ export type Capabilities = {
 };
 
 export type Me = {
+  id?: string; // backend /api/v1/me vrací; legacy login response neobsahuje
   username: string;
   role: string;
   capabilities?: Capabilities;

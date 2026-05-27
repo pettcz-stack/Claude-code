@@ -873,6 +873,7 @@ export const cs = {
     title: 'Přístupy',
     subtitle: 'Správa admin účtů, jejich rolí a oddělení, ke kterým mají přístup. Vidí a spravuje jen role ADMIN.',
     searchPlaceholder: 'Hledat uživatele nebo jméno…',
+    selfDeleteHint: 'Vlastní účet nelze smazat – požádej jiného admina.',
     rolesLegendTitle: 'Role a jejich možnosti',
     roleAdmin: 'ADMIN',
     roleAdminDesc: 'Plný přístup. Spravuje účty, role, kategorie, nastavení, smí vidět všechna data včetně mezd.',
