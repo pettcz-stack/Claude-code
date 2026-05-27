@@ -191,10 +191,19 @@ async function main() {
     }
   }
 
-  for (let i = 0; i < batch.length; i += 1000) {
-    await prisma.activityInterval.createMany({ data: batch.slice(i, i + 1000) });
+  // Idempotentni seed: pokud uz intervaly existuji (z drivejsiho behu kdy byl
+  // sentinel jine verze), preskoc, jinak by createMany padl na UNIQUE constraint.
+  // SQLite/Prisma nepodporuje skipDuplicates v createMany pro tento driver.
+  const existingIntervals = await prisma.activityInterval.count();
+  if (existingIntervals === 0) {
+    for (let i = 0; i < batch.length; i += 1000) {
+      await prisma.activityInterval.createMany({ data: batch.slice(i, i + 1000) });
+    }
+    if (absences.length) await prisma.absence.createMany({ data: absences });
+  } else {
+    // eslint-disable-next-line no-console
+    console.log(`Demo intervaly preskoceny – ${existingIntervals} uz existuje.`);
   }
-  if (absences.length) await prisma.absence.createMany({ data: absences });
 
   // Demo licence: reálné placené aplikace Sinsu Platform + seaty/cena (CZK/měsíc/licence).
   // Část je dobře využitá (zelená), část leží ladem (červená = úspora).
@@ -242,6 +251,17 @@ async function main() {
  *    a Vedení občas vynáší CAD soubory nebo prezentace.
  */
 async function seedPrintAndUsb(users: Person[]) {
+  // Idempotentní: pokud uz existuji Print/USB zaznamy, preskoc.
+  // Resi pripad, kdy uzivatel upgraduje seed bez `docker compose down -v`
+  // (volume s .seeded sentinelem zustal, ale Print/USB tabulky jsou prazdne).
+  const existingPrint = await prisma.printJob.count();
+  const existingUsb = await prisma.usbFileEvent.count();
+  if (existingPrint > 0 || existingUsb > 0) {
+    // eslint-disable-next-line no-console
+    console.log(`Demo Print/USB preskocen – uz existuji zaznamy (${existingPrint} tisk + ${existingUsb} USB).`);
+    return;
+  }
+
   const PRINTERS = ['HP LaserJet M404 (Tiskárna kancelář 1)', 'Canon iR-ADV C5550 (Tiskárna recepce)', 'Brother HL-L2370 (Tiskárna sklad)'];
   const PAPER_SIZES = ['A4', 'A4', 'A4', 'A4', 'A3', 'A4', 'A5']; // distribuce
   const DOC_NAMES = ['Faktura', 'Smlouva s dodavatelem', 'Cenová nabídka', 'Týdenní report', 'Technický výkres', 'Personální podklady', 'Návrh dovolené'];
