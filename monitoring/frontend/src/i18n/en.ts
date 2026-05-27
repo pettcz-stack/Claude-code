@@ -825,6 +825,7 @@ export const en: typeof cs = {
   access: {
     title: 'Access Control',
     subtitle: 'Manage admin accounts, their roles and the departments they can access. Only ADMIN role can see and manage this.',
+    searchPlaceholder: 'Search user or name…',
     rolesLegendTitle: 'Roles and their capabilities',
     roleAdmin: 'ADMIN',
     roleAdminDesc: 'Full access. Manages accounts, roles, categories, settings, can see all data including salaries.',

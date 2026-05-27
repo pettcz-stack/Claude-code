@@ -825,6 +825,7 @@ export const pl: typeof cs = {
   access: {
     title: 'Dostępy',
     subtitle: 'Zarządzanie kontami administratorów, ich rolami i działami, do których mają dostęp. Widzi i zarządza tylko rola ADMIN.',
+    searchPlaceholder: 'Szukaj użytkownika lub imienia…',
     rolesLegendTitle: 'Role i ich możliwości',
     roleAdmin: 'ADMIN',
     roleAdminDesc: 'Pełny dostęp. Zarządza kontami, rolami, kategoriami, ustawieniami, może widzieć wszystkie dane łącznie z wynagrodzeniami.',

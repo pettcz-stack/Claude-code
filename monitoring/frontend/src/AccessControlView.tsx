@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
-import { Shield, UserPlus, Save, Trash2, KeyRound, X, AlertTriangle } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Shield, UserPlus, Save, Trash2, KeyRound, X, AlertTriangle, Search } from 'lucide-react';
 import { api, type AccessAdminUser } from './api.js';
 import { useT } from './i18n/index.js';
+import { useSort, SortHeader } from './tableSort.js';
 
 type Role = 'ADMIN' | 'MANAGER' | 'IT' | 'VIEWER';
 
@@ -18,6 +19,18 @@ export function AccessControlView() {
   const [departments, setDepartments] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<AccessAdminUser | 'new' | null>(null);
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState<Role | 'ALL'>('ALL');
+  const filteredUsers = useMemo(() => {
+    const list = users ?? [];
+    const q = search.trim().toLowerCase();
+    return list.filter((u) => {
+      if (roleFilter !== 'ALL' && u.role !== roleFilter) return false;
+      if (!q) return true;
+      return u.username.toLowerCase().includes(q) || (u.fullName ?? '').toLowerCase().includes(q);
+    });
+  }, [users, search, roleFilter]);
+  const { sorted: sortedUsers, key, dir, setSort } = useSort(filteredUsers, 'username', 'asc');
 
   async function reload() {
     try {
@@ -87,20 +100,34 @@ export function AccessControlView() {
         {users && users.length === 0 && <p className="text-sm muted-2">{t('access.empty')}</p>}
 
         {users && users.length > 0 && (
+          <>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Search size={14} className="muted-2" />
+                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('access.searchPlaceholder')} className="field w-56" />
+              </div>
+              <div className="flex flex-wrap gap-1">
+                <button onClick={() => setRoleFilter('ALL')} className={`btn-ghost text-xs ${roleFilter === 'ALL' ? 'ring-1 ring-emerald-400' : ''}`}>{t('common.all')}</button>
+                {ROLE_OPTIONS.map((r) => (
+                  <button key={r.value} onClick={() => setRoleFilter(r.value)} className={`btn-ghost text-xs ${roleFilter === r.value ? 'ring-1 ring-emerald-400' : ''}`}>{t(r.labelKey)}</button>
+                ))}
+              </div>
+              <span className="text-xs muted-2">{t('common.shownOfTotal', { shown: sortedUsers.length, total: users.length })}</span>
+            </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr>
-                  <th className="th">{t('access.colUsername')}</th>
-                  <th className="th">{t('access.colFullName')}</th>
-                  <th className="th">{t('access.colRole')}</th>
+                  <SortHeader sortKey="username" current={key} dir={dir} onChange={setSort}>{t('access.colUsername')}</SortHeader>
+                  <SortHeader sortKey="fullName" current={key} dir={dir} onChange={setSort}>{t('access.colFullName')}</SortHeader>
+                  <SortHeader sortKey="role" current={key} dir={dir} onChange={setSort}>{t('access.colRole')}</SortHeader>
                   <th className="th">{t('access.colDepartments')}</th>
-                  <th className="th">{t('access.colStatus')}</th>
+                  <SortHeader sortKey="active" current={key} dir={dir} onChange={setSort}>{t('access.colStatus')}</SortHeader>
                   <th className="th"></th>
                 </tr>
               </thead>
               <tbody>
-                {users.map((u) => {
+                {sortedUsers.map((u) => {
                   const roleInfo = ROLE_OPTIONS.find((r) => r.value === u.role);
                   return (
                     <tr key={u.id} className="divide-row">
@@ -132,9 +159,11 @@ export function AccessControlView() {
                     </tr>
                   );
                 })}
+                {sortedUsers.length === 0 && <tr><td colSpan={6} className="td py-6 text-center muted-2">{t('common.noData')}</td></tr>}
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 

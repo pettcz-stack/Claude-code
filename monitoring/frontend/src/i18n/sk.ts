@@ -825,6 +825,7 @@ export const sk: typeof cs = {
   access: {
     title: 'Prístupy',
     subtitle: 'Správa admin účtov, ich rolí a oddelení, ku ktorým majú prístup. Vidí a spravuje len rola ADMIN.',
+    searchPlaceholder: 'Hľadať používateľa alebo meno…',
     rolesLegendTitle: 'Roly a ich možnosti',
     roleAdmin: 'ADMIN',
     roleAdminDesc: 'Plný prístup. Spravuje účty, roly, kategórie, nastavenia, smie vidieť všetky dáta vrátane miezd.',
