@@ -13,7 +13,7 @@ import { listDeviceHealth, getDeviceHealthDetail } from '../services/health.js';
 import { recentEvents, clearEvents } from '../services/eventLog.js';
 import { getAgentLog } from '../services/agentLogStore.js';
 import { exportUserData, eraseUser } from '../services/userPrivacy.js';
-import { logAccess } from '../auth.js';
+import { logAccess, hashPassword, verifyPassword, readSessionToken, hashSessionToken } from '../auth.js';
 import { validateCuidParam } from '../middleware/validateId.js';
 import { runSecurityCheck } from '../services/securityCheck.js';
 
@@ -39,6 +39,48 @@ adminRouter.param('deviceId', validateCuidParam);
  */
 adminRouter.get('/security-check', requireRole('ADMIN'), async (_req, res) => {
   res.json({ checks: await runSecurityCheck() });
+});
+
+/**
+ * Změna hesla přihlášeného admina. Vyžaduje znalost starého hesla
+ * (obrana proti use case "admin nechal otevřené PC"). Po úspěšné změně
+ * smaže VŠECHNY ostatní session daného účtu – jediné aktivní zůstane
+ * to, ve kterém změnu provádíme (anti-takeover po kompromitaci).
+ */
+const passwordChangeSchema = z.object({
+  oldPassword: z.string().min(1),
+  newPassword: z.string().min(10).max(200),
+});
+adminRouter.post('/change-password', async (req, res) => {
+  if (!req.admin) return void res.status(401).json({ error: 'unauthorized' });
+  const parsed = passwordChangeSchema.safeParse(req.body);
+  if (!parsed.success) return void res.status(400).json({ error: 'invalid_payload', detail: 'Nové heslo musí mít alespoň 10 znaků.' });
+  const me = await prisma.adminUser.findUnique({ where: { id: req.admin.id } });
+  if (!me) return void res.status(404).json({ error: 'not_found' });
+  if (!verifyPassword(parsed.data.oldPassword, me.passwordHash)) {
+    return void res.status(403).json({ error: 'wrong_old_password' });
+  }
+  if (parsed.data.oldPassword === parsed.data.newPassword) {
+    return void res.status(400).json({ error: 'same_password' });
+  }
+  await prisma.adminUser.update({
+    where: { id: me.id },
+    data: { passwordHash: hashPassword(parsed.data.newPassword) },
+  });
+  // Invalidate všechny ostatní sessions (kromě té současné, kterou pozná
+  // podle cookie/Bearer headeru – ta se necháme dál žít, ať se admin
+  // nemusí znovu přihlásit hned po změně hesla).
+  const currentToken = readSessionToken(req);
+  await prisma.adminSession.deleteMany({
+    where: { adminId: me.id, NOT: { tokenHash: hashSessionToken(currentToken) } },
+  });
+  await logAccess({
+    adminId: me.id,
+    adminIdentity: me.username,
+    action: 'PASSWORD_CHANGE',
+    detail: 'admin si změnil vlastní heslo',
+  });
+  res.json({ ok: true });
 });
 
 /** Provozovny – výpis. */

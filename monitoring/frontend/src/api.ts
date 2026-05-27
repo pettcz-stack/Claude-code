@@ -392,6 +392,17 @@ export const api = {
     fetch('/api/v1/admin/alerts/run', { method: 'POST', headers: authHeader() }).then((r) => r.json()),
   securityCheck: () =>
     getJson<{ checks: { id: string; title: string; status: 'pass' | 'warn' | 'fail'; detail: string; remediation?: string }[] }>('/api/v1/admin/security-check'),
+  changePassword: async (oldPassword: string, newPassword: string): Promise<void> => {
+    const r = await fetch('/api/v1/admin/change-password', {
+      method: 'POST',
+      headers: { ...authHeader(), 'content-type': 'application/json' },
+      body: JSON.stringify({ oldPassword, newPassword }),
+    });
+    if (!r.ok) {
+      const j: { error?: string; detail?: string } = await r.json().catch(() => ({}));
+      throw new Error(j.detail || j.error || `${r.status}`);
+    }
+  },
   hourly: (userId: string, from: string, to: string) =>
     getJson<{ rows: HourlyRow[] }>(
       `/api/v1/dashboard/hourly?userId=${encodeURIComponent(userId)}&from=${from}&to=${to}`,

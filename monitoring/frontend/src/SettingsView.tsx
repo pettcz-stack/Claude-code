@@ -5,6 +5,7 @@ import { useToast } from './Toast.js';
 import { SitesAdmin } from './SitesAdmin.js';
 import { DiagnosticLog } from './DiagnosticLog.js';
 import { SecurityCheckPanel } from './SecurityCheckPanel.js';
+import { PasswordChangePanel } from './PasswordChangePanel.js';
 
 export function SettingsView({ canEdit }: { canEdit: boolean }) {
   const [enabled, setEnabled] = useState(true);
@@ -257,6 +258,8 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
       </div>
 
       <SecurityCheckPanel canEdit={canEdit} />
+
+      <PasswordChangePanel />
 
       <DiagnosticLog canEdit={canEdit} />
     </div>
