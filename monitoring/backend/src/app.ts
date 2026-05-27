@@ -93,12 +93,34 @@ export function createApp() {
   });
 
   app.get('/api/v1/health', async (_req, res) => {
+    // Detailnější health odpověď – uptime monitoringy se na ni můžou opřít
+    // jak v pohodě (status=ok) tak detekovat degradaci (db down, vysoký memory).
+    const checks: Record<string, { status: 'up' | 'down' | 'warn'; detail?: string }> = {};
+    let overall: 'ok' | 'degraded' = 'ok';
+    // 1) DB ping
     try {
       await prisma.$queryRaw`SELECT 1`;
-      res.json({ status: 'ok', db: 'up' });
-    } catch {
-      res.status(503).json({ status: 'degraded', db: 'down' });
+      checks.db = { status: 'up' };
+    } catch (e) {
+      checks.db = { status: 'down', detail: e instanceof Error ? e.message : 'unknown' };
+      overall = 'degraded';
     }
+    // 2) Memory: warn pokud heap používáme > 90 % heap_total (potenciální OOM)
+    const mem = process.memoryUsage();
+    const heapPct = mem.heapUsed / mem.heapTotal;
+    checks.memory = {
+      status: heapPct > 0.9 ? 'warn' : 'up',
+      detail: `heap ${Math.round(mem.heapUsed / 1024 / 1024)}MB / ${Math.round(mem.heapTotal / 1024 / 1024)}MB (${Math.round(heapPct * 100)} %)`,
+    };
+    if (heapPct > 0.95) overall = 'degraded';
+    // 3) Uptime sekundy procesu – užitečné pro debug ("backend right po restartu")
+    const uptime = Math.round(process.uptime());
+    res.status(overall === 'ok' ? 200 : 503).json({
+      status: overall,
+      uptime,
+      version: process.env.npm_package_version ?? '0.9.1',
+      checks,
+    });
   });
 
   // Prometheus-style metrics. Žádná auth – záměrně (scrape by Prom server),
