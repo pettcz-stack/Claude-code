@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Gauge, LayoutDashboard, User as UserIcon, Trophy, TrendingUp, AppWindow, CalendarDays, Table2, Shield,
   ShieldAlert, SlidersHorizontal, House, BadgeCheck, KeyRound, Sun, Moon, LogOut, ChevronLeft, ChevronRight,
-  Menu, Search, HeartPulse,
+  Menu, Search, HeartPulse, Printer,
 } from 'lucide-react';
 import { api, auth, type Me, type User } from './api.js';
 import { CommandPalette, type Command } from './CommandPalette.js';
@@ -15,6 +15,7 @@ import { Scoreboard } from './Scoreboard.js';
 import { SummaryView } from './SummaryView.js';
 import { AdminView } from './AdminView.js';
 import { HardwareHealthView } from './HardwareHealthView.js';
+import { PrintUsbView } from './PrintUsbView.js';
 import { TrendChart } from './TrendChart.js';
 import { TopActivities } from './TopActivities.js';
 import { CategoryAdmin } from './CategoryAdmin.js';
@@ -28,7 +29,7 @@ import { useT } from './i18n/index.js';
 import { LanguageSwitcher } from './LanguageSwitcher.js';
 import { isoDate, startOfLocalDay } from './util.js';
 
-type Tab = 'overview' | 'homeoffice' | 'detail' | 'selfreport' | 'scoreboard' | 'alerts' | 'trends' | 'apps' | 'software' | 'calendar' | 'summary' | 'admin' | 'settings' | 'health';
+type Tab = 'overview' | 'homeoffice' | 'detail' | 'selfreport' | 'scoreboard' | 'alerts' | 'trends' | 'apps' | 'software' | 'calendar' | 'summary' | 'admin' | 'settings' | 'health' | 'printusb';
 type PeriodMode = 'day' | 'week' | 'month' | 'custom';
 
 type NavItem = { id: Tab; labelKey: string; Icon: typeof UserIcon };
@@ -65,6 +66,7 @@ const NAV_SECTIONS_STATIC: { titleKey: string; items: NavItem[] }[] = [
     items: [
       { id: 'admin', labelKey: 'nav.admin', Icon: Shield },
       { id: 'health', labelKey: 'nav.health', Icon: HeartPulse },
+      { id: 'printusb', labelKey: 'nav.printUsb', Icon: Printer },
       { id: 'settings', labelKey: 'nav.settings', Icon: SlidersHorizontal },
     ],
   },
@@ -196,7 +198,7 @@ export default function App() {
   if (!warmed) return <WarmingScreen />;
 
   const needsUser = tab === 'detail' || tab === 'calendar' || tab === 'selfreport';
-  const needsPeriod = tab === 'overview' || tab === 'homeoffice' || tab === 'detail' || tab === 'selfreport' || tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'software' || tab === 'trends' || tab === 'alerts';
+  const needsPeriod = tab === 'overview' || tab === 'homeoffice' || tab === 'detail' || tab === 'selfreport' || tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'software' || tab === 'trends' || tab === 'alerts' || tab === 'printusb';
   const needsDept = tab === 'overview' || tab === 'homeoffice' || tab === 'scoreboard' || tab === 'summary' || tab === 'apps' || tab === 'software' || tab === 'trends' || tab === 'alerts';
   const titleKey = NAV_FLAT.find((n) => n.id === tab)?.labelKey ?? '';
   const title = titleKey ? t(titleKey) : '';
@@ -343,6 +345,7 @@ export default function App() {
           {tab === 'summary' && <SummaryView from={from} to={to} department={department || undefined} />}
           {tab === 'admin' && <AdminView role={me.role} />}
           {tab === 'health' && <HardwareHealthView />}
+          {tab === 'printusb' && <PrintUsbView from={from} to={to} />}
           {tab === 'settings' && <SettingsView canEdit={me.role === 'ADMIN'} />}
         </main>
       </div>

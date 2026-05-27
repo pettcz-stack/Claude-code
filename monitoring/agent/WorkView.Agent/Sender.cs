@@ -62,11 +62,19 @@ namespace WorkView.Agent
 
         private void BuildHttpClient()
         {
-            _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-            // Auth token: preferujeme per-device token (vznikl enrollmentem),
-            // jinak fallback na sdílený INGEST_TOKEN z konfigurace agenta.
+            _http = NewHttpClient();
+        }
+
+        /// <summary>
+        /// Vytvoří nový HttpClient s aktuálním auth tokenem. Používají monitory
+        /// (Print/USB), které mají vlastní lifecycle a nesdílí _http hlavního senderu.
+        /// </summary>
+        public HttpClient NewHttpClient()
+        {
+            HttpClient c = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
             string activeToken = string.IsNullOrEmpty(_cfg.DeviceToken) ? _cfg.IngestToken : _cfg.DeviceToken;
-            _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", activeToken);
+            c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", activeToken);
+            return c;
         }
 
         /// <summary>

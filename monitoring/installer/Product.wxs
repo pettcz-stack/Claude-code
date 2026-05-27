@@ -19,7 +19,7 @@
   <Package
       Name="MA win 32"
       Manufacturer="MA"
-      Version="0.2.1"
+      Version="0.3.0"
       UpgradeCode="7d6a2c4e-9b1f-4a3d-9c2a-2f5e6b8c1a90"
       Scope="perMachine"
       Codepage="1250"
@@ -40,6 +40,12 @@
     <Property Id="IDLESECONDS" Value="300" Secure="yes" />
     <Property Id="COMPANYNETWORKONLY" Value="0" Secure="yes" />
     <Property Id="COMPANYPROBEHOST" Secure="yes" />
+    <!-- Tisk + USB monitoring (opt-in při instalaci; default vypnuto).
+         Doporučeno aktivovat až po písemném poučení zaměstnanců dle §316/3 ZP. -->
+    <Property Id="TRACKPRINT" Value="0" Secure="yes" />
+    <Property Id="CAPTUREPRINTDOCNAME" Value="0" Secure="yes" />
+    <Property Id="TRACKUSB" Value="0" Secure="yes" />
+    <Property Id="CAPTUREUSBFILENAME" Value="0" Secure="yes" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="WorkView" />
@@ -102,6 +108,10 @@
           <RegistryValue Name="IdleThresholdSeconds" Type="string" Value="[IDLESECONDS]" />
           <RegistryValue Name="CompanyNetworkOnly" Type="string" Value="[COMPANYNETWORKONLY]" />
           <RegistryValue Name="CompanyProbeHost" Type="string" Value="[COMPANYPROBEHOST]" />
+          <RegistryValue Name="TrackPrint" Type="string" Value="[TRACKPRINT]" />
+          <RegistryValue Name="CapturePrintDocName" Type="string" Value="[CAPTUREPRINTDOCNAME]" />
+          <RegistryValue Name="TrackUsb" Type="string" Value="[TRACKUSB]" />
+          <RegistryValue Name="CaptureUsbFilename" Type="string" Value="[CAPTUREUSBFILENAME]" />
         </RegistryKey>
       </Component>
 

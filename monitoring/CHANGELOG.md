@@ -5,6 +5,45 @@ Verzování: [Semantic Versioning](https://semver.org/lang/cs/).
 
 ## [Unreleased]
 
+### v0.3.0 — Tisk & USB monitoring
+
+Nová samostatná funkce pro sledování tiskových úloh a přesunů souborů na USB.
+Vše OPT-IN s default OFF, server-side enforcement schování názvů.
+
+- **Schéma**: PrintJob + UsbFileEvent (Prisma migrace 20260527092544_print_usb)
+- **Ingest endpointy**: POST /api/v1/ingest/print + /api/v1/ingest/usb
+  (dávkové, max 500 / 1000 záznamů, vyžadují per-device token)
+- **Admin endpointy**: GET /admin/print/summary, /print/user/:id,
+  /usb/summary, /usb/user/:id. Drill-down loguje VIEW do AccessAudit.
+- **Settings**: 4 nové toggles (`printTrackingEnabled`, `capturePrintDocName`,
+  `usbTrackingEnabled`, `captureUsbFilename`) – sekce „Tisk & USB monitoring"
+  v Nastavení → Soukromí. Capture* je vždy závislý na hlavním tracking flagu.
+- **Self-audit security check**: warn pokud je capturePrintDocName nebo
+  captureUsbFilename zapnuté – připomínka pro DPIA + balanční test.
+- **Retence**: PrintJob i UsbFileEvent se mažou s `RAW_RETENTION_DAYS`
+  (default 35 dní, stejně jako surové intervaly aktivity).
+- **Frontend**: nový tab „Tisk & USB" v navigaci (ikonka Printer), 2 záložky
+  v rámci viewu (tisk / USB), top-N tabulka s drill-down detailem na uživatele.
+  Bannery upozorňují, když je sběr vypnut nebo když se neukládají názvy.
+- **Agent (.NET, v0.3.0)**: nové třídy PrintMonitor.cs a UsbMonitor.cs.
+  Print: `EventLogWatcher` na `Microsoft-Windows-PrintService/Operational`
+  event 307 (Document printed); flush každých 5 min.
+  USB: `FileSystemWatcher` na všech aktivních removable discích + WMI
+  `Win32_VolumeChangeEvent` pro detekci nově připojených zařízení.
+  Obě respektují CapturePrintDocName / CaptureUsbFilename z registry –
+  pokud OFF, název se vůbec neodešle. Server pak ještě jednou kontroluje
+  (defense in depth).
+- **MSI**: nové properties TRACKPRINT, CAPTUREPRINTDOCNAME, TRACKUSB,
+  CAPTUREUSBFILENAME (default 0). Zápis do `HKLM\SOFTWARE\WorkView`.
+- **Právní šablony**: aktualizován `08-pravni-manual.md` a
+  `01-informace-zamestnancum.md` – tabulka rozsahu sledování, dovolené /
+  omezené formy. Nové sběry vyžadují aktualizovaný balanční test a DPIA.
+- **i18n**: nová sekce `printUsb.*` ve všech 5 jazycích + 10 nových klíčů
+  v `settings.*` pro toggles. Lokalizace názvů ve sidebaru: "Tisk & USB" /
+  "Tlač & USB" / "Print & USB" / "Drukowanie & USB" / "Druck & USB".
+
+
+
 ### Release-prep audit – security & GDPR sweep
 
 Připraveno na placený pilot u 1–2 vybraných zákazníků (after lawyer review of `docs/pravni/`).

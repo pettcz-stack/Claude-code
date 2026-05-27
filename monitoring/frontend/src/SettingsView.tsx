@@ -23,6 +23,10 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
   const [privacyStoreDomainOnly, setPrivacyStoreDomainOnly] = useState(false);
   const [retentionDays, setRetentionDays] = useState(90);
   const [selfAuditEnabled, setSelfAuditEnabled] = useState(false);
+  const [printTrackingEnabled, setPrintTrackingEnabled] = useState(false);
+  const [capturePrintDocName, setCapturePrintDocName] = useState(false);
+  const [usbTrackingEnabled, setUsbTrackingEnabled] = useState(false);
+  const [captureUsbFilename, setCaptureUsbFilename] = useState(false);
   const [smtp, setSmtp] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
   const toast = useToast();
@@ -41,6 +45,10 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
       setPrivacyStoreDomainOnly(d.settings.privacyStoreDomainOnly);
       setRetentionDays(d.settings.retentionDaysIntervals);
       setSelfAuditEnabled(d.settings.selfAuditEnabled);
+      setPrintTrackingEnabled(d.settings.printTrackingEnabled);
+      setCapturePrintDocName(d.settings.capturePrintDocName);
+      setUsbTrackingEnabled(d.settings.usbTrackingEnabled);
+      setCaptureUsbFilename(d.settings.captureUsbFilename);
       setSmtp(d.smtpConfigured);
     }).catch(() => undefined);
   }
@@ -49,7 +57,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
   async function save() {
     setMsg(t('common.saving'));
     try {
-      await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline, funMode, healthMode, growthMode, interpretMonitors, employeeReportEnabled, showDemoDevices, privacyStoreDomainOnly, retentionDaysIntervals: retentionDays, selfAuditEnabled });
+      await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline, funMode, healthMode, growthMode, interpretMonitors, employeeReportEnabled, showDemoDevices, privacyStoreDomainOnly, retentionDaysIntervals: retentionDays, selfAuditEnabled, printTrackingEnabled, capturePrintDocName, usbTrackingEnabled, captureUsbFilename });
       setMsg(null); toast(t('settings.settingsSaved'));
     } catch (e) { toast(t('settings.saveFailed') + e, 'error'); }
     load();
@@ -246,6 +254,47 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
         <p className="mt-4 text-xs muted-2">
           {t('settings.plannedNoteEmployee')}
         </p>
+      </section>
+
+      <section id="printusb" className="card p-5 scroll-mt-32">
+        <h3 className="mb-3 text-sm font-semibold">{t('settings.sectionPrintUsb')}</h3>
+        <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
+          {t('settings.printUsbBanner')}
+        </div>
+
+        <label className="mb-3 flex items-start gap-3 text-sm">
+          <input type="checkbox" checked={printTrackingEnabled} disabled={!canEdit} onChange={(e) => setPrintTrackingEnabled(e.target.checked)} className="mt-1" />
+          <span>
+            <span className="font-medium">{t('settings.printTrackingLabel')}</span>
+            <span className="muted-2"> {t('settings.printTrackingDesc')}</span>
+          </span>
+        </label>
+        <label className="mb-4 ml-6 flex items-start gap-3 text-sm">
+          <input type="checkbox" checked={capturePrintDocName} disabled={!canEdit || !printTrackingEnabled} onChange={(e) => setCapturePrintDocName(e.target.checked)} className="mt-1" />
+          <span>
+            <span className="font-medium">{t('settings.capturePrintDocNameLabel')}</span>
+            <span className="muted-2"> {t('settings.capturePrintDocNameDesc')}</span>
+          </span>
+        </label>
+
+        <label className="mb-3 flex items-start gap-3 text-sm">
+          <input type="checkbox" checked={usbTrackingEnabled} disabled={!canEdit} onChange={(e) => setUsbTrackingEnabled(e.target.checked)} className="mt-1" />
+          <span>
+            <span className="font-medium">{t('settings.usbTrackingLabel')}</span>
+            <span className="muted-2"> {t('settings.usbTrackingDesc')}</span>
+          </span>
+        </label>
+        <label className="ml-6 flex items-start gap-3 text-sm">
+          <input type="checkbox" checked={captureUsbFilename} disabled={!canEdit || !usbTrackingEnabled} onChange={(e) => setCaptureUsbFilename(e.target.checked)} className="mt-1" />
+          <span>
+            <span className="font-medium">{t('settings.captureUsbFilenameLabel')}</span>
+            <span className="muted-2"> {t('settings.captureUsbFilenameDesc')}</span>
+          </span>
+        </label>
+
+        {canEdit && (
+          <button onClick={save} className="btn-primary mt-4"><Save size={15} /> {t('common.save')}</button>
+        )}
       </section>
 
       <section id="sites" className="scroll-mt-32">

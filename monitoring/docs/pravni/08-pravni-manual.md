@@ -29,6 +29,10 @@ záměrně nesbírá obsah komunikace, soubory ani screenshoty.
 | **Hostname, MAC, lokální IP, Windows SID, jméno uživatele** | Identifikace zařízení a osoby | Běžný |
 | **HW telemetrie** (CPU, RAM, baterie, disky, BIOS, antivirus) | IT preventivní údržba (čl. 6/1/f GDPR — oprávněný zájem zaměstnavatele na funkčnosti majetku) | Technický |
 | **Hodinová mzda** *(volitelně, doplní HR)* | Výpočet ceny neproduktivního času | Citlivý HR údaj — chráněn rolí ADMIN |
+| **Tiskové úlohy** *(opt-in `TRACKPRINT=1`)*: čas, tiskárna, počet stran, A4/A3, barva, duplex | Doložení využití tiskárny, kontrola nákladů | Běžný |
+| **Název tištěného dokumentu** *(opt-in `CAPTUREPRINTDOCNAME=1`)* | Doložení, jaký soubor byl tištěn | **Citlivý** — může obsahovat zdravotní zprávu, mzdový list, soukromý dopis. Opt-in. |
+| **USB události** *(opt-in `TRACKUSB=1`)*: čas, akce (CREATE/WRITE/DELETE), disk, velikost, přípona | DLP – kontrola kopírování firemních dat ven | Běžný |
+| **Název USB souboru** *(opt-in `CAPTUREUSBFILENAME=1`)* | Konkrétní soubor, který si zaměstnanec kopíruje | **Citlivý** — opt-in, stejná logika jako u titulku okna |
 
 ### Co FOCUS **NIKDY** nesbírá ❌
 
@@ -172,6 +176,8 @@ záměrně nesbírá obsah komunikace, soubory ani screenshoty.
 | HW telemetrie pro IT (preventivní údržba majetku) | § 316/1 ZP |
 | Mapování pracoviště podle lokální IP / Site | § 316/1 ZP |
 | Sběr titulku okna **při opt-in instalaci** | § 316/1 ZP + balanční test |
+| Sledování tisku na firemní tiskárně (počty stran) | § 316/1 ZP — firemní tiskárna je pracovní prostředek |
+| Sledování přesunů na USB **při opt-in** | § 316/1 ZP + DLP nárok zaměstnavatele na ochranu obchodního tajemství |
 
 ### ⚠️ Dovoleno jen s omezeními
 
@@ -179,6 +185,8 @@ záměrně nesbírá obsah komunikace, soubory ani screenshoty.
 |---|---|
 | Sledování doby strávené na konkrétním webu | OK na agregované úrovni, ale neukládejme plnou URL — jen doménu (`youtube.com`), ne `youtube.com/watch?v=osobni-video` |
 | Sběr titulku okna | Default vypnuto. Pokud zapnete, musí být **explicitně v poučení zaměstnance** a doporučeno **DPIA** |
+| Sběr **názvů tištěných dokumentů** | Default vypnuto. Pokud zapnete, **musí** být v poučení zaměstnance, doporučeno DPIA. Pro většinu compliance scénářů stačí počty stran. |
+| Sběr **názvů USB souborů** | Default vypnuto. Stejně jako u titulku okna: pokud zapnete, musí být v poučení + DPIA. Pro DLP detekci ve většině případů stačí velikosti a typy souborů. |
 
 ### ❌ Zakázáno (a FOCUS to NEDĚLÁ)
 

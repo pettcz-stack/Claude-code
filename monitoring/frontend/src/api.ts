@@ -185,7 +185,27 @@ export type TipsData = {
   fun: { text: string }[];
 };
 
-export type AppSettings = { alertsEnabled: boolean; alertRecipients: string[]; offlineMinutes: number; funMode: boolean; healthMode: boolean; growthMode: boolean; interpretMonitors: boolean; employeeReportEnabled: boolean; showDemoDevices: boolean; privacyStoreDomainOnly: boolean; retentionDaysIntervals: number; selfAuditEnabled: boolean };
+export type AppSettings = { alertsEnabled: boolean; alertRecipients: string[]; offlineMinutes: number; funMode: boolean; healthMode: boolean; growthMode: boolean; interpretMonitors: boolean; employeeReportEnabled: boolean; showDemoDevices: boolean; privacyStoreDomainOnly: boolean; retentionDaysIntervals: number; selfAuditEnabled: boolean; printTrackingEnabled: boolean; capturePrintDocName: boolean; usbTrackingEnabled: boolean; captureUsbFilename: boolean };
+
+export type PrintSummaryRow = {
+  userId: string | null; displayName: string; department: string | null;
+  jobs: number; pages: number; colorPages: number; duplexPages: number;
+  a4Pages: number; a3Pages: number; otherPages: number;
+};
+export type PrintJobRow = {
+  id: string; jobAt: string; printerName: string | null; documentName: string | null;
+  pages: number; copies: number; paperSize: string | null; color: boolean | null; duplex: boolean | null;
+};
+export type UsbSummaryRow = {
+  userId: string | null; displayName: string; department: string | null;
+  events: number; writeEvents: number; readEvents: number; deleteEvents: number;
+  totalBytes: number; writeBytes: number;
+};
+export type UsbEventRow = {
+  id: string; eventAt: string; action: string;
+  driveLetter: string | null; driveLabel: string | null;
+  fileName: string | null; fileExt: string | null; sizeBytes: number | null;
+};
 
 export type Me = { username: string; role: string };
 
@@ -386,10 +406,18 @@ export const api = {
   deviceRecentIntervals: (id: string) => getJson<{ intervals: { intervalStart: string; intervalSeconds: number; activeSeconds: number; idleSeconds: number; foregroundApp: string | null; windowTitle: string | null; keystrokeCount: number; mouseEvents: number; sessionLocked: boolean; user: { displayName: string | null } | null }[] }>(`/api/v1/admin/devices/${encodeURIComponent(id)}/recent-intervals`),
   deviceAgentLog: (id: string) => getJson<{ entries: { ts: string; message: string; receivedAt: string }[] }>(`/api/v1/admin/devices/${encodeURIComponent(id)}/agent-log`),
   getSettings: () => getJson<{ settings: AppSettings; smtpConfigured: boolean }>('/api/v1/admin/settings'),
-  saveSettings: (data: { alertsEnabled?: boolean; alertRecipients?: string; offlineMinutes?: number; funMode?: boolean; healthMode?: boolean; growthMode?: boolean; interpretMonitors?: boolean; employeeReportEnabled?: boolean; showDemoDevices?: boolean; privacyStoreDomainOnly?: boolean; retentionDaysIntervals?: number; selfAuditEnabled?: boolean }) =>
+  saveSettings: (data: { alertsEnabled?: boolean; alertRecipients?: string; offlineMinutes?: number; funMode?: boolean; healthMode?: boolean; growthMode?: boolean; interpretMonitors?: boolean; employeeReportEnabled?: boolean; showDemoDevices?: boolean; privacyStoreDomainOnly?: boolean; retentionDaysIntervals?: number; selfAuditEnabled?: boolean; printTrackingEnabled?: boolean; capturePrintDocName?: boolean; usbTrackingEnabled?: boolean; captureUsbFilename?: boolean }) =>
     fetch('/api/v1/admin/settings', { method: 'PUT', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   runAlerts: () =>
     fetch('/api/v1/admin/alerts/run', { method: 'POST', headers: authHeader() }).then((r) => r.json()),
+  printSummary: (from: string, to: string) =>
+    getJson<{ rows: PrintSummaryRow[] }>(`/api/v1/admin/print/summary?from=${from}&to=${to}`),
+  printUser: (id: string, from: string, to: string) =>
+    getJson<{ jobs: PrintJobRow[] }>(`/api/v1/admin/print/user/${id}?from=${from}&to=${to}`),
+  usbSummary: (from: string, to: string) =>
+    getJson<{ rows: UsbSummaryRow[] }>(`/api/v1/admin/usb/summary?from=${from}&to=${to}`),
+  usbUser: (id: string, from: string, to: string) =>
+    getJson<{ events: UsbEventRow[] }>(`/api/v1/admin/usb/user/${id}?from=${from}&to=${to}`),
   securityCheck: () =>
     getJson<{ checks: { id: string; title: string; status: 'pass' | 'warn' | 'fail'; detail: string; remediation?: string }[] }>('/api/v1/admin/security-check'),
   changePassword: async (oldPassword: string, newPassword: string): Promise<void> => {

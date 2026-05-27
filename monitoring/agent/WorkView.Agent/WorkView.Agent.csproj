@@ -9,7 +9,7 @@
     <AssemblyName>MA win 32</AssemblyName>
     <AssemblyTitle>MA win 32</AssemblyTitle>
     <Product>MA win 32</Product>
-    <Version>0.2.1</Version>
+    <Version>0.3.0</Version>
     <Company>MA</Company>
     <!-- Cílíme net48 kvůli nejširší kompatibilitě napříč verzemi Windows
          (Win 7 SP1+ až Win 11, Windows Server 2008 R2+). Runtime .NET Framework
@@ -26,6 +26,9 @@
     <Reference Include="System.IO.Compression" />
     <!-- WMI dotazy pro HW telemetrii (baterie, disky, RAM, BIOS, antivirus). -->
     <Reference Include="System.Management" />
+    <!-- Sledování Print Spooler eventů (event 307 = Document printed). -->
+    <Reference Include="System.Core" />
+    <!-- System.Diagnostics.Eventing.Reader je součást System.Core v .NET Framework. -->
   </ItemGroup>
 
 </Project>

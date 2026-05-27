@@ -35,6 +35,14 @@ namespace WorkView.Agent
         // síti (např. doména AD nebo interní host serveru). Když není uvedeno, použije se
         // host z BackendUrl. Vyber jméno, které se VENKU nepřeloží (interní-only A záznam).
         public string CompanyProbeHost { get; private set; }
+        // Sledování tiskových úloh + jejich názvů (opt-in, default false).
+        // I když je název sebrán, server ho zahodí pokud admin Settings nemá zapnuté –
+        // server-side enforcement. Tady jen řídíme, jestli agent vůbec sleduje.
+        public bool TrackPrint { get; private set; }
+        public bool CapturePrintDocName { get; private set; }
+        // Sledování USB přenosů + jejich názvů (opt-in, default false).
+        public bool TrackUsb { get; private set; }
+        public bool CaptureUsbFilename { get; private set; }
 
         public static AgentConfig Load()
         {
@@ -86,6 +94,15 @@ namespace WorkView.Agent
 
             string deviceToken = ReadRegistry("DeviceToken") ?? Environment.GetEnvironmentVariable("WORKVIEW_DEVICE_TOKEN");
 
+            string trackPrintRaw = ReadRegistry("TrackPrint") ?? Environment.GetEnvironmentVariable("WORKVIEW_TRACK_PRINT");
+            bool trackPrint = trackPrintRaw == "1" || string.Equals(trackPrintRaw, "true", StringComparison.OrdinalIgnoreCase);
+            string capturePrintDocRaw = ReadRegistry("CapturePrintDocName") ?? Environment.GetEnvironmentVariable("WORKVIEW_CAPTURE_PRINT_DOCNAME");
+            bool capturePrintDoc = capturePrintDocRaw == "1" || string.Equals(capturePrintDocRaw, "true", StringComparison.OrdinalIgnoreCase);
+            string trackUsbRaw = ReadRegistry("TrackUsb") ?? Environment.GetEnvironmentVariable("WORKVIEW_TRACK_USB");
+            bool trackUsb = trackUsbRaw == "1" || string.Equals(trackUsbRaw, "true", StringComparison.OrdinalIgnoreCase);
+            string captureUsbNameRaw = ReadRegistry("CaptureUsbFilename") ?? Environment.GetEnvironmentVariable("WORKVIEW_CAPTURE_USB_FILENAME");
+            bool captureUsbName = captureUsbNameRaw == "1" || string.Equals(captureUsbNameRaw, "true", StringComparison.OrdinalIgnoreCase);
+
             return new AgentConfig
             {
                 BackendUrl = backend,
@@ -96,7 +113,11 @@ namespace WorkView.Agent
                 CaptureWindowTitle = captureTitle,
                 IdleThresholdSeconds = idleSeconds,
                 CompanyNetworkOnly = networkOnly,
-                CompanyProbeHost = probeHost
+                CompanyProbeHost = probeHost,
+                TrackPrint = trackPrint,
+                CapturePrintDocName = capturePrintDoc,
+                TrackUsb = trackUsb,
+                CaptureUsbFilename = captureUsbName,
             };
         }
 

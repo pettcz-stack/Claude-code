@@ -28,10 +28,21 @@ pracovní době zaznamenává **pouze agregované údaje**:
   *je-li tato funkce aktivována*,
 - **počet** úhozů na klávesnici a **počet** pohybů/kliků myši (jako ukazatel
   tempa práce),
-- informaci o uzamčení obrazovky.
+- informaci o uzamčení obrazovky,
+- *(je-li aktivováno)* **tiskové úlohy odeslané na firemní tiskárnu**: čas
+  tisku, název tiskárny, počet stran, formát papíru (A4/A3), barva, oboustranně.
+  *Název tištěného dokumentu* se ukládá pouze pokud je explicitně aktivována
+  funkce *„Ukládat název dokumentu"*.
+- *(je-li aktivováno)* **události na USB / externích discích** připojených
+  k firemnímu PC: čas, akce (vytvoření / zápis / smazání / přejmenování), disk,
+  velikost souboru, přípona souboru. *Název souboru* se ukládá pouze pokud je
+  explicitně aktivována funkce *„Ukládat název souboru"*.
 
-Titulek okna slouží výhradně ke klasifikaci typu činnosti (práce/mimopráce).
-Zaměstnanec bere na vědomí, že do něj nemá vkládat citlivé osobní údaje.
+Titulek okna, název dokumentu a název USB souboru slouží výhradně ke klasifikaci
+typu činnosti a kontrole nakládání s firemními prostředky. Zaměstnanec bere na
+vědomí, že do nich **nemá vkládat citlivé osobní údaje**. Pokud se přesto v
+těchto polích vyskytne osobní údaj, zaměstnanec má právo požádat o jeho výmaz
+(GDPR čl. 17).
 
 ## 3. Co se NEsleduje
 
@@ -40,6 +51,8 @@ Nástroj **nezaznamenává a neukládá**:
 - ❌ obsah psaného textu ani jednotlivé stisknuté klávesy (žádný „keylogger"),
 - ❌ snímky obrazovky,
 - ❌ obsah e-mailů, zpráv, dokumentů ani schránky,
+- ❌ **obsah** tištěných nebo na USB kopírovaných souborů (jen jejich
+  metadata – velikost, čas, případně název),
 - ❌ zvuk z mikrofonu ani obraz z kamery,
 - ❌ polohu mimo pracoviště.
 

@@ -132,6 +132,13 @@ namespace WorkView.Agent
                         }
                     });
 
+                    // Print + USB monitory (opt-in dle registry, default vypnuto).
+                    // Sběr běží v paměti agenta; flush na server každých 5 minut.
+                    PrintMonitor printMonitor = new PrintMonitor(cfg, () => _sender.NewHttpClient());
+                    UsbMonitor usbMonitor = new UsbMonitor(cfg, () => _sender.NewHttpClient());
+                    printMonitor.Start();
+                    usbMonitor.Start();
+
                     // Odesílání dávek v konfigurovatelném intervalu (výchozí 15 minut).
                     // Mezitím se data hromadí v lokálním bufferu (přežijí restart i výpadek sítě).
                     System.Windows.Forms.Timer sendTimer = new System.Windows.Forms.Timer { Interval = cfg.SendIntervalSeconds * 1000 };
