@@ -54,8 +54,20 @@ jobs:
       - name: Typecheck + build
         run: npm run build
 
-      - name: Run tests
+      - name: License guard (no GPL/LGPL/AGPL drift)
+        run: |
+          npx --yes license-checker --production \
+            --onlyAllow "MIT;MIT*;MIT-0;Apache-2.0;ISC;BSD-2-Clause;BSD-3-Clause;0BSD;Unlicense;CC0-1.0;CC-BY-4.0;MIT AND ISC" \
+            --excludePackages "focus-frontend@$(node -p 'require(\"./package.json\").version')"
+
+    - name: Run tests
         run: npm test
+
+      - name: License guard (no GPL/LGPL/AGPL drift)
+        run: |
+          npx --yes license-checker --production \
+            --onlyAllow "MIT;MIT*;MIT-0;Apache-2.0;ISC;BSD-2-Clause;BSD-3-Clause;0BSD;Unlicense;CC0-1.0;CC-BY-4.0;(MIT OR GPL-3.0-or-later);MIT AND Zlib;Custom: http://github.com/substack/node-bufferlist" \
+            --excludePackages "focus-backend@$(node -p 'require(\"./package.json\").version')"
 
       - name: Smoke-boot server and probe health
         run: |
