@@ -3,10 +3,13 @@ import {
   Calculator, Contact, Box, Code2, CalendarClock, Gamepad2, Music, Folder,
   MessageCircle, Send, Hash, AppWindow, type LucideIcon,
 } from 'lucide-react';
+import { useT } from './i18n/index.js';
 
 type Meta = { name: string; Icon: LucideIcon; color: string };
 
-// Mapování procesů na čitelný název + ikonu + firemní barvu.
+// Mapování procesů na čitelný název + ikonu + firemní barvu. Hodnota `name`
+// začínající na "i18n:" se interpretuje jako klíč slovníku a překládá se
+// pomocí t() v `useAppName` / `useAppMeta`.
 const MAP: Record<string, Meta> = {
   'chrome.exe': { name: 'Google Chrome', Icon: Globe, color: '#4285F4' },
   'msedge.exe': { name: 'Microsoft Edge', Icon: Globe, color: '#0EA5E9' },
@@ -31,8 +34,8 @@ const MAP: Record<string, Meta> = {
   'spotify.exe': { name: 'Spotify', Icon: Music, color: '#16A34A' },
   'whatsapp.exe': { name: 'WhatsApp', Icon: MessageCircle, color: '#16A34A' },
   'telegram.exe': { name: 'Telegram', Icon: Send, color: '#0EA5E9' },
-  'notepad.exe': { name: 'Poznámkový blok', Icon: FileText, color: '#64748B' },
-  'explorer.exe': { name: 'Průzkumník', Icon: Folder, color: '#F59E0B' },
+  'notepad.exe': { name: 'i18n:appMeta.notepad', Icon: FileText, color: '#64748B' },
+  'explorer.exe': { name: 'i18n:appMeta.explorer', Icon: Folder, color: '#F59E0B' },
 };
 
 function metaFor(app: string): Meta {
@@ -45,9 +48,24 @@ function prettyFallback(app: string): string {
   return base ? base.charAt(0).toUpperCase() + base.slice(1) : app;
 }
 
-/** Čitelný název aplikace (bez .exe). */
+/**
+ * Čitelný název aplikace (bez .exe).
+ *
+ * Pozn.: pro pár Windows aplikací (Poznámkový blok, Průzkumník) je název
+ * lokalizovaný – preferuj `useAppName()` v React komponentách. Tato funkce
+ * vrací holý klíč slovníku v takovém případě.
+ */
 export function appName(app: string): string {
   return metaFor(app).name;
+}
+
+/** React hook – vrací lokalizovaný název aplikace. */
+export function useAppName(): (app: string) => string {
+  const { t } = useT();
+  return (app: string) => {
+    const n = metaFor(app).name;
+    return n.startsWith('i18n:') ? t(n.slice(5)) : n;
+  };
 }
 
 /** Ikonka aplikace ve formě barevného čtverečku (jako v reálném OS). */

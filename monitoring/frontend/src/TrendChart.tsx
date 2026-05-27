@@ -1,16 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import { AreaChart as AreaIcon, LineChart as LineIcon, BarChart3 } from 'lucide-react';
 import { api, type TrendPoint } from './api.js';
 import { shortDay, dowShort, isWeekend, czHoliday } from './util.js';
-
-const ABS_TAG: Record<string, { short: string; full: string; color: string }> = {
-  DOVOLENA: { short: 'dovolená', full: 'dovolená', color: '#0ea5e9' },
-  NEMOC: { short: 'nemoc', full: 'nemoc', color: '#e11d48' },
-  HOME_OFFICE: { short: 'HO', full: 'home office', color: '#6366f1' },
-};
+import { useT } from './i18n/index.js';
 
 type ChartType = 'area' | 'line' | 'bar';
 
@@ -21,6 +16,7 @@ export function TrendChart({ from, to, userId, department, dark }: {
   department?: string;
   dark: boolean;
 }) {
+  const { t } = useT();
   const [points, setPoints] = useState<TrendPoint[]>([]);
   const [type, setType] = useState<ChartType>(() => (localStorage.getItem('focus_chart') as ChartType) || 'area');
 
@@ -28,19 +24,25 @@ export function TrendChart({ from, to, userId, department, dark }: {
     api.trend(from, to, { userId, department }).then(setPoints).catch(() => setPoints([]));
   }, [from, to, userId, department]);
 
-  function choose(t: ChartType) {
-    setType(t);
-    localStorage.setItem('focus_chart', t);
+  function choose(ct: ChartType) {
+    setType(ct);
+    localStorage.setItem('focus_chart', ct);
   }
 
   const grid = dark ? '#334155' : '#e5e7eb';
   const axis = dark ? '#94a3b8' : '#6b7280';
 
+  const ABS_TAG: Record<string, { short: string; full: string; color: string }> = useMemo(() => ({
+    DOVOLENA: { short: t('trendChart.absVacation'), full: t('trendChart.absVacation'), color: '#0ea5e9' },
+    NEMOC: { short: t('trendChart.absSick'), full: t('trendChart.absSick'), color: '#e11d48' },
+    HOME_OFFICE: { short: t('trendChart.absHoShort'), full: t('trendChart.absHoFull'), color: '#6366f1' },
+  }), [t]);
+
   const data = points.map((p) => {
     const hol = czHoliday(p.date);
     const abs = p.absence ? ABS_TAG[p.absence] : undefined;
     // priorita: státní svátek > absence (dovolená/nemoc/HO)
-    const tag = hol ? 'svátek' : abs?.short ?? null;
+    const tag = hol ? t('trendChart.absHoliday') : abs?.short ?? null;
     const tagFull = hol ?? abs?.full ?? null;
     const tagColor = hol ? '#d97706' : abs?.color ?? '';
     return { ...p, label: shortDay(p.date), dow: dowShort(p.date), weekend: isWeekend(p.date), tag, tagFull, tagColor };
@@ -64,7 +66,7 @@ export function TrendChart({ from, to, userId, department, dark }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tooltip: any = {
     contentStyle: { background: dark ? '#1e293b' : '#fff', border: `1px solid ${grid}`, borderRadius: 8, fontSize: 12, color: dark ? '#e2e8f0' : '#111' },
-    formatter: (v: number | string) => [`${v} %`, 'Skóre'],
+    formatter: (v: number | string) => [`${v} %`, t('trendChart.scoreLabel')],
     labelFormatter: (label: string) => {
       const e = byLabel.get(label);
       return e ? `${e.label} (${e.dow})${e.tagFull ? ` · ${e.tagFull}` : ''}` : label;
@@ -74,11 +76,11 @@ export function TrendChart({ from, to, userId, department, dark }: {
   return (
     <div className="card p-5">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Trend skóre v čase</h3>
+        <h3 className="text-sm font-semibold">{t('trendChart.title')}</h3>
         <div className="flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-slate-800">
-          {([['area', AreaIcon], ['line', LineIcon], ['bar', BarChart3]] as const).map(([t, Icon]) => (
-            <button key={t} onClick={() => choose(t)} title={t}
-              className={`rounded p-1.5 ${type === t ? 'bg-white shadow-sm dark:bg-slate-700' : 'muted'}`}>
+          {([['area', AreaIcon], ['line', LineIcon], ['bar', BarChart3]] as const).map(([ct, Icon]) => (
+            <button key={ct} onClick={() => choose(ct)} title={ct}
+              className={`rounded p-1.5 ${type === ct ? 'bg-white shadow-sm dark:bg-slate-700' : 'muted'}`}>
               <Icon size={15} />
             </button>
           ))}

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, CornerDownLeft } from 'lucide-react';
+import { useT } from './i18n/index.js';
 
 export type Command = { id: string; label: string; hint?: string; onSelect: () => void };
 
 export function CommandPalette({ open, onClose, commands }: { open: boolean; onClose: () => void; commands: Command[] }) {
+  const { t } = useT();
   const [q, setQ] = useState('');
   const [idx, setIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -47,13 +49,13 @@ export function CommandPalette({ open, onClose, commands }: { open: boolean; onC
               else if (e.key === 'Enter') { e.preventDefault(); run(filtered[idx]); }
               else if (e.key === 'Escape') onClose();
             }}
-            placeholder="Hledat stránku nebo zaměstnance…"
+            placeholder={t('commandPalette.searchPlaceholder')}
             className="w-full bg-transparent py-3 text-sm outline-none"
           />
-          <span className="rounded border border-gray-300 px-1.5 py-0.5 text-[10px] muted-2 dark:border-slate-600">Esc</span>
+          <span className="rounded border border-gray-300 px-1.5 py-0.5 text-[10px] muted-2 dark:border-slate-600">{t('commandPalette.escHint')}</span>
         </div>
         <div className="max-h-80 overflow-auto py-2">
-          {filtered.length === 0 && <div className="px-4 py-6 text-center text-sm muted-2">Nic nenalezeno.</div>}
+          {filtered.length === 0 && <div className="px-4 py-6 text-center text-sm muted-2">{t('commandPalette.noResults')}</div>}
           {filtered.map((c, i) => (
             <button
               key={c.id}

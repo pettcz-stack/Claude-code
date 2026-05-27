@@ -3,11 +3,12 @@ import { Boxes, KeyRound, Wallet, Save, Coins, AlertTriangle } from 'lucide-reac
 import { api, type SoftwareAudit, type SoftwareItem, type CostResult } from './api.js';
 import { PageSkeleton } from './Skeleton.js';
 import { useToast } from './Toast.js';
-import { AppIcon, appName } from './appMeta.js';
+import { AppIcon, useAppName } from './appMeta.js';
 import { useT } from './i18n/index.js';
 
 export function SoftwareView({ from, to, department, canEdit }: { from: string; to: string; department?: string; canEdit: boolean }) {
   const { t } = useT();
+  const appName = useAppName();
   const [data, setData] = useState<SoftwareAudit | null>(null);
   const [cost, setCost] = useState<CostResult | null>(null);
   const [edit, setEdit] = useState<Record<string, { licensed: boolean; seats: string; cost: string }>>({});

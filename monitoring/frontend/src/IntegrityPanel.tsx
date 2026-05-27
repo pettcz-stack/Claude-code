@@ -2,17 +2,23 @@ import { useEffect, useState } from 'react';
 import { ShieldCheck, ShieldAlert } from 'lucide-react';
 import { api, type IntegrityResult } from './api.js';
 import { minutesToHm } from './util.js';
-
-const LABELS: Record<string, string> = {
-  MOUSE_JIGGLER: 'Simulátor myši',
-  KEYBOARD_WEIGHT: 'Předmět na klávesnici / simulátor kláves',
-  NO_APP_SWITCH: 'Bez přepínání aplikací',
-  ROBOTIC_REGULARITY: 'Roboticky pravidelný vzor',
-};
+import { useT } from './i18n/index.js';
 
 export function IntegrityPanel({ userId, from, to }: { userId: string; from: string; to: string }) {
+  const { t } = useT();
   const [r, setR] = useState<IntegrityResult | null>(null);
   useEffect(() => { api.integrity(userId, from, to).then(setR).catch(() => setR(null)); }, [userId, from, to]);
+
+  const labelFor = (type: string): string => {
+    const map: Record<string, string> = {
+      MOUSE_JIGGLER: t('integrity.labelMouseJiggler'),
+      KEYBOARD_WEIGHT: t('integrity.labelKeyboardWeight'),
+      NO_APP_SWITCH: t('integrity.labelNoAppSwitch'),
+      ROBOTIC_REGULARITY: t('integrity.labelRoboticRegularity'),
+    };
+    return map[type] ?? type;
+  };
+
   if (!r) return null;
 
   if (r.flags.length === 0) {
@@ -20,8 +26,8 @@ export function IntegrityPanel({ userId, from, to }: { userId: string; from: str
       <div className="card flex items-center gap-3 p-4">
         <ShieldCheck className="text-emerald-500" size={22} />
         <div>
-          <div className="text-sm font-semibold">Integrita aktivity v pořádku</div>
-          <div className="text-xs muted-2">Nezjištěny žádné známky nepovolených praktik.</div>
+          <div className="text-sm font-semibold">{t('integrity.okTitle')}</div>
+          <div className="text-xs muted-2">{t('integrity.okDesc')}</div>
         </div>
       </div>
     );
@@ -33,19 +39,19 @@ export function IntegrityPanel({ userId, from, to }: { userId: string; from: str
         <ShieldAlert className="text-red-500" size={22} />
         <div>
           <div className="text-sm font-semibold text-red-600 dark:text-red-400">
-            Podezření na nepovolené (pirátské) praktiky — riziko {r.riskScore}/100
+            {t('integrity.suspectTitle', { score: r.riskScore })}
           </div>
-          <div className="text-xs muted-2">Vzorce vstupu naznačují obcházení monitoringu. Doporučeno prověřit.</div>
+          <div className="text-xs muted-2">{t('integrity.suspectDesc')}</div>
         </div>
       </div>
       <div className="space-y-2">
         {r.flags.map((f, i) => (
           <div key={i} className="flex items-start gap-3 rounded-lg bg-red-50 p-3 dark:bg-red-500/10">
-            <span className={`chip ${f.severity === 'high' ? 'chip-nonwork' : 'chip-neutral'}`}>{f.severity === 'high' ? 'vysoké' : 'střední'}</span>
+            <span className={`chip ${f.severity === 'high' ? 'chip-nonwork' : 'chip-neutral'}`}>{f.severity === 'high' ? t('integrity.severityHigh') : t('integrity.severityMedium')}</span>
             <div>
-              <div className="text-sm font-medium">{LABELS[f.type] ?? f.type}</div>
+              <div className="text-sm font-medium">{labelFor(f.type)}</div>
               <div className="text-xs muted">{f.detail}</div>
-              <div className="mt-0.5 text-xs muted-2">Dotčeno přibližně {minutesToHm(f.affectedMinutes)}</div>
+              <div className="mt-0.5 text-xs muted-2">{t('integrity.affectedApprox', { time: minutesToHm(f.affectedMinutes) })}</div>
             </div>
           </div>
         ))}

@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { FileSpreadsheet, FileDown } from 'lucide-react';
 import { api, type SummaryRow } from './api.js';
 import { minutesToHm } from './util.js';
+import { useT } from './i18n/index.js';
 
 type Props = { from: string; to: string; department?: string };
 
 export function SummaryView({ from, to, department }: Props) {
+  const { t } = useT();
   const [rows, setRows] = useState<SummaryRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,20 +25,20 @@ export function SummaryView({ from, to, department }: Props) {
     <div className="card p-5">
       <div className="mb-4 flex items-center gap-3">
         <button onClick={() => api.exportHourly(from, to, { department }).catch((e) => setError(String(e)))} className="btn-primary">
-          <FileSpreadsheet size={15} /> Export do Excelu
+          <FileSpreadsheet size={15} /> {t('summary.exportExcel')}
         </button>
         <button onClick={() => api.exportIntervals(from, to).catch((e) => setError(String(e)))} className="btn-ghost">
-          <FileDown size={15} /> Surová data
+          <FileDown size={15} /> {t('summary.exportRaw')}
         </button>
-        {loading && <span className="text-sm text-blue-500">Načítám…</span>}
-        {error && <span className="text-sm text-red-500">Chyba: {error}</span>}
+        {loading && <span className="text-sm text-blue-500">{t('summary.loading')}</span>}
+        {error && <span className="text-sm text-red-500">{t('summary.errorPrefix')}: {error}</span>}
       </div>
       <table className="w-full">
         <thead>
           <tr>
-            <th className="th">Zaměstnanec</th><th className="th">Oddělení</th>
-            <th className="th text-right">Aktivní práce (hodiny:minuty)</th><th className="th text-right">Nečinnost u PC (hodiny:minuty)</th>
-            <th className="th text-right">Zamčená obrazovka (hodiny:minuty)</th><th className="th text-right">Tempo psaní (úhozů/min)</th>
+            <th className="th">{t('summary.colEmployee')}</th><th className="th">{t('summary.colDepartment')}</th>
+            <th className="th text-right">{t('summary.colActiveWork')}</th><th className="th text-right">{t('summary.colIdle')}</th>
+            <th className="th text-right">{t('summary.colLocked')}</th><th className="th text-right">{t('summary.colTypingSpeed')}</th>
           </tr>
         </thead>
         <tbody>
@@ -50,7 +52,7 @@ export function SummaryView({ from, to, department }: Props) {
               <td className="td text-right tabular-nums">{r.avgKpm}</td>
             </tr>
           ))}
-          {rows.length === 0 && !loading && <tr><td colSpan={6} className="td py-6 text-center muted-2">Žádná data pro zvolené období.</td></tr>}
+          {rows.length === 0 && !loading && <tr><td colSpan={6} className="td py-6 text-center muted-2">{t('summary.noData')}</td></tr>}
         </tbody>
       </table>
     </div>

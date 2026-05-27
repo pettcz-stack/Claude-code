@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { api, type HourlyRow, type User } from './api.js';
 import { startOfLocalDay, minutesToHm, localHourOf, chipClass, TYPE_COLORS } from './util.js';
-import { AppIcon, appName } from './appMeta.js';
+import { AppIcon, useAppName } from './appMeta.js';
+import { useT } from './i18n/index.js';
 
 type Props = { user: User; day: Date };
 
 export function CalendarView({ user, day }: Props) {
+  const { t } = useT();
+  const appName = useAppName();
   const [rows, setRows] = useState<HourlyRow[]>([]);
   type HourDetail = { work: number; nonwork: number; unknown: number; idle: number; locked: number; apps: { app: string; minutes: number }[] };
   const [detailByHour, setDetailByHour] = useState<Map<number, HourDetail>>(new Map());
@@ -38,19 +41,19 @@ export function CalendarView({ user, day }: Props) {
   return (
     <div className="card p-5">
       <div className="mb-3 flex gap-6 text-sm muted">
-        <span>Aktivní celkem: <strong className="text-emerald-500">{minutesToHm(totalActive)}</strong></span>
-        <span>Nečinnost: <strong>{minutesToHm(totalIdle)}</strong></span>
-        {loading && <span className="text-blue-500">Načítám…</span>}
-        {error && <span className="text-red-500">Chyba: {error}</span>}
+        <span>{t('calendar.activeTotal')}: <strong className="text-emerald-500">{minutesToHm(totalActive)}</strong></span>
+        <span>{t('calendar.idle')}: <strong>{minutesToHm(totalIdle)}</strong></span>
+        {loading && <span className="text-blue-500">{t('calendar.loading')}</span>}
+        {error && <span className="text-red-500">{t('calendar.errorPrefix')}: {error}</span>}
       </div>
 
       <table className="w-full">
         <thead>
           <tr>
-            <th className="th w-16">Hodina</th>
-            <th className="th">Aktivita (z 60 min)</th>
-            <th className="th w-56">Nejpoužívanější aplikace <span className="font-normal normal-case muted-2">(najeď myší pro rozpad)</span></th>
-            <th className="th w-24 text-right">Tempo psaní (úhozů/min)</th>
+            <th className="th w-16">{t('calendar.colHour')}</th>
+            <th className="th">{t('calendar.colActivity')}</th>
+            <th className="th w-56">{t('calendar.colTopApps')} <span className="font-normal normal-case muted-2">{t('calendar.colTopAppsHint')}</span></th>
+            <th className="th w-24 text-right">{t('calendar.colTypingSpeed')}</th>
           </tr>
         </thead>
         <tbody>
@@ -66,12 +69,15 @@ export function CalendarView({ user, day }: Props) {
             const pct = (v: number) => `${(v / denom) * 100}%`;
             const cat = r?.topApp ? categories[r.topApp] : undefined;
             const apps = d?.apps ?? [];
+            const hourLabel = `${String(h).padStart(2, '0')}:00`;
             return (
               <tr key={h} className="divide-row">
-                <td className="td font-mono muted-2">{String(h).padStart(2, '0')}:00</td>
+                <td className="td font-mono muted-2">{hourLabel}</td>
                 <td className="td">
                   <div className="flex h-4 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700"
-                    title={(work + nonwork + unknown + idle + locked) > 0 ? `Práce ${minutesToHm(work)} · Zábava ${minutesToHm(nonwork)} · Neměřitelné ${minutesToHm(unknown)} · Nečinnost ${minutesToHm(idle)} · Zamčeno ${minutesToHm(locked)}` : 'Bez dat'}>
+                    title={(work + nonwork + unknown + idle + locked) > 0
+                      ? t('calendar.barTooltip', { work: minutesToHm(work), fun: minutesToHm(nonwork), unknown: minutesToHm(unknown), idle: minutesToHm(idle), locked: minutesToHm(locked) })
+                      : t('calendar.noData')}>
                     <div style={{ width: pct(work), background: TYPE_COLORS.work }} />
                     <div style={{ width: pct(nonwork), background: TYPE_COLORS.nonwork }} />
                     <div style={{ width: pct(unknown), background: '#f59e0b' }} />
@@ -87,7 +93,7 @@ export function CalendarView({ user, day }: Props) {
                       {cat && <span className={chipClass(cat.type)}>{cat.category}</span>}
                       {apps.length > 0 && (
                         <div className="invisible absolute left-0 top-full z-30 mt-1 w-72 rounded-lg border border-gray-200 bg-white p-3 text-left shadow-lg group-hover:visible dark:border-slate-700 dark:bg-slate-800">
-                          <div className="mb-2 text-xs font-semibold">Použité aplikace v {String(h).padStart(2, '0')}:00 (aktivní čas)</div>
+                          <div className="mb-2 text-xs font-semibold">{t('calendar.usedAppsAt', { hour: hourLabel })}</div>
                           <div className="space-y-1">
                             {apps.map((a) => (
                               <div key={a.app} className="flex items-center justify-between gap-3 text-xs">
@@ -108,12 +114,12 @@ export function CalendarView({ user, day }: Props) {
         </tbody>
       </table>
       <div className="mt-3 flex flex-wrap gap-4 text-xs muted">
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: TYPE_COLORS.work }} /> Práce</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: TYPE_COLORS.nonwork }} /> Zábava</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: '#f59e0b' }} /> Neměřitelné</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: TYPE_COLORS.idle }} /> Nečinnost</span>
-        <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: TYPE_COLORS.off }} /> Zamčeno</span>
-        <span className="ml-auto muted-2">Místní čas ({Intl.DateTimeFormat().resolvedOptions().timeZone})</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: TYPE_COLORS.work }} /> {t('calendar.legendWork')}</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: TYPE_COLORS.nonwork }} /> {t('calendar.legendFun')}</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: '#f59e0b' }} /> {t('calendar.legendUnknown')}</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: TYPE_COLORS.idle }} /> {t('calendar.legendIdle')}</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-sm" style={{ background: TYPE_COLORS.off }} /> {t('calendar.legendLocked')}</span>
+        <span className="ml-auto muted-2">{t('calendar.localTime', { tz: Intl.DateTimeFormat().resolvedOptions().timeZone })}</span>
       </div>
     </div>
   );

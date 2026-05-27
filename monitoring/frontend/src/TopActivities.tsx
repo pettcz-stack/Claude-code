@@ -2,13 +2,16 @@ import { useEffect, useState } from 'react';
 import { AppWindow, Globe } from 'lucide-react';
 import { api, type ActivityItem } from './api.js';
 import { chipClass, typeLabel, minutesToHm, TYPE_COLORS } from './util.js';
-import { AppIcon, appName } from './appMeta.js';
+import { AppIcon, useAppName } from './appMeta.js';
+import { useT } from './i18n/index.js';
 
 function barColor(type: string) {
   return type === 'NON_WORK' ? TYPE_COLORS.nonwork : type === 'WORK' ? TYPE_COLORS.work : TYPE_COLORS.idle;
 }
 
 function List({ title, icon, items, kind }: { title: string; icon: React.ReactNode; items: ActivityItem[]; kind: 'app' | 'site' }) {
+  const { t } = useT();
+  const appName = useAppName();
   const max = Math.max(1, ...items.map((i) => i.minutes));
   return (
     <div className="card p-5">
@@ -27,13 +30,14 @@ function List({ title, icon, items, kind }: { title: string; icon: React.ReactNo
             <div className="w-20 text-right text-sm tabular-nums muted">{minutesToHm(it.minutes)}</div>
           </div>
         ))}
-        {items.length === 0 && <p className="text-sm muted-2">Žádná data.</p>}
+        {items.length === 0 && <p className="text-sm muted-2">{t('topActivities.empty')}</p>}
       </div>
     </div>
   );
 }
 
 export function TopActivities({ from, to, userId, department }: { from: string; to: string; userId?: string; department?: string }) {
+  const { t } = useT();
   const [apps, setApps] = useState<ActivityItem[]>([]);
   const [sites, setSites] = useState<ActivityItem[]>([]);
 
@@ -43,8 +47,8 @@ export function TopActivities({ from, to, userId, department }: { from: string; 
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <List title="Nejpoužívanější aplikace (aktivní čas)" icon={<AppWindow size={16} className="text-emerald-600" />} items={apps} kind="app" />
-      <List title="Nejnavštěvovanější weby (aktivní čas)" icon={<Globe size={16} className="text-emerald-600" />} items={sites} kind="site" />
+      <List title={t('topActivities.appsTitle')} icon={<AppWindow size={16} className="text-emerald-600" />} items={apps} kind="app" />
+      <List title={t('topActivities.sitesTitle')} icon={<Globe size={16} className="text-emerald-600" />} items={sites} kind="site" />
     </div>
   );
 }

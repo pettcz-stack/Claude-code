@@ -85,18 +85,12 @@ export function AdminView({ role }: { role: string }) {
         <div className="card p-5">
           <h3 className="mb-3 text-sm font-semibold">{t('admin.monitoredUsers')}</h3>
           <p className="mb-2 text-xs muted-2">{t('admin.monitoredUsersHint')}</p>
-          {/* Sjednocený seznam: přednastavené + již používané oddělení (bez duplikátů). */}
+          {/* Sjednocený seznam: přednastavené (lokalizované) + již používané oddělení (bez duplikátů). */}
           <datalist id="dept-list">
             {Array.from(new Set([
-              'HR', 'Personalistika', 'Nábor',
-              'IT', 'Vývoj', 'Konstrukce',
-              'Výroba', 'Údržba', 'Kvalita / QA',
-              'Marketing', 'Obchod', 'Obchod Export',
-              'Nákup', 'Logistika', 'Sklad',
-              'Ekonomika', 'Účetnictví', 'Finance',
-              'Vedení', 'Asistence', 'Právní',
+              ...t('adminDept.presetList').split('|'),
               ...users.map((u) => u.department ?? '').filter(Boolean),
-            ])).sort((a, b) => a.localeCompare(b, 'cs')).map((d) => <option key={d} value={d} />)}
+            ])).sort((a, b) => a.localeCompare(b, locale)).map((d) => <option key={d} value={d} />)}
           </datalist>
           <table className="w-full">
             <thead><tr><th className="th">{t('common.name')}</th><th className="th">{t('common.department')}</th><th className="th">{t('admin.rateColumn')}</th><th className="th">{t('admin.activeColumn')}</th><th className="th"></th></tr></thead>

@@ -3,10 +3,12 @@ import { Plus, Trash2, Download, Upload } from 'lucide-react';
 import { api, type AppCategoryRow, type WebRuleRow, type DeptRuleRow } from './api.js';
 import { chipClass, typeLabel } from './util.js';
 import { useToast } from './Toast.js';
+import { useT } from './i18n/index.js';
 
 const TYPES = ['WORK', 'NON_WORK', 'NEUTRAL', 'UNKNOWN'];
 
 export function CategoryAdmin({ canEdit, from, to }: { canEdit: boolean; from: string; to: string }) {
+  const { t } = useT();
   const [cats, setCats] = useState<AppCategoryRow[]>([]);
   const [rules, setRules] = useState<WebRuleRow[]>([]);
   const [deptRules, setDeptRules] = useState<DeptRuleRow[]>([]);
@@ -31,15 +33,15 @@ export function CategoryAdmin({ canEdit, from, to }: { canEdit: boolean; from: s
     URL.revokeObjectURL(a.href);
   }
   async function doImport() {
-    const text = prompt('Vlož JSON se zařazením (categories / webRules):');
+    const text = prompt(t('categoryAdmin.importPrompt'));
     if (!text) return;
     try {
       const r = await api.classificationImport(JSON.parse(text));
-      if (r.ok) toast(`Importováno: ${r.categories} aplikací, ${r.webRules} pravidel`);
-      else toast('Import selhal: ' + r.error, 'error');
+      if (r.ok) toast(t('categoryAdmin.importSuccess', { cats: r.categories, rules: r.webRules }));
+      else toast(t('categoryAdmin.importFailed', { err: r.error }), 'error');
       load();
     } catch {
-      toast('Neplatný JSON', 'error');
+      toast(t('categoryAdmin.invalidJson'), 'error');
     }
   }
 
@@ -47,34 +49,34 @@ export function CategoryAdmin({ canEdit, from, to }: { canEdit: boolean; from: s
     <div className="space-y-4">
       {canEdit && (
         <div className="card flex flex-wrap items-center gap-3 p-4">
-          <span className="text-sm font-medium">Dávková klasifikace:</span>
-          <button onClick={doExport} className="btn-ghost"><Download size={15} /> Export nezařazených</button>
-          <button onClick={doImport} className="btn-ghost"><Upload size={15} /> Import zařazení</button>
-          <span className="text-xs muted-2">Vyexportuj nezařazené položky, nech je zařadit (např. asistentem) a naimportuj zpět.</span>
+          <span className="text-sm font-medium">{t('categoryAdmin.batchLabel')}</span>
+          <button onClick={doExport} className="btn-ghost"><Download size={15} /> {t('categoryAdmin.exportBtn')}</button>
+          <button onClick={doImport} className="btn-ghost"><Upload size={15} /> {t('categoryAdmin.importBtn')}</button>
+          <span className="text-xs muted-2">{t('categoryAdmin.batchHint')}</span>
         </div>
       )}
       <div className="grid gap-4 lg:grid-cols-2">
       {/* Aplikace */}
       <div className="card p-5">
-        <h3 className="mb-3 text-sm font-semibold">Kategorie aplikací (proces)</h3>
+        <h3 className="mb-3 text-sm font-semibold">{t('categoryAdmin.appsTitle')}</h3>
         {canEdit && (
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <input placeholder="napr. winword.exe" value={newCat.appName} onChange={(e) => setNewCat({ ...newCat, appName: e.target.value })} className="field w-40" />
-            <input placeholder="kategorie" value={newCat.category} onChange={(e) => setNewCat({ ...newCat, category: e.target.value })} className="field w-32" />
+            <input placeholder={t('categoryAdmin.appNamePlaceholder')} value={newCat.appName} onChange={(e) => setNewCat({ ...newCat, appName: e.target.value })} className="field w-40" />
+            <input placeholder={t('categoryAdmin.categoryPlaceholder')} value={newCat.category} onChange={(e) => setNewCat({ ...newCat, category: e.target.value })} className="field w-32" />
             <select value={newCat.type} onChange={(e) => setNewCat({ ...newCat, type: e.target.value })} className="field">
-              {TYPES.map((t) => <option key={t} value={t}>{typeLabel(t)}</option>)}
+              {TYPES.map((ty) => <option key={ty} value={ty}>{typeLabel(ty)}</option>)}
             </select>
             <button
               className="btn-primary"
               onClick={async () => { if (newCat.appName && newCat.category) { await api.saveCategory(newCat); setNewCat({ appName: '', category: '', type: 'WORK' }); load(); } }}
             >
-              <Plus size={15} /> Přidat
+              <Plus size={15} /> {t('categoryAdmin.addBtn')}
             </button>
           </div>
         )}
         <div className="max-h-80 overflow-auto">
           <table className="w-full">
-            <thead><tr><th className="th">Aplikace</th><th className="th">Kategorie</th><th className="th">Typ</th>{canEdit && <th className="th"></th>}</tr></thead>
+            <thead><tr><th className="th">{t('categoryAdmin.colApp')}</th><th className="th">{t('categoryAdmin.colCategory')}</th><th className="th">{t('categoryAdmin.colType')}</th>{canEdit && <th className="th"></th>}</tr></thead>
             <tbody>
               {cats.map((c) => (
                 <tr key={c.id} className="divide-row">
@@ -91,26 +93,26 @@ export function CategoryAdmin({ canEdit, from, to }: { canEdit: boolean; from: s
 
       {/* Weby */}
       <div className="card p-5">
-        <h3 className="mb-1 text-sm font-semibold">Pravidla pro weby (klíčové slovo v titulku)</h3>
-        <p className="mb-3 text-xs muted-2">Titulek okna obsahuje klíčové slovo → kategorie/typ.</p>
+        <h3 className="mb-1 text-sm font-semibold">{t('categoryAdmin.webTitle')}</h3>
+        <p className="mb-3 text-xs muted-2">{t('categoryAdmin.webHint')}</p>
         {canEdit && (
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <input placeholder="napr. youtube" value={newRule.keyword} onChange={(e) => setNewRule({ ...newRule, keyword: e.target.value })} className="field w-40" />
-            <input placeholder="kategorie" value={newRule.category} onChange={(e) => setNewRule({ ...newRule, category: e.target.value })} className="field w-32" />
+            <input placeholder={t('categoryAdmin.webKeywordPlaceholder')} value={newRule.keyword} onChange={(e) => setNewRule({ ...newRule, keyword: e.target.value })} className="field w-40" />
+            <input placeholder={t('categoryAdmin.categoryPlaceholder')} value={newRule.category} onChange={(e) => setNewRule({ ...newRule, category: e.target.value })} className="field w-32" />
             <select value={newRule.type} onChange={(e) => setNewRule({ ...newRule, type: e.target.value })} className="field">
-              {TYPES.map((t) => <option key={t} value={t}>{typeLabel(t)}</option>)}
+              {TYPES.map((ty) => <option key={ty} value={ty}>{typeLabel(ty)}</option>)}
             </select>
             <button
               className="btn-primary"
               onClick={async () => { if (newRule.keyword && newRule.category) { await api.saveWebRule(newRule); setNewRule({ keyword: '', category: '', type: 'NON_WORK' }); load(); } }}
             >
-              <Plus size={15} /> Přidat
+              <Plus size={15} /> {t('categoryAdmin.addBtn')}
             </button>
           </div>
         )}
         <div className="max-h-80 overflow-auto">
           <table className="w-full">
-            <thead><tr><th className="th">Klíčové slovo</th><th className="th">Kategorie</th><th className="th">Typ</th>{canEdit && <th className="th"></th>}</tr></thead>
+            <thead><tr><th className="th">{t('categoryAdmin.colKeyword')}</th><th className="th">{t('categoryAdmin.colCategory')}</th><th className="th">{t('categoryAdmin.colType')}</th>{canEdit && <th className="th"></th>}</tr></thead>
             <tbody>
               {rules.map((r) => (
                 <tr key={r.id} className="divide-row">
@@ -128,26 +130,26 @@ export function CategoryAdmin({ canEdit, from, to }: { canEdit: boolean; from: s
 
       {/* Pravidla podle oddělení */}
       <div className="card p-5">
-        <h3 className="mb-1 text-sm font-semibold">Pravidla podle oddělení</h3>
-        <p className="mb-3 text-xs muted-2">Přepíše, zda je kategorie pro dané oddělení práce nebo zábava. Např. <b>LinkedIn</b> je pro „Personalistika"/„HR" práce (nábor), pro ostatní zábava. Název oddělení musí přesně odpovídat tomu v datech.</p>
+        <h3 className="mb-1 text-sm font-semibold">{t('categoryAdmin.deptTitle')}</h3>
+        <p className="mb-3 text-xs muted-2">{t('categoryAdmin.deptHintLine1')}<b>{t('categoryAdmin.deptHintLinkedIn')}</b>{t('categoryAdmin.deptHintLine2')}</p>
         {canEdit && (
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <input placeholder="oddělení (napr. Personalistika)" value={newDept.department} onChange={(e) => setNewDept({ ...newDept, department: e.target.value })} className="field w-48" />
-            <input placeholder="kategorie (napr. LinkedIn)" value={newDept.category} onChange={(e) => setNewDept({ ...newDept, category: e.target.value })} className="field w-40" />
+            <input placeholder={t('categoryAdmin.deptDeptPlaceholder')} value={newDept.department} onChange={(e) => setNewDept({ ...newDept, department: e.target.value })} className="field w-48" />
+            <input placeholder={t('categoryAdmin.deptCategoryPlaceholder')} value={newDept.category} onChange={(e) => setNewDept({ ...newDept, category: e.target.value })} className="field w-40" />
             <select value={newDept.type} onChange={(e) => setNewDept({ ...newDept, type: e.target.value })} className="field">
-              {TYPES.map((t) => <option key={t} value={t}>{typeLabel(t)}</option>)}
+              {TYPES.map((ty) => <option key={ty} value={ty}>{typeLabel(ty)}</option>)}
             </select>
             <button
               className="btn-primary"
               onClick={async () => { if (newDept.department && newDept.category) { await api.saveDeptRule(newDept); setNewDept({ department: '', category: '', type: 'WORK' }); load(); } }}
             >
-              <Plus size={15} /> Přidat
+              <Plus size={15} /> {t('categoryAdmin.addBtn')}
             </button>
           </div>
         )}
         <div className="max-h-80 overflow-auto">
           <table className="w-full">
-            <thead><tr><th className="th">Oddělení</th><th className="th">Kategorie</th><th className="th">Typ</th>{canEdit && <th className="th"></th>}</tr></thead>
+            <thead><tr><th className="th">{t('categoryAdmin.colDept')}</th><th className="th">{t('categoryAdmin.colCategory')}</th><th className="th">{t('categoryAdmin.colType')}</th>{canEdit && <th className="th"></th>}</tr></thead>
             <tbody>
               {deptRules.map((r) => (
                 <tr key={r.id} className="divide-row">
@@ -157,7 +159,7 @@ export function CategoryAdmin({ canEdit, from, to }: { canEdit: boolean; from: s
                   {canEdit && <td className="td text-right"><button onClick={async () => { await api.deleteDeptRule(r.id); load(); }} className="muted-2 hover:text-red-500"><Trash2 size={15} /></button></td>}
                 </tr>
               ))}
-              {deptRules.length === 0 && <tr><td className="td muted-2" colSpan={canEdit ? 4 : 3}>Zatím žádné pravidlo.</td></tr>}
+              {deptRules.length === 0 && <tr><td className="td muted-2" colSpan={canEdit ? 4 : 3}>{t('categoryAdmin.deptEmpty')}</td></tr>}
             </tbody>
           </table>
         </div>

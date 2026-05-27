@@ -3,8 +3,9 @@ import { Keyboard, Clock, AlertTriangle, AppWindow, Monitor, Shuffle, CalendarOf
 import { api, type UserScore, type User } from './api.js';
 import { Donut } from './Donut.js';
 import { ScoreScaleLegend } from './Legend.js';
-import { AppIcon, appName } from './appMeta.js';
+import { AppIcon, useAppName } from './appMeta.js';
 import { minutesToHm, chipClass, typeLabel, TYPE_COLORS, scoreColor } from './util.js';
+import { useT } from './i18n/index.js';
 
 function Card({ title, icon, children, accent }: { title: string; icon: React.ReactNode; children: React.ReactNode; accent?: string }) {
   return (
@@ -26,6 +27,8 @@ function Legend({ color, label, value }: { color: string; label: string; value: 
 }
 
 export function ScoreView({ user, from, to }: { user: User; from: string; to: string }) {
+  const { t } = useT();
+  const appName = useAppName();
   const [s, setS] = useState<UserScore | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,15 +39,21 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
     api.score(user.id, from, to).then(setS).catch((e) => setError(String(e))).finally(() => setLoading(false));
   }, [user.id, from, to]);
 
-  if (loading) return <p className="muted-2">Načítám…</p>;
-  if (error) return <p className="text-red-500">Chyba: {error}</p>;
+  if (loading) return <p className="muted-2">{t('common.loading')}</p>;
+  if (error) return <p className="text-red-500">{t('scoreView.errorPrefix')}{error}</p>;
   if (!s) return null;
+
+  function dayWord(n: number): string {
+    if (n === 1) return t('scoreView.dayOne');
+    if (n >= 2 && n <= 4) return t('scoreView.dayFew');
+    return t('scoreView.dayMany');
+  }
 
   const maxCat = Math.max(1, ...s.categories.map((c) => c.minutes));
   const absences = [
-    s.vacationDays ? { label: 'dovolená', n: s.vacationDays, cls: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300' } : null,
-    s.sickDays ? { label: 'nemoc', n: s.sickDays, cls: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300' } : null,
-    s.holidayDays ? { label: 'státní svátek', n: s.holidayDays, cls: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300' } : null,
+    s.vacationDays ? { label: t('scoreView.absVacation'), n: s.vacationDays, cls: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300' } : null,
+    s.sickDays ? { label: t('scoreView.absSick'), n: s.sickDays, cls: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300' } : null,
+    s.holidayDays ? { label: t('scoreView.absHoliday'), n: s.holidayDays, cls: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300' } : null,
   ].filter(Boolean) as { label: string; n: number; cls: string }[];
 
   return (
@@ -53,11 +62,11 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
       {absences.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-sky-200 bg-sky-50/60 p-3 text-sm dark:border-sky-500/30 dark:bg-sky-500/10">
           <CalendarOff size={16} className="shrink-0 text-sky-600 dark:text-sky-300" />
-          <span className="font-medium">Volno v období:</span>
+          <span className="font-medium">{t('scoreView.absencesLabel')}</span>
           {absences.map((a) => (
-            <span key={a.label} className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${a.cls}`}>{a.label}: {a.n} {a.n === 1 ? 'den' : a.n >= 2 && a.n <= 4 ? 'dny' : 'dní'}</span>
+            <span key={a.label} className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${a.cls}`}>{a.label}: {a.n} {dayWord(a.n)}</span>
           ))}
-          <span className="muted-2">– tyto dny se nezapočítávají do skóre (nepracoval, protože měl volno).</span>
+          <span className="muted-2">{t('scoreView.absencesNote')}</span>
         </div>
       )}
       <div className="grid gap-6 card p-6 md:grid-cols-2">
@@ -72,53 +81,53 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
             ]}
             center={<>
               <div className="text-5xl font-bold" style={{ color: scoreColor(s.score) }}>{s.score}%</div>
-              <div className="text-xs muted-2">odpracováno z fondu</div>
+              <div className="text-xs muted-2">{t('scoreView.workedOfFund')}</div>
               {s.monitorAdjusted && (
-                <div className="mt-1 text-[10px] font-medium text-sky-500">upraveno o monitory (surové {s.scoreRaw}%)</div>
+                <div className="mt-1 text-[10px] font-medium text-sky-500">{t('scoreView.monitorAdjusted', { raw: s.scoreRaw })}</div>
               )}
             </>}
           />
         </div>
         <div className="flex flex-col justify-center gap-3">
-          <Legend color={TYPE_COLORS.work} label="Pracoval" value={`${s.workPct}% · ${minutesToHm(s.workMinutes)}`} />
-          <Legend color={TYPE_COLORS.nonwork} label="Zábava" value={`${s.nonWorkPct}% · ${minutesToHm(s.nonWorkMinutes)}`} />
-          <Legend color={TYPE_COLORS.idle} label="U PC, ale nečinný" value={`${s.idlePct}% · ${minutesToHm(s.idleOnMinutes)}`} />
-          <Legend color={TYPE_COLORS.off} label="Mimo PC (měl pracovat)" value={`${s.pcOffPct}% · ${minutesToHm(s.pcOffMinutes)}`} />
-          <p className="mt-1 text-xs muted-2">Z času mimo PC bylo odhadem ~{minutesToHm(s.meetingMinutes)} na poradách (demo – nahradí napojení Outlooku).</p>
+          <Legend color={TYPE_COLORS.work} label={t('scoreView.legWork')} value={`${s.workPct}% · ${minutesToHm(s.workMinutes)}`} />
+          <Legend color={TYPE_COLORS.nonwork} label={t('scoreView.legFun')} value={`${s.nonWorkPct}% · ${minutesToHm(s.nonWorkMinutes)}`} />
+          <Legend color={TYPE_COLORS.idle} label={t('scoreView.legIdle')} value={`${s.idlePct}% · ${minutesToHm(s.idleOnMinutes)}`} />
+          <Legend color={TYPE_COLORS.off} label={t('scoreView.legOff')} value={`${s.pcOffPct}% · ${minutesToHm(s.pcOffMinutes)}`} />
+          <p className="mt-1 text-xs muted-2">{t('scoreView.meetingsNote', { m: minutesToHm(s.meetingMinutes) })}</p>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card title="Tempo psaní (úhozů/min)" icon={<Keyboard size={13} />}>
-          {s.avgKpm} <span className="text-sm font-normal muted">úhozů/min</span>
-          <div className="mt-1 text-xs font-normal text-emerald-500">píše rychleji než {s.kpmPercentile} % firmy {s.kpmPercentile >= 50 ? '🎉' : ''}</div>
+        <Card title={t('scoreView.cardKpmTitle')} icon={<Keyboard size={13} />}>
+          {s.avgKpm} <span className="text-sm font-normal muted">{t('scoreView.kpmUnit')}</span>
+          <div className="mt-1 text-xs font-normal text-emerald-500">{t('scoreView.kpmNote', { n: s.kpmPercentile })} {s.kpmPercentile >= 50 ? '🎉' : ''}</div>
         </Card>
-        <Card title="Aktivní práce (hodiny:minuty)" icon={<Clock size={13} />} accent="text-emerald-500">{minutesToHm(s.workMinutes)}</Card>
-        <Card title="Zábava (hodiny:minuty)" icon={<AlertTriangle size={13} />} accent="text-red-500">{minutesToHm(s.nonWorkMinutes)}</Card>
-        <Card title="Nejpoužívanější aplikace" icon={<AppWindow size={13} />}>
+        <Card title={t('scoreView.cardActiveWork')} icon={<Clock size={13} />} accent="text-emerald-500">{minutesToHm(s.workMinutes)}</Card>
+        <Card title={t('scoreView.cardFun')} icon={<AlertTriangle size={13} />} accent="text-red-500">{minutesToHm(s.nonWorkMinutes)}</Card>
+        <Card title={t('scoreView.cardTopApp')} icon={<AppWindow size={13} />}>
           {s.topApp
             ? <span className="flex items-center gap-2"><AppIcon app={s.topApp} size={16} /> {appName(s.topApp)}</span>
             : '—'}
         </Card>
-        <Card title="Kde pracoval (dny)" icon={<MapPin size={13} />}>
+        <Card title={t('scoreView.cardSiteDays')} icon={<MapPin size={13} />}>
           {s.siteDays && s.siteDays.length > 0
             ? <span className="flex flex-wrap gap-1.5">{s.siteDays.map((d) => (
-                <span key={d.site} className={`rounded-full px-2 py-0.5 text-xs font-medium ${d.site === 'Mimo firmu' ? 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300' : 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300'}`}>{d.site}: {d.days}</span>
+                <span key={d.site} className={`rounded-full px-2 py-0.5 text-xs font-medium ${d.site === 'Mimo firmu' ? 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300' : 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300'}`}>{d.site === 'Mimo firmu' ? t('scoreView.siteOutside') : d.site}: {d.days}</span>
               ))}</span>
             : '—'}
         </Card>
-        <Card title="Počet monitorů" icon={<Monitor size={13} />}>
-          {s.monitorTypical ? `${s.monitorTypical} ` : '— '}<span className="text-sm font-normal muted">{s.monitorTypical === 1 ? 'obrazovka' : s.monitorTypical >= 2 && s.monitorTypical <= 4 ? 'obrazovky' : 'obrazovek'}</span>
-          <div className="mt-1 text-xs font-normal muted-2">{s.multiMonitorPct} % času na 2 a více obrazovkách</div>
+        <Card title={t('scoreView.cardMonitors')} icon={<Monitor size={13} />}>
+          {s.monitorTypical ? `${s.monitorTypical} ` : '— '}<span className="text-sm font-normal muted">{s.monitorTypical === 1 ? t('scoreView.screenOne') : s.monitorTypical >= 2 && s.monitorTypical <= 4 ? t('scoreView.screenFew') : t('scoreView.screenMany')}</span>
+          <div className="mt-1 text-xs font-normal muted-2">{t('scoreView.multiMonitorPct', { n: s.multiMonitorPct })}</div>
         </Card>
-        <Card title="Fragmentace pozornosti (přepnutí/h)" icon={<Shuffle size={13} />}>
-          {s.appSwitchesPerHour} <span className="text-sm font-normal muted">přepnutí/h</span>
-          <div className="mt-1 text-xs font-normal muted-2">nižší číslo = soustředěnější práce</div>
+        <Card title={t('scoreView.cardSwitches')} icon={<Shuffle size={13} />}>
+          {s.appSwitchesPerHour} <span className="text-sm font-normal muted">{t('scoreView.switchesUnit')}</span>
+          <div className="mt-1 text-xs font-normal muted-2">{t('scoreView.switchesNote')}</div>
         </Card>
       </div>
 
       <div className="card p-5">
-        <h3 className="mb-3 text-sm font-semibold">V čem trávil čas podle kategorií (hodiny:minuty)</h3>
+        <h3 className="mb-3 text-sm font-semibold">{t('scoreView.categoriesTitle')}</h3>
         <div className="space-y-2">
           {s.categories.map((c) => (
             <div key={c.category} className="flex items-center gap-3">
@@ -132,7 +141,7 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
               <div className="w-20 text-right text-sm tabular-nums muted">{minutesToHm(c.minutes)}</div>
             </div>
           ))}
-          {s.categories.length === 0 && <p className="text-sm muted-2">Žádná data za období.</p>}
+          {s.categories.length === 0 && <p className="text-sm muted-2">{t('scoreView.noCategories')}</p>}
         </div>
       </div>
     </div>
