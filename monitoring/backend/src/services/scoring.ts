@@ -113,9 +113,24 @@ export async function scoreboardRows(from: Date, to: Date, department?: string |
   const ids = users.map((u) => u.id);
   const { interpretMonitors } = await getSettings();
   // Fond očekávaného času na uživatele bez svátků a jeho dovolené/nemoci.
+  // Začátek = max(from, prvni den s daty pro uzivatele) – pred nasazenim
+  // agenta se nepocita "Mimo PC", protoze jsme nemerili.
   const holidays = holidayWeekdaySet(from, to);
   const absMap = await absenceByUser(ids, from, to, holidays);
-  const expectedOf = (uid: string) => effectiveWorkdays(from, to, holidays, absMap.get(uid)?.days) * config.expectedWorkHoursPerDay * 60;
+  const firstSeen = new Map<string, Date>();
+  const minDates = await prisma.dailyStat.groupBy({
+    by: ['userId'],
+    where: { userId: { in: ids } },
+    _min: { date: true },
+  });
+  for (const r of minDates) {
+    if (!r._min.date) continue;
+    firstSeen.set(r.userId, r._min.date > from ? r._min.date : from);
+  }
+  const expectedOf = (uid: string) => {
+    const userFrom = firstSeen.get(uid) ?? from;
+    return effectiveWorkdays(userFrom, to, holidays, absMap.get(uid)?.days) * config.expectedWorkHoursPerDay * 60;
+  };
 
   const daily = await prisma.dailyStat.findMany({
     where: { userId: { in: ids }, date: { gte: from, lt: to } },
@@ -212,12 +227,19 @@ export async function computeUserScore(userId: string, from: Date, to: Date, opt
   }
 
   // Volno (svátek/dovolená/nemoc) se NEpočítá do fondu – nepracoval, protože měl volno.
+  // Začátek od max(from, prvního dne s daty) – před nasazením agenta nepočítáme.
   const holidays = holidayWeekdaySet(from, to);
   const absInfo = (await absenceByUser([userId], from, to, holidays)).get(userId);
   const vacationDays = absInfo?.vacation ?? 0;
   const sickDays = absInfo?.sick ?? 0;
   const holidayDays = holidays.size;
-  const effDays = effectiveWorkdays(from, to, holidays, absInfo?.days);
+  const firstStatRow = await prisma.dailyStat.findFirst({
+    where: { userId },
+    orderBy: { date: 'asc' },
+    select: { date: true },
+  });
+  const userFrom = firstStatRow && firstStatRow.date > from ? firstStatRow.date : from;
+  const effDays = effectiveWorkdays(userFrom, to, holidays, absInfo?.days);
   const expectedMinutesRaw = effDays * config.expectedWorkHoursPerDay * 60;
   // Kde pracoval – počet dní podle převažující provozovny (z denních souhrnů).
   const siteRows = await prisma.dailyStat.groupBy({

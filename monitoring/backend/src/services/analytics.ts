@@ -230,6 +230,29 @@ async function perUser(userIds: string[], from: Date, to: Date): Promise<Map<str
   return map;
 }
 
+/**
+ * Nejstarší den s daty pro každého uživatele (z dailyStat). Slouží k tomu,
+ * abychom skóre / "Mimo PC" počítali jen od nasazení agenta a ne za celý
+ * měsíc – jinak nově nasazený zaměstnanec vypadá jako celý měsíc neaktivní.
+ *
+ * Bere v potaz i hranici `from` – pokud byl agent nasazen ještě dřív, vrátíme
+ * `from` (řezeme jen okno, ne historii).
+ */
+async function firstSeenInRange(userIds: string[], from: Date): Promise<Map<string, Date>> {
+  const rows = await prisma.dailyStat.groupBy({
+    by: ['userId'],
+    where: { userId: { in: userIds } },
+    _min: { date: true },
+  });
+  const map = new Map<string, Date>();
+  for (const r of rows) {
+    if (!r._min.date) continue;
+    const firstDate = r._min.date > from ? r._min.date : from;
+    map.set(r.userId, firstDate);
+  }
+  return map;
+}
+
 const clampPct = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
 const EMPTY_ACC: Acc = { work: 0, nonwork: 0, idle: 0, unknown: 0 };
 /** Skóre uživatele s vyjmutím nezařazeného času z fondu. */
@@ -316,7 +339,14 @@ export async function overview(from: Date, to: Date, department?: string | strin
   // Fond na uživatele bez svátků a jeho dovolené/nemoci → volno nesnižuje skóre.
   const holidays = holidayWeekdaySet(from, to);
   const absMap = await absenceByUser(ids, from, to, holidays);
-  const expOf = (id: string) => effectiveWorkdays(from, to, holidays, absMap.get(id)?.days) * config.expectedWorkHoursPerDay * 60;
+  // Pro každého uživatele používáme efektivní začátek = max(from, firstSeenAt).
+  // Bez tohoto by nově nasazený agent vypadal jako "Mimo PC celý měsíc",
+  // protože expected hours by se počítaly i pro dny, kdy agent ještě neběžel.
+  const firstSeen = await firstSeenInRange(ids, from);
+  const expOf = (id: string) => {
+    const userFrom = firstSeen.get(id) ?? from;
+    return effectiveWorkdays(userFrom, to, holidays, absMap.get(id)?.days) * config.expectedWorkHoursPerDay * 60;
+  };
 
   const cur = await perUser(ids, from, to);
 
