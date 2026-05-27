@@ -8,7 +8,10 @@ import IOKit
 /// Windows i macOS agenty – server podle něj jednoznačně identifikuje zařízení.
 enum MachineIdentity {
     static func machineId() -> String {
-        let platformExpert = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOPlatformExpertDevice"))
+        // kIOMasterPortDefault: deprecated v macOS 12, ale stále funkční a jediná
+        // varianta dostupná na macOS 11 (Big Sur), který je naším min. cílem.
+        // kIOMainPortDefault by vyžadoval macOS 12+ a omezil by tak deployment.
+        let platformExpert = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("IOPlatformExpertDevice"))
         defer { if platformExpert != 0 { IOObjectRelease(platformExpert) } }
         guard platformExpert != 0,
               let cf = IORegistryEntryCreateCFProperty(platformExpert, "IOPlatformUUID" as CFString, kCFAllocatorDefault, 0)

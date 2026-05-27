@@ -54,7 +54,12 @@ final class PrintMonitor {
         // Flush každých 5 min
         let timer = DispatchSource.makeTimerSource(queue: queue)
         timer.schedule(deadline: .now() + 300, repeating: 300)
-        timer.setEventHandler { [weak self] in Task { await self?.flush() } }
+        timer.setEventHandler { [weak self] in
+            // Capture do `let` před přechodem do Task – jinak Swift hlásí
+            // "reference to captured var 'self' in concurrently-executing code".
+            guard let strongSelf = self else { return }
+            Task { await strongSelf.flush() }
+        }
         timer.resume()
         self.flushTimer = timer
     }

@@ -106,7 +106,9 @@ final class ActivityTracker {
     /// Vrátí počet sekund od posledního HID vstupu (klávesnice/myš). IOKit API.
     private func systemIdleSeconds() -> Double {
         var iterator: io_iterator_t = 0
-        let result = IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("IOHIDSystem"), &iterator)
+        // kIOMasterPortDefault: deprecated v macOS 12 (warning), ale jediná varianta
+        // dostupná na macOS 11 (Big Sur). kIOMainPortDefault by zvedl min. OS na 12.
+        let result = IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceMatching("IOHIDSystem"), &iterator)
         guard result == KERN_SUCCESS else { return 0 }
         defer { IOObjectRelease(iterator) }
         let entry = IOIteratorNext(iterator)
