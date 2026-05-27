@@ -390,6 +390,8 @@ export const api = {
     fetch('/api/v1/admin/settings', { method: 'PUT', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   runAlerts: () =>
     fetch('/api/v1/admin/alerts/run', { method: 'POST', headers: authHeader() }).then((r) => r.json()),
+  securityCheck: () =>
+    getJson<{ checks: { id: string; title: string; status: 'pass' | 'warn' | 'fail'; detail: string; remediation?: string }[] }>('/api/v1/admin/security-check'),
   hourly: (userId: string, from: string, to: string) =>
     getJson<{ rows: HourlyRow[] }>(
       `/api/v1/dashboard/hourly?userId=${encodeURIComponent(userId)}&from=${from}&to=${to}`,

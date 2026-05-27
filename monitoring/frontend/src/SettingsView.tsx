@@ -4,6 +4,7 @@ import { api } from './api.js';
 import { useToast } from './Toast.js';
 import { SitesAdmin } from './SitesAdmin.js';
 import { DiagnosticLog } from './DiagnosticLog.js';
+import { SecurityCheckPanel } from './SecurityCheckPanel.js';
 
 export function SettingsView({ canEdit }: { canEdit: boolean }) {
   const [enabled, setEnabled] = useState(true);
@@ -254,6 +255,8 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
           <button onClick={save} className="btn-primary mt-4"><Save size={15} /> Uložit interpretaci</button>
         )}
       </div>
+
+      <SecurityCheckPanel canEdit={canEdit} />
 
       <DiagnosticLog canEdit={canEdit} />
     </div>

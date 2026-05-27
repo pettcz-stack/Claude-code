@@ -15,6 +15,7 @@ import { getAgentLog } from '../services/agentLogStore.js';
 import { exportUserData, eraseUser } from '../services/userPrivacy.js';
 import { logAccess } from '../auth.js';
 import { validateCuidParam } from '../middleware/validateId.js';
+import { runSecurityCheck } from '../services/securityCheck.js';
 
 /** Provozovny / pobočky – číselník pro určení pracoviště podle lokální sítě. */
 const siteSchema = z.object({
@@ -31,6 +32,14 @@ export const adminRouter = Router();
 // tady to uťneme čistým 400 invalid_id.
 adminRouter.param('id', validateCuidParam);
 adminRouter.param('deviceId', validateCuidParam);
+
+/**
+ * Self-audit bezpečnostního stavu instalace. Admin v UI vidí, co je
+ * v pořádku a co dotáhnout. Nepřináší nové secrets – jen čte vlastní stav.
+ */
+adminRouter.get('/security-check', requireRole('ADMIN'), async (_req, res) => {
+  res.json({ checks: await runSecurityCheck() });
+});
 
 /** Provozovny – výpis. */
 adminRouter.get('/sites', async (_req, res) => {
