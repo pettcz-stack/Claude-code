@@ -1,0 +1,80 @@
+#!/bin/bash
+# FOCUS macOS agent – postinstall script pro .pkg installer.
+# Spouští se po rozbalení .pkg do /Library/Application Support/FOCUS/.
+#
+# Předpoklad: .pkg payload obsahuje:
+#   /Library/Application Support/FOCUS/focus-agent     (binárka)
+#   /Library/Application Support/FOCUS/config.plist    (vyplní MDM přes payload override, nebo se vyplní zde z env vars)
+#   /Library/LaunchAgents/com.sinsu.focusagent.plist
+#
+# Tento skript:
+#  1) zajistí adresáře + práva
+#  2) (volitelně) zapíše config.plist z proměnných prostředí předaných installerem
+#     (typicky $FOCUS_BACKEND_URL, $FOCUS_INGEST_TOKEN nastavuje MDM)
+#  3) načte launchd agent pro všechny aktivní uživatele
+
+set -e
+echo "FOCUS postinstall: setting up agent…"
+
+FOCUS_DIR="/Library/Application Support/FOCUS"
+mkdir -p "$FOCUS_DIR"
+chmod 755 "$FOCUS_DIR"
+
+# Vytvoř config.plist pokud neexistuje a máme env vars (např. od MDM)
+if [ ! -f "$FOCUS_DIR/config.plist" ] && [ -n "$FOCUS_BACKEND_URL" ] && [ -n "$FOCUS_INGEST_TOKEN" ]; then
+  cat > "$FOCUS_DIR/config.plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>BackendUrl</key>
+    <string>$FOCUS_BACKEND_URL</string>
+    <key>IngestToken</key>
+    <string>$FOCUS_INGEST_TOKEN</string>
+    <key>IntervalSeconds</key>
+    <integer>${FOCUS_INTERVAL_SECONDS:-60}</integer>
+    <key>SendIntervalSeconds</key>
+    <integer>${FOCUS_SEND_INTERVAL_SECONDS:-120}</integer>
+    <key>CaptureWindowTitle</key>
+    <${FOCUS_CAPTURE_TITLE:-true}/>
+    <key>IdleThresholdSeconds</key>
+    <integer>${FOCUS_IDLE_SECONDS:-300}</integer>
+    <key>TrackPrint</key>
+    <${FOCUS_TRACK_PRINT:-false}/>
+    <key>CapturePrintDocName</key>
+    <${FOCUS_CAPTURE_PRINT_DOCNAME:-false}/>
+    <key>TrackUsb</key>
+    <${FOCUS_TRACK_USB:-false}/>
+    <key>CaptureUsbFilename</key>
+    <${FOCUS_CAPTURE_USB_FILENAME:-false}/>
+</dict>
+</plist>
+EOF
+  chmod 644 "$FOCUS_DIR/config.plist"
+  echo "FOCUS postinstall: config.plist vytvořen"
+fi
+
+# Binárka musí být spustitelná
+chmod 755 "$FOCUS_DIR/focus-agent" || true
+
+# Aktivuj LaunchAgent pro každého přihlášeného uživatele
+# Přes `launchctl bootstrap` (nový API). Pro každého aktuálně přihlášeného uživatele:
+for user_uid in $(ls /Users/ | xargs -I{} id -u {} 2>/dev/null | grep -v '^$'); do
+    if [ "$user_uid" -ge 500 ]; then
+        sudo -u "#$user_uid" launchctl bootstrap "gui/$user_uid" \
+            /Library/LaunchAgents/com.sinsu.focusagent.plist 2>/dev/null || true
+    fi
+done
+
+echo "FOCUS postinstall: hotovo."
+echo ""
+echo "⚠ DŮLEŽITÉ: Pro plnou funkčnost musí každý uživatel povolit v"
+echo "   System Settings → Privacy & Security:"
+echo "   - Accessibility (pro titulky oken)"
+echo "   - Input Monitoring (pro počty kláves)"
+echo "   - Full Disk Access (pro tisk a USB monitoring)"
+echo ""
+echo "Při hromadném nasazení přes MDM (Jamf/Kandji/Mosyle/Intune) předudělejte"
+echo "tato povolení PPPC profilem – uživatel pak nemusí klikat."
+
+exit 0

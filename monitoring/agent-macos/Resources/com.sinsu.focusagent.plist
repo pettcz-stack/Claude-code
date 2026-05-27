@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  FOCUS agent – launchd LaunchAgent.
+  Umístění: /Library/LaunchAgents/com.sinsu.focusagent.plist
+  Aktivace: sudo launchctl load -w /Library/LaunchAgents/com.sinsu.focusagent.plist
+
+  KeepAlive = true → launchd dělá watchdog sám, restartuje agent při pádu.
+  ThrottleInterval = 10 brání restart-loop pokud agent crashne hned po startu.
+  RunAtLoad = true – startuje při loginu uživatele (per-user session).
+
+  Pro dohled rootu (čtení /var/log/cups/page_log, FSEvents přes všechny uživatele)
+  by mohl být i LaunchDaemon (/Library/LaunchDaemons/...), ale pak by foreground
+  app a window title nefungovaly. Při běhu jako Agent platí omezení per-user.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.sinsu.focusagent</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Library/Application Support/FOCUS/focus-agent</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Library/Application Support/FOCUS/launchd-out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Library/Application Support/FOCUS/launchd-err.log</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+
+    <!-- Nízká nice priorita – agent nesoupeří o CPU s prací uživatele. -->
+    <key>Nice</key>
+    <integer>10</integer>
+</dict>
+</plist>

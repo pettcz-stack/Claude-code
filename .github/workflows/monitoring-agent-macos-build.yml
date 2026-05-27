@@ -1,0 +1,96 @@
+name: Monitoring Agent (macOS build)
+
+# Postaví Swift binárku FOCUS agenta pro macOS na skutečném macOS runneru
+# (universal arm64 + x86_64) a vystaví .pkg installer jako artefakt.
+# Pro distribuci přes Apple Gatekeeper je potřeba ještě podepsat (Developer ID
+# Installer cert) a notarizovat — to děláme až ve výrobní pipeline, ne v CI.
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "monitoring/agent-macos/**"
+      - ".github/workflows/monitoring-agent-macos-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # publikace ZIPu jako Release
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: monitoring/agent-macos
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show Swift / Xcode
+        run: |
+          swift --version
+          xcodebuild -version
+
+      - name: Build (universal arm64 + x86_64)
+        run: swift build -c release --arch arm64 --arch x86_64
+
+      - name: Stage .pkg payload
+        run: |
+          mkdir -p build/payload/Library/Application\ Support/FOCUS
+          mkdir -p build/payload/Library/LaunchAgents
+          cp .build/apple/Products/Release/focus-agent "build/payload/Library/Application Support/FOCUS/focus-agent"
+          chmod 755 "build/payload/Library/Application Support/FOCUS/focus-agent"
+          cp Resources/com.sinsu.focusagent.plist build/payload/Library/LaunchAgents/com.sinsu.focusagent.plist
+          mkdir -p build/scripts
+          cp Scripts/postinstall build/scripts/postinstall
+          chmod 755 build/scripts/postinstall
+
+      - name: Build .pkg (unsigned)
+        run: |
+          pkgbuild \
+            --root "build/payload" \
+            --identifier "com.sinsu.focusagent" \
+            --version "0.9.1" \
+            --scripts "build/scripts" \
+            --install-location "/" \
+            focus-agent-macos.pkg
+          ls -la focus-agent-macos.pkg
+
+      - name: Quick sanity check (binary architectures)
+        run: |
+          lipo -info ".build/apple/Products/Release/focus-agent" || \
+            file ".build/apple/Products/Release/focus-agent"
+
+      - name: Upload artefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: focus-agent-macos
+          path: |
+            monitoring/agent-macos/focus-agent-macos.pkg
+            monitoring/agent-macos/.build/apple/Products/Release/focus-agent
+          if-no-files-found: error
+
+      # Publish jako součást stejného `agent-latest` Release (vedle MSI ze Windows
+      # workflow). Klient si v Releases stáhne .pkg pro Mac nebo .zip pro Win.
+      - name: Publish to GitHub Release
+        if: github.ref_name == 'claude/employee-monitoring-app-LPmRD' || startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: agent-latest
+          name: "FOCUS Agent - latest pilot build"
+          body: |
+            Automaticky postavený balíček FOCUS Agenta z větve `${{ github.ref_name }}`.
+            Commit: `${{ github.sha }}`
+
+            **Windows:** `focus-installer.zip` (MSI + click-to-install .bat)
+            **macOS:**   `focus-agent-macos.pkg` (universal arm64 + x86_64)
+
+            Po stažení macOS .pkg:
+            ```
+            sudo installer -pkg focus-agent-macos.pkg -target /
+            ```
+            Pak v System Settings → Privacy & Security povolit Accessibility,
+            Input Monitoring a Full Disk Access pro `focus-agent`.
+          files: monitoring/agent-macos/focus-agent-macos.pkg
+          prerelease: true
+          make_latest: false
