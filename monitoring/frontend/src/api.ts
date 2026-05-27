@@ -197,7 +197,8 @@ export type TipsData = {
   fun: { text: string }[];
 };
 
-export type AppSettings = { alertsEnabled: boolean; alertRecipients: string[]; offlineMinutes: number; funMode: boolean; healthMode: boolean; growthMode: boolean; interpretMonitors: boolean; employeeReportEnabled: boolean; showDemoDevices: boolean; privacyStoreDomainOnly: boolean; retentionDaysIntervals: number; selfAuditEnabled: boolean; printTrackingEnabled: boolean; capturePrintDocName: boolean; usbTrackingEnabled: boolean; captureUsbFilename: boolean };
+export type DataMode = 'real' | 'demo' | 'both';
+export type AppSettings = { alertsEnabled: boolean; alertRecipients: string[]; offlineMinutes: number; funMode: boolean; healthMode: boolean; growthMode: boolean; interpretMonitors: boolean; employeeReportEnabled: boolean; dataMode: DataMode; showDemoDevices: boolean; privacyStoreDomainOnly: boolean; retentionDaysIntervals: number; selfAuditEnabled: boolean; printTrackingEnabled: boolean; capturePrintDocName: boolean; usbTrackingEnabled: boolean; captureUsbFilename: boolean };
 
 export type PrintSummaryRow = {
   userId: string | null; displayName: string; department: string | null;
@@ -444,7 +445,7 @@ export const api = {
   deviceRecentIntervals: (id: string) => getJson<{ intervals: { intervalStart: string; intervalSeconds: number; activeSeconds: number; idleSeconds: number; foregroundApp: string | null; windowTitle: string | null; keystrokeCount: number; mouseEvents: number; sessionLocked: boolean; user: { displayName: string | null } | null }[] }>(`/api/v1/admin/devices/${encodeURIComponent(id)}/recent-intervals`),
   deviceAgentLog: (id: string) => getJson<{ entries: { ts: string; message: string; receivedAt: string }[] }>(`/api/v1/admin/devices/${encodeURIComponent(id)}/agent-log`),
   getSettings: () => getJson<{ settings: AppSettings; smtpConfigured: boolean }>('/api/v1/admin/settings'),
-  saveSettings: (data: { alertsEnabled?: boolean; alertRecipients?: string; offlineMinutes?: number; funMode?: boolean; healthMode?: boolean; growthMode?: boolean; interpretMonitors?: boolean; employeeReportEnabled?: boolean; showDemoDevices?: boolean; privacyStoreDomainOnly?: boolean; retentionDaysIntervals?: number; selfAuditEnabled?: boolean; printTrackingEnabled?: boolean; capturePrintDocName?: boolean; usbTrackingEnabled?: boolean; captureUsbFilename?: boolean }) =>
+  saveSettings: (data: { alertsEnabled?: boolean; alertRecipients?: string; offlineMinutes?: number; funMode?: boolean; healthMode?: boolean; growthMode?: boolean; interpretMonitors?: boolean; employeeReportEnabled?: boolean; dataMode?: DataMode; showDemoDevices?: boolean; privacyStoreDomainOnly?: boolean; retentionDaysIntervals?: number; selfAuditEnabled?: boolean; printTrackingEnabled?: boolean; capturePrintDocName?: boolean; usbTrackingEnabled?: boolean; captureUsbFilename?: boolean }) =>
     fetch('/api/v1/admin/settings', { method: 'PUT', headers: { ...authHeader(), 'content-type': 'application/json' }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error(`${r.status}`); }),
   runAlerts: () =>
     fetch('/api/v1/admin/alerts/run', { method: 'POST', headers: authHeader() }).then((r) => r.json()),

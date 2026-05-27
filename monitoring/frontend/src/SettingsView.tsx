@@ -19,7 +19,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
   const [growthMode, setGrowthMode] = useState(false);
   const [interpretMonitors, setInterpretMonitors] = useState(false);
   const [employeeReportEnabled, setEmployeeReportEnabled] = useState(false);
-  const [showDemoDevices, setShowDemoDevices] = useState(true);
+  const [dataMode, setDataMode] = useState<'real' | 'demo' | 'both'>('both');
   const [privacyStoreDomainOnly, setPrivacyStoreDomainOnly] = useState(false);
   const [retentionDays, setRetentionDays] = useState(90);
   const [selfAuditEnabled, setSelfAuditEnabled] = useState(false);
@@ -41,7 +41,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
       setGrowthMode(d.settings.growthMode);
       setInterpretMonitors(d.settings.interpretMonitors);
       setEmployeeReportEnabled(d.settings.employeeReportEnabled);
-      setShowDemoDevices(d.settings.showDemoDevices);
+      setDataMode(d.settings.dataMode);
       setPrivacyStoreDomainOnly(d.settings.privacyStoreDomainOnly);
       setRetentionDays(d.settings.retentionDaysIntervals);
       setSelfAuditEnabled(d.settings.selfAuditEnabled);
@@ -57,7 +57,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
   async function save() {
     setMsg(t('common.saving'));
     try {
-      await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline, funMode, healthMode, growthMode, interpretMonitors, employeeReportEnabled, showDemoDevices, privacyStoreDomainOnly, retentionDaysIntervals: retentionDays, selfAuditEnabled, printTrackingEnabled, capturePrintDocName, usbTrackingEnabled, captureUsbFilename });
+      await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline, funMode, healthMode, growthMode, interpretMonitors, employeeReportEnabled, dataMode, privacyStoreDomainOnly, retentionDaysIntervals: retentionDays, selfAuditEnabled, printTrackingEnabled, capturePrintDocName, usbTrackingEnabled, captureUsbFilename });
       setMsg(null); toast(t('settings.settingsSaved'));
     } catch (e) { toast(t('settings.saveFailed') + e, 'error'); }
     load();
@@ -188,13 +188,22 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
 
       <section className="card p-5">
         <h3 className="mb-3 text-sm font-semibold">{t('settings.sections.demoData')}</h3>
-        <label className="flex items-start gap-3 text-sm">
-          <input type="checkbox" checked={showDemoDevices} disabled={!canEdit} onChange={(e) => setShowDemoDevices(e.target.checked)} className="mt-1" />
-          <span>
-            <span className="font-medium">{t('settings.showDemoTitle')}</span>
-            <span className="muted-2">{t('settings.showDemoLongDesc')}</span>
-          </span>
-        </label>
+        <p className="mb-3 text-xs muted-2">{t('settings.dataModeDesc')}</p>
+        <div className="inline-flex rounded-lg bg-gray-100 p-1 text-sm dark:bg-slate-800">
+          {(['real', 'demo', 'both'] as const).map((mode) => (
+            <button
+              key={mode}
+              disabled={!canEdit}
+              onClick={() => setDataMode(mode)}
+              className={`rounded-md px-4 py-1.5 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${dataMode === mode ? 'bg-white shadow-sm font-medium dark:bg-slate-700' : 'muted hover:text-gray-900 dark:hover:text-slate-200'}`}
+            >
+              {t(`settings.dataMode.${mode}`)}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-[11px] muted-2">
+          {t(`settings.dataMode.${dataMode}Hint`)}
+        </p>
         {canEdit && (
           <div className="mt-3">
             <button onClick={save} className="btn-primary"><Save size={15} /> {t('common.save')}</button>

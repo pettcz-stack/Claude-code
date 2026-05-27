@@ -224,7 +224,8 @@ const settingsSchema = z.object({
   growthMode: z.boolean().optional(),
   interpretMonitors: z.boolean().optional(),
   employeeReportEnabled: z.boolean().optional(),
-  showDemoDevices: z.boolean().optional(),
+  showDemoDevices: z.boolean().optional(), // legacy
+  dataMode: z.enum(['real', 'demo', 'both']).optional(),
   privacyStoreDomainOnly: z.boolean().optional(),
   retentionDaysIntervals: z.number().int().min(7).max(3650).optional(),
   selfAuditEnabled: z.boolean().optional(),

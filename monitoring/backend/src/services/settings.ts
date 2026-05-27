@@ -1,6 +1,8 @@
 import { prisma } from '../db.js';
 import { config } from '../config.js';
 
+export type DataMode = 'real' | 'demo' | 'both';
+
 export type AppSettings = {
   alertsEnabled: boolean;
   alertRecipients: string[]; // e-maily pro upozornění
@@ -10,7 +12,15 @@ export type AppSettings = {
   growthMode: boolean; // rozvojový režim (moudra/citáty velikánů)
   interpretMonitors: boolean; // interpretace: doporučení druhého monitoru (nezasahuje do dat)
   employeeReportEnabled: boolean; // zpřístupnit report přímo zaměstnancům (ikonka v liště); default vyp.
-  showDemoDevices: boolean; // zobrazovat ukázková (demo) zařízení a uživatele; default zap.
+  /**
+   * Filtr dat v dashboardu:
+   *   - 'real' = jen reálné záznamy (skrýt vše s `DEMO-PC-` / `S-1-5-21-DEMO-`)
+   *   - 'demo' = jen ukázkové záznamy (pro demo investorovi / školení)
+   *   - 'both' = obojí dohromady (default, vhodné pro vývoj / demo s real overlayem)
+   */
+  dataMode: DataMode;
+  /** Legacy: showDemoDevices = (dataMode !== 'real'). Drží se kvůli starým API. */
+  showDemoDevices: boolean;
   privacyStoreDomainOnly: boolean; // pro prohlížeč ukládat jen doménu místo titulku okna; default vyp.
   retentionDaysIntervals: number; // mazat syrové intervaly starší než N dní (agregáty zůstávají)
   selfAuditEnabled: boolean; // ukázat zaměstnanci panel „kdo se na moje data díval"; default vyp.
@@ -25,11 +35,21 @@ const KEYS = {
   enabled: 'alertsEnabled', recipients: 'alertRecipients', offline: 'offlineMinutes',
   fun: 'funMode', health: 'healthMode', growth: 'growthMode',
   interpretMon: 'interpretMonitors', empReport: 'employeeReportEnabled',
-  showDemo: 'showDemoDevices', domainOnly: 'privacyStoreDomainOnly',
+  dataMode: 'dataMode',
+  showDemo: 'showDemoDevices', // legacy klíč, drží se pro migraci
+  domainOnly: 'privacyStoreDomainOnly',
   retention: 'retentionDaysIntervals', selfAudit: 'selfAuditEnabled',
   printTrack: 'printTrackingEnabled', printDoc: 'capturePrintDocName',
   usbTrack: 'usbTrackingEnabled', usbName: 'captureUsbFilename',
 };
+
+function parseDataMode(raw: string | undefined, legacyShowDemo: string | undefined): DataMode {
+  if (raw === 'real' || raw === 'demo' || raw === 'both') return raw;
+  // Backward compat: pokud `dataMode` v DB ještě není, odvodíme z `showDemoDevices`.
+  // showDemo=true → 'both', false → 'real'. Demo-only musí admin zapnout explicitně.
+  if (legacyShowDemo === 'false') return 'real';
+  return 'both';
+}
 
 export async function getSettings(): Promise<AppSettings> {
   const rows = await prisma.setting.findMany();
@@ -40,6 +60,8 @@ export async function getSettings(): Promise<AppSettings> {
     .map((s) => s.trim())
     .filter(Boolean);
 
+  const dataMode = parseDataMode(map.get(KEYS.dataMode), map.get(KEYS.showDemo));
+
   return {
     alertsEnabled: (map.get(KEYS.enabled) ?? 'true') !== 'false',
     alertRecipients: recipients,
@@ -49,7 +71,8 @@ export async function getSettings(): Promise<AppSettings> {
     growthMode: (map.get(KEYS.growth) ?? 'false') === 'true',
     interpretMonitors: (map.get(KEYS.interpretMon) ?? 'false') === 'true',
     employeeReportEnabled: (map.get(KEYS.empReport) ?? 'false') === 'true',
-    showDemoDevices: (map.get(KEYS.showDemo) ?? 'true') !== 'false',
+    dataMode,
+    showDemoDevices: dataMode !== 'real',
     privacyStoreDomainOnly: (map.get(KEYS.domainOnly) ?? 'false') === 'true',
     retentionDaysIntervals: Number(map.get(KEYS.retention) ?? 90),
     selfAuditEnabled: (map.get(KEYS.selfAudit) ?? 'false') === 'true',
@@ -64,7 +87,9 @@ export type SettingsPatch = Partial<{
   alertsEnabled: boolean; alertRecipients: string; offlineMinutes: number;
   funMode: boolean; healthMode: boolean; growthMode: boolean;
   interpretMonitors: boolean; employeeReportEnabled: boolean;
-  showDemoDevices: boolean; privacyStoreDomainOnly: boolean;
+  dataMode: DataMode;
+  showDemoDevices: boolean; // legacy, mapuje se na dataMode
+  privacyStoreDomainOnly: boolean;
   retentionDaysIntervals: number; selfAuditEnabled: boolean;
   printTrackingEnabled: boolean; capturePrintDocName: boolean;
   usbTrackingEnabled: boolean; captureUsbFilename: boolean;
@@ -80,7 +105,15 @@ export async function saveSettings(s: SettingsPatch): Promise<void> {
   if (s.growthMode !== undefined) ups.push({ key: KEYS.growth, value: String(s.growthMode) });
   if (s.interpretMonitors !== undefined) ups.push({ key: KEYS.interpretMon, value: String(s.interpretMonitors) });
   if (s.employeeReportEnabled !== undefined) ups.push({ key: KEYS.empReport, value: String(s.employeeReportEnabled) });
-  if (s.showDemoDevices !== undefined) ups.push({ key: KEYS.showDemo, value: String(s.showDemoDevices) });
+  if (s.dataMode !== undefined) {
+    ups.push({ key: KEYS.dataMode, value: s.dataMode });
+    // Drž legacy klíč v sync (pro starý frontend nebo monitoring kódu).
+    ups.push({ key: KEYS.showDemo, value: String(s.dataMode !== 'real') });
+  } else if (s.showDemoDevices !== undefined) {
+    // Legacy update – odvodíme dataMode.
+    ups.push({ key: KEYS.showDemo, value: String(s.showDemoDevices) });
+    ups.push({ key: KEYS.dataMode, value: s.showDemoDevices ? 'both' : 'real' });
+  }
   if (s.privacyStoreDomainOnly !== undefined) ups.push({ key: KEYS.domainOnly, value: String(s.privacyStoreDomainOnly) });
   if (s.retentionDaysIntervals !== undefined) ups.push({ key: KEYS.retention, value: String(s.retentionDaysIntervals) });
   if (s.selfAuditEnabled !== undefined) ups.push({ key: KEYS.selfAudit, value: String(s.selfAuditEnabled) });
