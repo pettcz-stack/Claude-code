@@ -14,16 +14,28 @@ export type AppSettings = {
   privacyStoreDomainOnly: boolean; // pro prohlížeč ukládat jen doménu místo titulku okna; default vyp.
   retentionDaysIntervals: number; // mazat syrové intervaly starší než N dní (agregáty zůstávají)
   selfAuditEnabled: boolean; // ukázat zaměstnanci panel „kdo se na moje data díval"; default vyp.
+  // Tisk & USB monitoring (opt-in, GDPR rizika)
+  printTrackingEnabled: boolean; // ingest /print akceptuje úlohy; default vyp.
+  capturePrintDocName: boolean; // ukládat název dokumentu (citlivý údaj!); default vyp.
+  usbTrackingEnabled: boolean; // ingest /usb akceptuje události; default vyp.
+  captureUsbFilename: boolean; // ukládat název souboru (citlivý!); default vyp.
 };
 
-const KEYS = { enabled: 'alertsEnabled', recipients: 'alertRecipients', offline: 'offlineMinutes', fun: 'funMode', health: 'healthMode', growth: 'growthMode', interpretMon: 'interpretMonitors', empReport: 'employeeReportEnabled', showDemo: 'showDemoDevices', domainOnly: 'privacyStoreDomainOnly', retention: 'retentionDaysIntervals', selfAudit: 'selfAuditEnabled' };
+const KEYS = {
+  enabled: 'alertsEnabled', recipients: 'alertRecipients', offline: 'offlineMinutes',
+  fun: 'funMode', health: 'healthMode', growth: 'growthMode',
+  interpretMon: 'interpretMonitors', empReport: 'employeeReportEnabled',
+  showDemo: 'showDemoDevices', domainOnly: 'privacyStoreDomainOnly',
+  retention: 'retentionDaysIntervals', selfAudit: 'selfAuditEnabled',
+  printTrack: 'printTrackingEnabled', printDoc: 'capturePrintDocName',
+  usbTrack: 'usbTrackingEnabled', usbName: 'captureUsbFilename',
+};
 
 export async function getSettings(): Promise<AppSettings> {
   const rows = await prisma.setting.findMany();
   const map = new Map(rows.map((r) => [r.key, r.value]));
 
   const recipientsRaw = map.get(KEYS.recipients);
-  // Fallback na env REPORT_RECIPIENTS, dokud není v UI nastaveno.
   const recipients = (recipientsRaw && recipientsRaw.length > 0 ? recipientsRaw.split(',') : config.report.recipients)
     .map((s) => s.trim())
     .filter(Boolean);
@@ -41,10 +53,24 @@ export async function getSettings(): Promise<AppSettings> {
     privacyStoreDomainOnly: (map.get(KEYS.domainOnly) ?? 'false') === 'true',
     retentionDaysIntervals: Number(map.get(KEYS.retention) ?? 90),
     selfAuditEnabled: (map.get(KEYS.selfAudit) ?? 'false') === 'true',
+    printTrackingEnabled: (map.get(KEYS.printTrack) ?? 'false') === 'true',
+    capturePrintDocName: (map.get(KEYS.printDoc) ?? 'false') === 'true',
+    usbTrackingEnabled: (map.get(KEYS.usbTrack) ?? 'false') === 'true',
+    captureUsbFilename: (map.get(KEYS.usbName) ?? 'false') === 'true',
   };
 }
 
-export async function saveSettings(s: Partial<{ alertsEnabled: boolean; alertRecipients: string; offlineMinutes: number; funMode: boolean; healthMode: boolean; growthMode: boolean; interpretMonitors: boolean; employeeReportEnabled: boolean; showDemoDevices: boolean; privacyStoreDomainOnly: boolean; retentionDaysIntervals: number; selfAuditEnabled: boolean }>): Promise<void> {
+export type SettingsPatch = Partial<{
+  alertsEnabled: boolean; alertRecipients: string; offlineMinutes: number;
+  funMode: boolean; healthMode: boolean; growthMode: boolean;
+  interpretMonitors: boolean; employeeReportEnabled: boolean;
+  showDemoDevices: boolean; privacyStoreDomainOnly: boolean;
+  retentionDaysIntervals: number; selfAuditEnabled: boolean;
+  printTrackingEnabled: boolean; capturePrintDocName: boolean;
+  usbTrackingEnabled: boolean; captureUsbFilename: boolean;
+}>;
+
+export async function saveSettings(s: SettingsPatch): Promise<void> {
   const ups: { key: string; value: string }[] = [];
   if (s.alertsEnabled !== undefined) ups.push({ key: KEYS.enabled, value: String(s.alertsEnabled) });
   if (s.alertRecipients !== undefined) ups.push({ key: KEYS.recipients, value: s.alertRecipients });
@@ -58,6 +84,10 @@ export async function saveSettings(s: Partial<{ alertsEnabled: boolean; alertRec
   if (s.privacyStoreDomainOnly !== undefined) ups.push({ key: KEYS.domainOnly, value: String(s.privacyStoreDomainOnly) });
   if (s.retentionDaysIntervals !== undefined) ups.push({ key: KEYS.retention, value: String(s.retentionDaysIntervals) });
   if (s.selfAuditEnabled !== undefined) ups.push({ key: KEYS.selfAudit, value: String(s.selfAuditEnabled) });
+  if (s.printTrackingEnabled !== undefined) ups.push({ key: KEYS.printTrack, value: String(s.printTrackingEnabled) });
+  if (s.capturePrintDocName !== undefined) ups.push({ key: KEYS.printDoc, value: String(s.capturePrintDocName) });
+  if (s.usbTrackingEnabled !== undefined) ups.push({ key: KEYS.usbTrack, value: String(s.usbTrackingEnabled) });
+  if (s.captureUsbFilename !== undefined) ups.push({ key: KEYS.usbName, value: String(s.captureUsbFilename) });
   for (const u of ups) {
     await prisma.setting.upsert({ where: { key: u.key }, create: u, update: { value: u.value } });
   }

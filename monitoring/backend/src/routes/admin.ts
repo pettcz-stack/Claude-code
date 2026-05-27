@@ -14,6 +14,7 @@ import { recentEvents, clearEvents } from '../services/eventLog.js';
 import { getAgentLog } from '../services/agentLogStore.js';
 import { exportUserData, eraseUser } from '../services/userPrivacy.js';
 import { logAccess, hashPassword, verifyPassword, readSessionToken, hashSessionToken } from '../auth.js';
+import { printSummary, userPrintJobs, usbSummary, userUsbEvents } from '../services/printUsb.js';
 import { validateCuidParam } from '../middleware/validateId.js';
 import { runSecurityCheck } from '../services/securityCheck.js';
 
@@ -78,6 +79,48 @@ adminRouter.delete('/sessions/:id', async (req, res) => {
  */
 adminRouter.get('/security-check', requireRole('ADMIN'), async (_req, res) => {
   res.json({ checks: await runSecurityCheck() });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tisk & USB — souhrn a drill-down per uživatel
+// ─────────────────────────────────────────────────────────────────────────────
+
+const rangeQuery = z.object({
+  from: z.string().datetime(),
+  to: z.string().datetime(),
+  limit: z.coerce.number().int().min(1).max(2000).optional(),
+});
+
+adminRouter.get('/print/summary', async (req, res) => {
+  const p = rangeQuery.safeParse(req.query);
+  if (!p.success) return void res.status(400).json({ error: 'invalid_query' });
+  res.json({ rows: await printSummary(new Date(p.data.from), new Date(p.data.to), p.data.limit ?? 100) });
+});
+
+adminRouter.get('/print/user/:id', requireRole('ADMIN'), async (req, res) => {
+  const p = rangeQuery.safeParse(req.query);
+  if (!p.success) return void res.status(400).json({ error: 'invalid_query' });
+  await logAccess({
+    adminId: req.admin?.id, adminIdentity: req.admin?.username ?? 'unknown',
+    action: 'VIEW', detail: `print jobs detail ${req.params.id}`, viewedUserId: req.params.id,
+  });
+  res.json({ jobs: await userPrintJobs(req.params.id, new Date(p.data.from), new Date(p.data.to), p.data.limit ?? 500) });
+});
+
+adminRouter.get('/usb/summary', async (req, res) => {
+  const p = rangeQuery.safeParse(req.query);
+  if (!p.success) return void res.status(400).json({ error: 'invalid_query' });
+  res.json({ rows: await usbSummary(new Date(p.data.from), new Date(p.data.to), p.data.limit ?? 100) });
+});
+
+adminRouter.get('/usb/user/:id', requireRole('ADMIN'), async (req, res) => {
+  const p = rangeQuery.safeParse(req.query);
+  if (!p.success) return void res.status(400).json({ error: 'invalid_query' });
+  await logAccess({
+    adminId: req.admin?.id, adminIdentity: req.admin?.username ?? 'unknown',
+    action: 'VIEW', detail: `usb events detail ${req.params.id}`, viewedUserId: req.params.id,
+  });
+  res.json({ events: await userUsbEvents(req.params.id, new Date(p.data.from), new Date(p.data.to), p.data.limit ?? 500) });
 });
 
 /**
@@ -167,6 +210,10 @@ const settingsSchema = z.object({
   privacyStoreDomainOnly: z.boolean().optional(),
   retentionDaysIntervals: z.number().int().min(7).max(3650).optional(),
   selfAuditEnabled: z.boolean().optional(),
+  printTrackingEnabled: z.boolean().optional(),
+  capturePrintDocName: z.boolean().optional(),
+  usbTrackingEnabled: z.boolean().optional(),
+  captureUsbFilename: z.boolean().optional(),
 });
 adminRouter.put('/settings', requireRole('ADMIN'), async (req, res) => {
   const p = settingsSchema.safeParse(req.body);

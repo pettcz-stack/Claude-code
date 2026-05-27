@@ -226,3 +226,125 @@ ingestRouter.post('/', requireIngestAuth, async (req, res) => {
 });
 
 registerHealthIngest(ingestRouter);
+
+// -----------------------------------------------------------------------------
+// /api/v1/ingest/print – tiskové úlohy
+// -----------------------------------------------------------------------------
+
+const printJobSchema = z.object({
+  jobAt: z.string().datetime(),
+  printerName: z.string().max(255).optional(),
+  documentName: z.string().max(500).optional(), // jen pokud agent má capturePrintDocName
+  pages: z.number().int().min(0).max(100000).default(1),
+  copies: z.number().int().min(0).max(10000).default(1),
+  paperSize: z.string().max(32).optional(),
+  color: z.boolean().optional(),
+  duplex: z.boolean().optional(),
+  sizeBytes: z.number().int().min(0).optional(),
+});
+
+const printPayloadSchema = z.object({
+  machineId: z.string().min(1).max(128),
+  sid: z.string().min(1).max(128).optional(),
+  jobs: z.array(printJobSchema).max(500),
+});
+
+ingestRouter.post('/print', requireIngestAuth, async (req, res) => {
+  const parsed = printPayloadSchema.safeParse(req.body);
+  if (!parsed.success) return void res.status(400).json({ error: 'invalid_payload' });
+  const settings = await getSettings();
+  if (!settings.printTrackingEnabled) return void res.json({ ok: true, skipped: 'feature_disabled' });
+
+  const device = await prisma.device.findUnique({ where: { machineId: parsed.data.machineId }, select: { id: true } });
+  if (!device) return void res.status(404).json({ error: 'device_not_found' });
+  const user = parsed.data.sid
+    ? await prisma.monitoredUser.findUnique({ where: { sid: parsed.data.sid }, select: { id: true } })
+    : null;
+
+  // Pokud admin v Settings vypnul capturePrintDocName, agent sice mohl jméno
+  // poslat (ze starší konfigurace), ale my ho na serveru NEULOŽÍME.
+  // Server-side enforcement zabraňuje úniku jména přes „zastaralý" agent.
+  const stripDocName = !settings.capturePrintDocName;
+
+  let accepted = 0;
+  for (const j of parsed.data.jobs) {
+    try {
+      await prisma.printJob.create({
+        data: {
+          deviceId: device.id,
+          userId: user?.id ?? null,
+          printerName: j.printerName ?? null,
+          documentName: stripDocName ? null : (j.documentName ?? null),
+          pages: j.pages,
+          copies: j.copies,
+          paperSize: j.paperSize ?? null,
+          color: j.color ?? null,
+          duplex: j.duplex ?? null,
+          sizeBytes: j.sizeBytes ?? null,
+          jobAt: new Date(j.jobAt),
+        },
+      });
+      accepted++;
+    } catch { /* idempotence není kritická pro print logy */ }
+  }
+  res.json({ ok: true, accepted });
+});
+
+// -----------------------------------------------------------------------------
+// /api/v1/ingest/usb – události na USB / removable discích
+// -----------------------------------------------------------------------------
+
+const usbEventSchema = z.object({
+  eventAt: z.string().datetime(),
+  action: z.enum(['CREATE', 'WRITE', 'DELETE', 'RENAME', 'READ']),
+  driveLetter: z.string().max(8).optional(),
+  driveLabel: z.string().max(255).optional(),
+  fileName: z.string().max(500).optional(), // jen pokud captureUsbFilename
+  fileExt: z.string().max(16).optional(),
+  sizeBytes: z.union([z.number(), z.string()]).optional().transform((v) => {
+    if (v === undefined) return undefined;
+    if (typeof v === 'string') return BigInt(v);
+    return BigInt(Math.max(0, Math.floor(v)));
+  }),
+});
+
+const usbPayloadSchema = z.object({
+  machineId: z.string().min(1).max(128),
+  sid: z.string().min(1).max(128).optional(),
+  events: z.array(usbEventSchema).max(1000),
+});
+
+ingestRouter.post('/usb', requireIngestAuth, async (req, res) => {
+  const parsed = usbPayloadSchema.safeParse(req.body);
+  if (!parsed.success) return void res.status(400).json({ error: 'invalid_payload' });
+  const settings = await getSettings();
+  if (!settings.usbTrackingEnabled) return void res.json({ ok: true, skipped: 'feature_disabled' });
+
+  const device = await prisma.device.findUnique({ where: { machineId: parsed.data.machineId }, select: { id: true } });
+  if (!device) return void res.status(404).json({ error: 'device_not_found' });
+  const user = parsed.data.sid
+    ? await prisma.monitoredUser.findUnique({ where: { sid: parsed.data.sid }, select: { id: true } })
+    : null;
+
+  const stripName = !settings.captureUsbFilename;
+  let accepted = 0;
+  for (const e of parsed.data.events) {
+    try {
+      await prisma.usbFileEvent.create({
+        data: {
+          deviceId: device.id,
+          userId: user?.id ?? null,
+          action: e.action,
+          driveLetter: e.driveLetter ?? null,
+          driveLabel: e.driveLabel ?? null,
+          fileName: stripName ? null : (e.fileName ?? null),
+          fileExt: e.fileExt ?? null,
+          sizeBytes: e.sizeBytes ?? null,
+          eventAt: new Date(e.eventAt),
+        },
+      });
+      accepted++;
+    } catch { /* ignoruj duplicity */ }
+  }
+  res.json({ ok: true, accepted });
+});

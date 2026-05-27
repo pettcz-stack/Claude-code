@@ -30,9 +30,61 @@ model Device {
 
   intervals ActivityInterval[]
   health    DeviceHealth?
+  printJobs PrintJob[]
+  usbEvents UsbFileEvent[]
 
   @@index([active])
   @@index([lastSeen])
+}
+
+/// Tiskové úlohy. Agent zachycuje události Windows Print Spooleru.
+/// Název dokumentu se ukládá JEN pokud je v Settings zapnuté capturePrintDocName
+/// (default false, opt-in, GDPR čl. 5/1/c minimalizace).
+model PrintJob {
+  id           String   @id @default(cuid())
+  deviceId     String
+  userId       String?  // dohledáno přes SID; pokud chybí (úloha bez session), zůstane null
+  printerName  String?  // např. "HP LaserJet M404 (Síťová tiskárna kancelář)"
+  documentName String?  // jen když capturePrintDocName=true; jinak null
+  pages        Int      @default(1) // počet vytisknutých stran (po duplexu = fyzické listy / 2)
+  copies       Int      @default(1) // počet kopií úlohy
+  paperSize    String?  // A4, A3, Letter, Legal, A5, ...
+  color        Boolean? // true=barevně, false=černobíle, null=neznámo
+  duplex       Boolean? // true=oboustranně
+  sizeBytes    Int?     // velikost odeslaného spool souboru (nepřímý ukazatel objemu)
+  jobAt        DateTime // čas zařazení úlohy v queue
+  reportedAt   DateTime @default(now())
+
+  device Device         @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  user   MonitoredUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([deviceId, jobAt])
+  @@index([userId, jobAt])
+  @@index([jobAt])
+}
+
+/// Události souborů přenesených na/z USB zařízení (removable disky).
+/// Název souboru se ukládá JEN pokud je v Settings zapnuté captureUsbFilename
+/// (default false, opt-in). Bez něj ukládáme jen size + hash + příponu.
+model UsbFileEvent {
+  id           String   @id @default(cuid())
+  deviceId     String
+  userId       String?  // dohledáno přes SID
+  action       String   // CREATE | WRITE | DELETE | RENAME | READ
+  driveLetter  String?  // např. "E:"
+  driveLabel   String?  // VID:PID + uživatelský label svazku
+  fileName     String?  // jen když captureUsbFilename=true; jinak null
+  fileExt      String?  // přípona (pdf, docx, jpg) – levný indikátor typu i bez plného jména
+  sizeBytes    BigInt?  // velikost v bytech
+  eventAt      DateTime // čas události na PC
+  reportedAt   DateTime @default(now())
+
+  device Device         @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  user   MonitoredUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([deviceId, eventAt])
+  @@index([userId, eventAt])
+  @@index([eventAt])
 }
 
 /// HW telemetrie zařízení (poslední snapshot). Slouží IT pro prediktivní údržbu.
@@ -101,6 +153,8 @@ model MonitoredUser {
   hourly         ActivityHourly[]
   absences       Absence[]
   calendarEvents CalendarEvent[]
+  printJobs      PrintJob[]
+  usbEvents      UsbFileEvent[]
 
   @@index([department])
   @@index([active])

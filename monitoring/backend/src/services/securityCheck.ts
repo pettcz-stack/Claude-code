@@ -94,7 +94,29 @@ export async function runSecurityCheck(): Promise<CheckResult[]> {
     remediation: activeSessions > 10 ? 'Hodně paralelních session – zvaž revokaci nepoužívaných (Settings → Sessions, roadmap).' : undefined,
   });
 
-  // 8. Audit log retence
+  // 8a. Tisk / USB monitoring – GDPR varování pro „capture" toggles
+  const settingsAll = await prisma.setting.findMany({ where: { key: { in: ['printTrackingEnabled', 'capturePrintDocName', 'usbTrackingEnabled', 'captureUsbFilename'] } } });
+  const ssMap = new Map(settingsAll.map((s) => [s.key, s.value === 'true']));
+  if (ssMap.get('capturePrintDocName')) {
+    out.push({
+      id: 'print_doc_names',
+      title: 'Sběr názvů tištěných dokumentů je ZAPNUTÝ',
+      status: 'warn',
+      detail: 'Názvy dokumentů mohou obsahovat citlivé údaje (zdravotní zpráva, mzdové podklady, soukromý dopis).',
+      remediation: 'Ujisti se, že zaměstnanci jsou o tomto sběru explicitně poučeni (§ 316/3 ZP) a že je proveden balanční test + DPIA. Pro nižší riziko vypni a ukládej jen počty stran.',
+    });
+  }
+  if (ssMap.get('captureUsbFilename')) {
+    out.push({
+      id: 'usb_filenames',
+      title: 'Sběr názvů USB souborů je ZAPNUTÝ',
+      status: 'warn',
+      detail: 'Názvy souborů mohou obsahovat citlivé údaje.',
+      remediation: 'Stejně jako u tisku – ověř, že je krytý v poučení a DPIA. Pro DLP detekci ve většině případů stačí sledovat jen velikosti a typy souborů.',
+    });
+  }
+
+  // 8b. Audit log retence
   const auditCount = await prisma.accessAudit.count();
   const auditOld = await prisma.accessAudit.findFirst({ orderBy: { createdAt: 'asc' } });
   const auditDays = auditOld ? Math.floor((Date.now() - auditOld.createdAt.getTime()) / 86400000) : 0;

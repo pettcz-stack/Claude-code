@@ -78,7 +78,7 @@ if (config.enableJobs) {
       try {
         const r = await runRetention();
         // eslint-disable-next-line no-console
-        console.log(`Retence: ${r.intervals} intervalů, ${r.hourly} hodinových, ${r.daily} denních, ${r.dailyApps} app/den, ${r.audit} audit`);
+        console.log(`Retence: ${r.intervals} intervalů, ${r.hourly} hodinových, ${r.daily} denních, ${r.dailyApps} app/den, ${r.audit} audit, ${r.prints} tisk, ${r.usb} usb`);
       } catch (e) {
         // eslint-disable-next-line no-console
         console.error('runRetention selhalo', e);
