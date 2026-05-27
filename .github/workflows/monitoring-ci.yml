@@ -54,6 +54,9 @@ jobs:
       - name: Typecheck + build
         run: npm run build
 
+      - name: Unit tests
+        run: npm test
+
       - name: License guard (no GPL/LGPL/AGPL drift)
         run: |
           npx --yes license-checker --production \
