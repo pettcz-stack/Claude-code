@@ -23,11 +23,18 @@ do {
     exit(2)
 }
 
+// NSApplication s .accessory politikou – žádná ikona v Docku, žádné okno,
+// ALE NSStatusBar funguje (potřebné pro MenuBarController = "Můj report"
+// ikonka jako tray na Windows).
+let nsApp = NSApplication.shared
+nsApp.setActivationPolicy(.accessory)
+
 let buffer = LocalBuffer()
 let sender = Sender(cfg: cfg)
 let tracker = ActivityTracker(cfg: cfg, buffer: buffer)
 let printMonitor = PrintMonitor(cfg: cfg, sender: sender)
 let usbMonitor = UsbMonitor(cfg: cfg, sender: sender)
+let menuBar = MenuBarController(cfg: cfg, sender: sender)
 
 AgentLog.write("FOCUS agent macOS \(AgentInfo.version) build \(AgentInfo.buildId) startup, backend=\(cfg.backendUrl), interval=\(cfg.intervalSeconds)s, send=\(cfg.sendIntervalSeconds)s")
 
@@ -45,10 +52,11 @@ if !WindowTitleCapture.isAuthorized() {
     AgentLog.write("PERMS: Accessibility není povoleno – titulky oken neuvidíme. Otevři System Settings → Privacy & Security → Accessibility a přidej focus-agent.")
 }
 
-// Spusť aktivitu, monitory
+// Spusť aktivitu, monitory + menu bar
 tracker.start()
 printMonitor.start()
 usbMonitor.start()
+menuBar.install()
 
 // Heartbeat při startu – aby se zařízení a uživatel zaregistrovali v dashboardu
 // IHNED, ne až za 60 s prvního intervalu.
@@ -90,5 +98,7 @@ func flushBatches() async {
     }
 }
 
-// Hold the run loop alive (CGEventTap a Timer ji potřebují)
-RunLoop.main.run()
+// NSApplication.run() spustí standardní Cocoa event loop – obsluhuje
+// NSStatusBar menu interakce, NSWorkspace events i CGEventTap a timery
+// (interně volá CFRunLoop). Drží proces naživu.
+nsApp.run()

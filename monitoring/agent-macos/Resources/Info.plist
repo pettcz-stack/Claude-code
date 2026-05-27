@@ -9,7 +9,11 @@
   S bundle + ad-hoc codesignem dostane focus-agent stabilní identitu
   (com.sinsu.focusagent), kterou si TCC pamatuje napříč rebuildy.
 
-  LSUIElement=true → background služba, žádná ikona v Docku.
+  LSUIElement=true → "accessory" aplikace: žádná ikona v Docku, žádný
+  Force Quit dialog, ALE může mít NSStatusItem v menu baru. To je správné
+  pro background agenty co potřebují drobné UI (menu pro "Můj report").
+
+  LSBackgroundOnly=true byl odebrán – znemožňoval menu bar item.
 -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -33,8 +37,6 @@
     <key>LSMinimumSystemVersion</key>
     <string>11.0</string>
     <key>LSUIElement</key>
-    <true/>
-    <key>LSBackgroundOnly</key>
     <true/>
     <key>NSHumanReadableCopyright</key>
     <string>© 2026 Sinsu Platform s.r.o.</string>
