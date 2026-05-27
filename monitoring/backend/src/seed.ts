@@ -1,6 +1,17 @@
-// Demo data pro vývoj. Sinsu Platform-styl oddělení, vymyšlená jména, více lidí,
-// včetně dvou s nepovolenými praktikami (simulátor myši, předmět na klávesnici).
-// Vše jsou agregované metriky – žádný obsah.
+// Demo data pro vývoj / pilot – realistická firma 1991 zaměstnanců.
+//
+// Vše jsou agregované metriky – žádný obsah kláves. Distribuce, plat, použité
+// aplikace a chování per oddělení modelováno tak, aby vyhodnocení v dashboardu
+// fungovalo logicky a propojeně:
+//
+//   - Konstrukce → SolidWorks (CAD = málo kláves, hodně myši, 2 monitory)
+//   - Obchod → Dynamics CRM + Excel + Outlook (hodně kláves, telefonování)
+//   - Výroba → málo PC času (operátoři u strojů; jen občas Navision)
+//   - HR → LinkedIn jako WORK (DeptClassification override)
+//   - 12 slackerů + 8 cheaterů (mouse jiggler / robotická pravidelnost)
+//
+// Seed je idempotentní – opakovaný běh přeskočí intervaly, print/usb,
+// audit a claims, pokud už existují (gate `.count() === 0`).
 
 import { Prisma } from '@prisma/client';
 import { prisma } from './db.js';
@@ -14,101 +25,161 @@ import { ensureDemoDeviceHealth } from './services/healthDemo.js';
 import { hashPassword } from './auth.js';
 import { floorToDay, addDays, localParts, localDow, zonedToUtc } from './services/tz.js';
 
-// Provozovna podle útvaru (pro lokální IP v demu): 10.30=Hořovice, 10.20=Praha, 10.10=Brno.
-function siteBaseFor(dept: string): string {
-  if (['Výroba', 'Montáže a servis'].includes(dept)) return '10.30'; // Hořovice
-  if (dept === 'Konstrukce') return '10.50'; // Osov
-  if (dept === 'Obchod Export') return '10.10'; // Brno
-  if (dept === 'Logistika') return '10.40'; // Ostrava
-  return '10.20'; // Praha
-}
+// ─── Firma: 1991 zaměstnanců ────────────────────────────────────────────────
+//
+// Realistická struktura výrobního podniku s vývojem (Sinsu Platform-styl).
+// Provozovny: Praha (vedení, IT, obchod, ekonomika), Brno (export),
+// Hořovice (výroba), Osov (konstrukce), Ostrava (logistika).
 
-type Behavior = 'normal' | 'slacker' | 'cheater_mouse' | 'cheater_keyboard';
+type DeptSpec = {
+  name: string;
+  size: number;
+  rate: [number, number]; // hodinová mzda CZK
+  site: string; // 10.20 = Praha apod. (siteBaseFor)
+  monitors: 1 | 2 | 3; // typický počet
+};
 
-// 100 zaměstnanců – realistické rozložení po útvarech výrobní firmy (Sinsu Platform-styl).
-const DEPT_PLAN: [string, number][] = [
-  ['Výroba', 28], ['Montáže a servis', 16], ['Konstrukce', 10],
-  ['Obchod ČR', 8], ['Obchod Export', 7], ['Logistika', 7],
-  ['Ekonomika', 6], ['Marketing', 5], ['IT', 5], ['Vedení', 4], ['Personalistika', 4],
+const DEPT_PLAN: DeptSpec[] = [
+  { name: 'Vedení',              size: 10,  rate: [700, 950], site: '10.20', monitors: 2 },
+  { name: 'Právní',              size: 8,   rate: [550, 850], site: '10.20', monitors: 2 },
+  { name: 'Audit',               size: 10,  rate: [550, 800], site: '10.20', monitors: 2 },
+  { name: 'Compliance',          size: 14,  rate: [500, 750], site: '10.20', monitors: 2 },
+  { name: 'Personalistika',      size: 22,  rate: [380, 550], site: '10.20', monitors: 1 },
+  { name: 'HR Akademie',         size: 9,   rate: [420, 600], site: '10.20', monitors: 1 },
+  { name: 'Tréning',             size: 12,  rate: [400, 550], site: '10.20', monitors: 1 },
+  { name: 'Ekonomika',           size: 65,  rate: [400, 620], site: '10.20', monitors: 2 },
+  { name: 'Marketing',           size: 35,  rate: [400, 600], site: '10.20', monitors: 1 },
+  { name: 'Nákup',               size: 35,  rate: [420, 600], site: '10.20', monitors: 1 },
+  { name: 'IT',                  size: 45,  rate: [500, 720], site: '10.20', monitors: 3 },
+  { name: 'IT podpora',          size: 18,  rate: [360, 500], site: '10.20', monitors: 2 },
+  { name: 'Datacentrum',         size: 10,  rate: [600, 850], site: '10.20', monitors: 3 },
+  { name: 'Vývoj',               size: 85,  rate: [550, 850], site: '10.20', monitors: 3 },
+  { name: 'Vědecké oddělení',    size: 35,  rate: [600, 900], site: '10.20', monitors: 2 },
+  { name: 'Konstrukce',          size: 180, rate: [480, 720], site: '10.50', monitors: 2 },
+  { name: 'Kvalita',             size: 50,  rate: [400, 550], site: '10.30', monitors: 1 },
+  { name: 'Bezpečnost práce',    size: 12,  rate: [400, 500], site: '10.30', monitors: 1 },
+  { name: 'Obchod ČR',           size: 220, rate: [380, 700], site: '10.20', monitors: 1 },
+  { name: 'Obchod Export',       size: 110, rate: [450, 800], site: '10.10', monitors: 2 },
+  { name: 'Obchod EU',           size: 70,  rate: [440, 750], site: '10.20', monitors: 1 },
+  { name: 'Logistika',           size: 95,  rate: [340, 500], site: '10.40', monitors: 1 },
+  { name: 'Sklad',               size: 80,  rate: [310, 420], site: '10.30', monitors: 1 },
+  { name: 'Výroba — Hala 1',     size: 220, rate: [310, 460], site: '10.30', monitors: 1 },
+  { name: 'Výroba — Hala 2',     size: 200, rate: [310, 460], site: '10.30', monitors: 1 },
+  { name: 'Výroba — Hala 3',     size: 145, rate: [310, 460], site: '10.30', monitors: 1 },
+  { name: 'Montáže a servis',    size: 140, rate: [340, 520], site: '10.30', monitors: 1 },
+  { name: 'Údržba',              size: 50,  rate: [350, 500], site: '10.30', monitors: 1 },
+  { name: 'Zákaznický servis',   size: 86,  rate: [330, 480], site: '10.20', monitors: 1 },
+  { name: 'Reklamace',           size: 35,  rate: [340, 500], site: '10.20', monitors: 1 },
+  { name: 'Recepce',             size: 8,   rate: [280, 350], site: '10.20', monitors: 1 },
 ];
-const FIRST_M = ['Jan', 'Petr', 'Martin', 'Tomáš', 'Jakub', 'Lukáš', 'Jiří', 'Pavel', 'Josef', 'David', 'Ondřej', 'Filip', 'Michal', 'Marek', 'Vojtěch', 'Adam', 'Roman', 'Aleš', 'Zdeněk', 'Karel', 'Miroslav', 'Daniel', 'Václav', 'Radek', 'Štěpán', 'Patrik', 'Matěj', 'Dominik', 'Libor', 'Stanislav'];
-const FIRST_F = ['Eva', 'Lucie', 'Tereza', 'Veronika', 'Kateřina', 'Hana', 'Markéta', 'Jana', 'Petra', 'Lenka', 'Alena', 'Barbora', 'Kristýna', 'Michaela', 'Martina', 'Klára', 'Nikola', 'Simona', 'Monika', 'Denisa', 'Iveta', 'Zuzana', 'Gabriela', 'Adéla', 'Pavla'];
-const LAST_M = ['Novák', 'Svoboda', 'Novotný', 'Dvořák', 'Černý', 'Procházka', 'Kučera', 'Veselý', 'Horák', 'Němec', 'Pospíšil', 'Marek', 'Pokorný', 'Beneš', 'Doležal', 'Zeman', 'Sedláček', 'Kratochvíl', 'Urban', 'Fiala', 'Říha', 'Kříž', 'Bartoš', 'Vaněk', 'Polák', 'Moravec', 'Holub', 'Štěpánek', 'Soukup', 'Konečný'];
-const LAST_F = ['Nováková', 'Svobodová', 'Novotná', 'Dvořáková', 'Černá', 'Procházková', 'Kučerová', 'Veselá', 'Horáková', 'Němcová', 'Pospíšilová', 'Marková', 'Pokorná', 'Benešová', 'Doležalová', 'Zemanová', 'Sedláčková', 'Kratochvílová', 'Urbanová', 'Fialová', 'Říhová', 'Křížová', 'Bartošová', 'Vaňková', 'Poláková', 'Moravcová', 'Holubová', 'Štěpánková', 'Soukupová', 'Konečná'];
+// Suma: 10+8+10+14+22+9+12+65+35+35+45+18+10+85+35+180+50+12+220+110+70+95+80+220+200+145+140+50+86+35+8 = 1991
 
-function genPeople(): { name: string; dept: string; behavior: Behavior; diligence: number }[] {
-  let s = 987654321; // deterministický generátor (stejní lidé při každém seedu)
-  const rng = () => (s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
-  const pickFrom = <T,>(a: T[]) => a[Math.floor(rng() * a.length)];
-  const used = new Set<string>();
-  const depts: string[] = [];
-  for (const [d, n] of DEPT_PLAN) for (let i = 0; i < n; i++) depts.push(d);
+// ─── Jména: rozšířená Česká pool ────────────────────────────────────────────
+const FIRST_M = [
+  'Jan', 'Petr', 'Martin', 'Tomáš', 'Jakub', 'Lukáš', 'Jiří', 'Pavel', 'Josef', 'David',
+  'Ondřej', 'Filip', 'Michal', 'Marek', 'Vojtěch', 'Adam', 'Roman', 'Aleš', 'Zdeněk', 'Karel',
+  'Miroslav', 'Daniel', 'Václav', 'Radek', 'Štěpán', 'Patrik', 'Matěj', 'Dominik', 'Libor', 'Stanislav',
+  'Antonín', 'František', 'Vladimír', 'Bohumil', 'Vlastimil', 'Robert', 'Richard', 'Milan', 'Jaroslav', 'Bohuslav',
+  'Otakar', 'Igor', 'Šimon', 'Mikuláš', 'Kryštof', 'Radim', 'Vít', 'Otto', 'Norbert', 'Kamil',
+  'Lubomír', 'Erik', 'Maxmilián', 'Oldřich', 'Eduard', 'Jaromír', 'Vlastislav', 'Cyril', 'Boris', 'Ivan',
+];
+const FIRST_F = [
+  'Eva', 'Lucie', 'Tereza', 'Veronika', 'Kateřina', 'Hana', 'Markéta', 'Jana', 'Petra', 'Lenka',
+  'Alena', 'Barbora', 'Kristýna', 'Michaela', 'Martina', 'Klára', 'Nikola', 'Simona', 'Monika', 'Denisa',
+  'Iveta', 'Zuzana', 'Gabriela', 'Adéla', 'Pavla', 'Dana', 'Marie', 'Anna', 'Helena', 'Jitka',
+  'Renata', 'Dagmar', 'Romana', 'Květa', 'Libuše', 'Vlasta', 'Soňa', 'Olga', 'Naďa', 'Iva',
+  'Marcela', 'Eliška', 'Karolína', 'Sandra', 'Daniela', 'Sabina', 'Anita', 'Magdaléna', 'Pavlína', 'Šárka',
+  'Andrea', 'Ivana', 'Vendula', 'Natálie', 'Beata', 'Linda', 'Edita', 'Žaneta', 'Tatiana', 'Mirka',
+];
+const LAST_M = [
+  'Novák', 'Svoboda', 'Novotný', 'Dvořák', 'Černý', 'Procházka', 'Kučera', 'Veselý', 'Horák', 'Němec',
+  'Pospíšil', 'Marek', 'Pokorný', 'Beneš', 'Doležal', 'Zeman', 'Sedláček', 'Kratochvíl', 'Urban', 'Fiala',
+  'Říha', 'Kříž', 'Bartoš', 'Vaněk', 'Polák', 'Moravec', 'Holub', 'Štěpánek', 'Soukup', 'Konečný',
+  'Vlček', 'Růžička', 'Hájek', 'Bureš', 'Šimek', 'Vávra', 'Beran', 'Šťastný', 'Tichý', 'Mareš',
+  'Janda', 'Vacek', 'Kratochvílka', 'Hrubý', 'Vobořil', 'Mašek', 'Janoušek', 'Šafařík', 'Linhart', 'Bouček',
+  'Smolík', 'Hron', 'Sláma', 'Hála', 'Sýkora', 'Toman', 'Kopecký', 'Šíma', 'Hruška', 'Krejčí',
+];
+const LAST_F = LAST_M.map((l) => {
+  // Heuristic czechifikace: -ý → -á, -í → -í (Krejčí), -a → -ová s občasnými výjimkami.
+  if (l.endsWith('ý')) return l.slice(0, -1) + 'á';
+  if (l.endsWith('í')) return l; // Krejčí etc.
+  if (l.endsWith('a')) return l + 'ová';
+  return l + 'ová';
+});
 
-  const people: { name: string; dept: string; behavior: Behavior; diligence: number }[] = [];
-  for (const dept of depts) {
-    let name = '';
-    for (let tries = 0; tries < 80; tries++) {
-      const male = rng() < 0.62;
-      name = male ? `${pickFrom(FIRST_M)} ${pickFrom(LAST_M)}` : `${pickFrom(FIRST_F)} ${pickFrom(LAST_F)}`;
-      if (!used.has(name)) { used.add(name); break; }
-    }
-    const behavior: Behavior = rng() < 0.14 ? 'slacker' : 'normal';
-    const diligence = behavior === 'slacker' ? 0.4 + rng() * 0.22 : 0.68 + rng() * 0.27;
-    people.push({ name, dept, behavior, diligence });
-  }
-  // Dva ukázkoví „podvodníci" na konkrétní útvary (kvůli demu detekce praktik).
-  const em = people.find((p) => p.dept === 'Obchod Export'); if (em) { em.behavior = 'cheater_mouse'; em.diligence = 0.9; }
-  const ek = people.find((p) => p.dept === 'Ekonomika'); if (ek) { ek.behavior = 'cheater_keyboard'; ek.diligence = 0.9; }
-  return people;
-}
+// Aplikace per oddělení – realistický pool, který se losuje pro každou aktivní hodinu.
+type Pick = [string, string | null];
+const T = (app: string, title: string | null = null): Pick => [app, title];
 
-const PEOPLE = genPeople();
+const POOL_COMMON: Pick[] = [
+  T('outlook.exe'), T('teams.exe'), T('excel.exe'),
+  T('chrome.exe', 'Intranet Sinsu'), T('chrome.exe', 'OKbase – docházka'),
+];
+
+const POOLS: Record<string, Pick[]> = {
+  'Vedení':            [T('navision.exe'), T('excel.exe'), T('powerpnt.exe'), T('outlook.exe'), T('teams.exe'), T('chrome.exe', 'Power BI – reporty')],
+  'Právní':            [T('winword.exe'), T('winword.exe'), T('acrobat.exe'), T('outlook.exe'), T('excel.exe'), T('chrome.exe', 'ASPI – právní informační systém')],
+  'Audit':             [T('excel.exe'), T('excel.exe'), T('navision.exe'), T('winword.exe'), T('outlook.exe'), T('chrome.exe', 'Power BI – reporty')],
+  'Compliance':        [T('winword.exe'), T('excel.exe'), T('outlook.exe'), T('acrobat.exe'), T('chrome.exe', 'Intranet Sinsu')],
+  'Personalistika':    [T('okbase.exe'), T('okbase.exe'), T('excel.exe'), T('winword.exe'), T('outlook.exe'), T('teams.exe'), T('chrome.exe', 'LinkedIn – Hledání kandidátů')],
+  'HR Akademie':       [T('teams.exe'), T('powerpnt.exe'), T('winword.exe'), T('outlook.exe'), T('chrome.exe', 'Učební portál Sinsu')],
+  'Tréning':           [T('powerpnt.exe'), T('teams.exe'), T('outlook.exe'), T('winword.exe'), T('chrome.exe', 'Učební portál Sinsu')],
+  'Ekonomika':         [T('econ.exe'), T('econ.exe'), T('navision.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe')],
+  'Marketing':         [T('powerpnt.exe'), T('crm.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe'), T('chrome.exe', 'SharePoint – dokumenty')],
+  'Nákup':             [T('navision.exe'), T('excel.exe'), T('outlook.exe'), T('chrome.exe', 'Intranet Sinsu – Nákup')],
+  'IT':                [T('code.exe'), T('code.exe'), T('code.exe'), T('teams.exe'), T('outlook.exe'), T('chrome.exe', 'GitLab – repozitář')],
+  'IT podpora':        [T('teams.exe'), T('outlook.exe'), T('chrome.exe', 'Helpdesk Sinsu – tikety'), T('navision.exe'), T('explorer.exe')],
+  'Datacentrum':       [T('code.exe'), T('teams.exe'), T('chrome.exe', 'Grafana – monitoring'), T('chrome.exe', 'AWS Console')],
+  'Vývoj':             [T('code.exe'), T('code.exe'), T('code.exe'), T('teams.exe'), T('outlook.exe'), T('chrome.exe', 'GitLab – repozitář')],
+  'Vědecké oddělení':  [T('code.exe'), T('excel.exe'), T('winword.exe'), T('acrobat.exe'), T('chrome.exe', 'Scientific reports - ScienceDirect')],
+  'Konstrukce':        [T('sldworks.exe'), T('sldworks.exe'), T('sldworks.exe'), T('sldworks.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe'), T('acrobat.exe')],
+  'Kvalita':           [T('excel.exe'), T('navision.exe'), T('outlook.exe'), T('chrome.exe', 'Intranet Sinsu – Kvalita')],
+  'Bezpečnost práce':  [T('excel.exe'), T('winword.exe'), T('outlook.exe'), T('chrome.exe', 'BOZP portál')],
+  'Obchod ČR':         [T('crm.exe'), T('crm.exe'), T('navision.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe'), T('chrome.exe', 'Microsoft Dynamics CRM')],
+  'Obchod Export':     [T('crm.exe'), T('crm.exe'), T('navision.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe'), T('chrome.exe', 'Microsoft Dynamics CRM')],
+  'Obchod EU':         [T('crm.exe'), T('crm.exe'), T('navision.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe')],
+  'Logistika':         [T('navision.exe'), T('navision.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe')],
+  'Sklad':             [T('navision.exe'), T('excel.exe'), T('chrome.exe', 'WMS – sklad')],
+  'Výroba — Hala 1':   [T('navision.exe'), T('teams.exe'), T('chrome.exe', 'Intranet Sinsu – Výroba')],
+  'Výroba — Hala 2':   [T('navision.exe'), T('teams.exe'), T('chrome.exe', 'Intranet Sinsu – Výroba')],
+  'Výroba — Hala 3':   [T('navision.exe'), T('teams.exe'), T('chrome.exe', 'Intranet Sinsu – Výroba')],
+  'Montáže a servis':  [T('crm.exe'), T('outlook.exe'), T('teams.exe'), T('chrome.exe', 'Intranet Sinsu – Montáže')],
+  'Údržba':            [T('navision.exe'), T('outlook.exe'), T('chrome.exe', 'CMMS – plán údržby')],
+  'Zákaznický servis': [T('crm.exe'), T('crm.exe'), T('outlook.exe'), T('teams.exe'), T('chrome.exe', 'Helpdesk Sinsu – tikety')],
+  'Reklamace':         [T('crm.exe'), T('navision.exe'), T('winword.exe'), T('outlook.exe')],
+  'Recepce':           [T('outlook.exe'), T('teams.exe'), T('excel.exe'), T('chrome.exe', 'Intranet Sinsu')],
+};
+
+const BROWSER_WORK_TITLES = ['Intranet Sinsu', 'OKbase – docházka', 'SharePoint – dokumenty', 'Microsoft Dynamics CRM', 'Power BI – reporty', 'GitLab – repozitář', 'AWS Console', 'Grafana – monitoring'];
+const BROWSER_NONWORK_TITLES = ['YouTube', 'Facebook', 'Instagram', 'Novinky.cz', 'Seznam.cz - Email', 'Alza.cz', 'Aktuálně.cz', 'iDNES.cz', 'Twitch', 'Bazos.cz'];
 
 const NONWORK_APPS = ['steam.exe', 'spotify.exe'];
 // Nezařazené (interní) aplikace – nejsou ve výchozích kategoriích → UNKNOWN.
 const UNKNOWN_APPS = ['interni-nastroj.exe', 'utilitka.exe', 'firemni-app.exe'];
-// Aplikace, kde se reálně píše (kvůli realistickému tempu úhozů). CAD/PDF = myš.
-const TYPING_APPS = new Set(['winword.exe', 'excel.exe', 'outlook.exe', 'teams.exe', 'code.exe', 'navision.exe', 'crm.exe', 'econ.exe', 'powerpnt.exe']);
+// Aplikace, kde se reálně píše. CAD/PDF = myš.
+const TYPING_APPS = new Set(['winword.exe', 'excel.exe', 'outlook.exe', 'teams.exe', 'code.exe', 'navision.exe', 'crm.exe', 'econ.exe', 'powerpnt.exe', 'okbase.exe']);
 
-function rateFor(dept: string): number {
-  const map: Record<string, number> = { 'Vedení': 750, 'IT': 560, 'Ekonomika': 460, 'Konstrukce': 500, 'Obchod Export': 520, 'Marketing': 420, 'Obchod ČR': 410 };
-  return map[dept] ?? 360;
+// Útvary které mají málo PC času (operátoři u strojů, šofeři, recepce).
+// Tito lidé budou mít většinu intervalů "session locked" nebo idle.
+const PRODUCTION_DEPTS = new Set(['Výroba — Hala 1', 'Výroba — Hala 2', 'Výroba — Hala 3', 'Sklad', 'Údržba', 'Recepce', 'Montáže a servis']);
+
+function siteBaseFor(dept: string): string {
+  const spec = DEPT_PLAN.find((d) => d.name === dept);
+  return spec?.site ?? '10.20';
 }
-
-// Reálné aplikace Sinsu Platform podle útvaru. [proces, titulek okna|null].
-type Pick = [string, string | null];
-const T = (app: string, title: string | null = null): Pick => [app, title];
-const POOL_COMMON: Pick[] = [T('outlook.exe'), T('teams.exe'), T('excel.exe'), T('chrome.exe', 'Intranet Sinsu'), T('chrome.exe', 'OKbase – docházka')];
-const POOLS: Record<string, Pick[]> = {
-  'Vedení': [T('navision.exe'), T('excel.exe'), T('powerpnt.exe'), T('outlook.exe'), T('teams.exe'), T('chrome.exe', 'Power BI – reporty')],
-  'Obchod ČR': [T('crm.exe'), T('crm.exe'), T('navision.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe'), T('chrome.exe', 'Microsoft Dynamics CRM')],
-  'Obchod Export': [T('crm.exe'), T('crm.exe'), T('navision.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe')],
-  'Marketing': [T('powerpnt.exe'), T('crm.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe'), T('chrome.exe', 'SharePoint – dokumenty')],
-  'Konstrukce': [T('sldworks.exe'), T('sldworks.exe'), T('sldworks.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe'), T('acrobat.exe')],
-  'Výroba': [T('navision.exe'), T('navision.exe'), T('excel.exe'), T('teams.exe'), T('chrome.exe', 'Intranet Sinsu')],
-  'Logistika': [T('navision.exe'), T('navision.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe')],
-  'Montáže a servis': [T('crm.exe'), T('outlook.exe'), T('teams.exe'), T('chrome.exe', 'Intranet Sinsu')],
-  'Ekonomika': [T('econ.exe'), T('econ.exe'), T('navision.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe')],
-  'Personalistika': [T('okbase.exe'), T('okbase.exe'), T('excel.exe'), T('winword.exe'), T('outlook.exe'), T('teams.exe')],
-  'IT': [T('code.exe'), T('code.exe'), T('teams.exe'), T('outlook.exe'), T('navision.exe'), T('chrome.exe', 'Intranet Sinsu')],
-};
+function rateRangeFor(dept: string): [number, number] {
+  const spec = DEPT_PLAN.find((d) => d.name === dept);
+  return spec?.rate ?? [340, 480];
+}
+function monitorsFor(dept: string): number {
+  const spec = DEPT_PLAN.find((d) => d.name === dept);
+  return spec?.monitors ?? 1;
+}
 function buildPool(dept: string): Pick[] {
   return [...(POOLS[dept] ?? []), ...POOL_COMMON];
 }
-const BROWSER_WORK_TITLES = ['Intranet Sinsu', 'OKbase – docházka', 'SharePoint – dokumenty', 'Microsoft Dynamics CRM', 'Power BI – reporty'];
-const BROWSER_NONWORK_TITLES = ['YouTube', 'Facebook', 'Instagram', 'Novinky.cz', 'Seznam.cz - Email', 'Alza.cz'];
 
-const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
-const rnd = (n: number) => Math.floor(Math.random() * n);
-
-type Person = { id: string; deviceId: string; dept: string; behavior: Behavior; diligence: number; hoDip: number; monitors: number; workPool: Pick[]; siteBase: string };
-
-// Kolik monitorů kdo má (z HW). Část lidí 2, IT i 3.
-function monitorsFor(dept: string): number {
-  if (dept === 'IT') return 3;
-  if (['Konstrukce', 'Ekonomika', 'Vedení', 'Obchod Export'].includes(dept)) return 2;
-  return 1;
-}
+type Behavior = 'normal' | 'slacker' | 'cheater_mouse' | 'cheater_keyboard';
 
 function hoDipFor(b: Behavior): number {
   if (b === 'slacker') return 0.28; // doma viditelně poleví
@@ -116,11 +187,77 @@ function hoDipFor(b: Behavior): number {
   return 0.07; // běžní lidé jen mírně
 }
 
+// Deterministický pseudo-RNG (stejní lidé při každém seedu, ať demo zákazník
+// vidí stejné případy a může na ně odkázat).
+let rngState = 987654321;
+function rng(): number {
+  rngState = (rngState * 1103515245 + 12345) & 0x7fffffff;
+  return rngState / 0x7fffffff;
+}
+function rngInt(max: number): number { return Math.floor(rng() * max); }
+function rngRange(min: number, max: number): number { return min + Math.floor(rng() * (max - min + 1)); }
+function pickFrom<T>(a: T[]): T { return a[Math.floor(rng() * a.length)]; }
+
+function genPeople(): { name: string; dept: string; behavior: Behavior; diligence: number; rate: number }[] {
+  rngState = 987654321; // reset pro deterministické pořadí
+  const used = new Set<string>();
+  const people: { name: string; dept: string; behavior: Behavior; diligence: number; rate: number }[] = [];
+
+  // Plochý seznam oddělení (nafouknutý podle size)
+  const depts: string[] = [];
+  for (const d of DEPT_PLAN) {
+    for (let i = 0; i < d.size; i++) depts.push(d.name);
+  }
+
+  for (const dept of depts) {
+    let name = '';
+    for (let tries = 0; tries < 500; tries++) {
+      const male = rng() < 0.55;
+      name = male
+        ? `${pickFrom(FIRST_M)} ${pickFrom(LAST_M)}`
+        : `${pickFrom(FIRST_F)} ${pickFrom(LAST_F)}`;
+      if (!used.has(name)) { used.add(name); break; }
+    }
+    if (used.has(name)) {
+      // Fallback – přidej číslo, ať jsou unikátní (statisticky nepravděpodobné při ~7k variant).
+      name = `${name} ${people.length + 1}`;
+      used.add(name);
+    }
+    const behavior: Behavior = rng() < 0.06 ? 'slacker' : 'normal';
+    const diligence = behavior === 'slacker' ? 0.40 + rng() * 0.22 : 0.65 + rng() * 0.32;
+    const [rateMin, rateMax] = rateRangeFor(dept);
+    const rate = rngRange(rateMin, rateMax);
+    people.push({ name, dept, behavior, diligence, rate });
+  }
+
+  // 8 cheaterů rozprostřených napříč odděleními, ať detekce v dashboardu má jasné případy.
+  const cheaterAssign: { dept: string; behavior: Behavior }[] = [
+    { dept: 'Obchod Export',     behavior: 'cheater_mouse' },
+    { dept: 'Ekonomika',         behavior: 'cheater_keyboard' },
+    { dept: 'Obchod ČR',         behavior: 'cheater_mouse' },
+    { dept: 'Zákaznický servis', behavior: 'cheater_keyboard' },
+    { dept: 'Marketing',         behavior: 'cheater_mouse' },
+    { dept: 'Logistika',         behavior: 'cheater_mouse' },
+    { dept: 'IT',                behavior: 'cheater_keyboard' },
+    { dept: 'Personalistika',    behavior: 'cheater_keyboard' },
+  ];
+  for (const c of cheaterAssign) {
+    const target = people.find((p) => p.dept === c.dept && p.behavior === 'normal');
+    if (target) { target.behavior = c.behavior; target.diligence = 0.9; }
+  }
+  return people;
+}
+
+const pick = <T>(a: T[]) => a[Math.floor(Math.random() * a.length)];
+const rnd = (n: number) => Math.floor(Math.random() * n);
+
+type Person = { id: string; deviceId: string; dept: string; behavior: Behavior; diligence: number; hoDip: number; monitors: number; workPool: Pick[]; siteBase: string };
+
 async function main() {
-  // Zajisti výchozí kategorie aplikací, pravidla webů a tipy do reportu.
+  // ─── 1) Statická konfigurace ─────────────────────────────────────────────
   await ensureDefaultCategories();
   await ensureDefaultTips();
-  await prisma.site.deleteMany({}); // demo: vždy obnov plný seznam provozoven
+  await prisma.site.deleteMany({});
   await ensureDefaultSites();
   for (const r of DEFAULT_WEB_RULES) {
     await prisma.webRule.upsert({
@@ -130,100 +267,131 @@ async function main() {
     });
   }
 
+  // ─── 2) 1991 uživatelů + zařízení ────────────────────────────────────────
+  console.log(`Seeduji ${DEPT_PLAN.reduce((s, d) => s + d.size, 0)} uživatelů v ${DEPT_PLAN.length} odděleních…`);
+  const PEOPLE = genPeople();
+
+  // Vytvoříme/aktualizujeme všechny v jediné transakci po batchích.
   const created: Person[] = [];
-  for (let i = 0; i < PEOPLE.length; i++) {
-    const p = PEOPLE[i];
-    const sid = `S-1-5-21-DEMO-${1000 + i}`;
-    const user = await prisma.monitoredUser.upsert({
-      where: { sid },
-      update: { displayName: p.name, department: p.dept, hourlyRate: rateFor(p.dept) },
-      create: { sid, displayName: p.name, department: p.dept, email: `${i}@sinsu-demo.cz`, hourlyRate: rateFor(p.dept) },
-    });
-    const machineId = `DEMO-PC-${i + 1}`;
-    const device = await prisma.device.upsert({
-      where: { machineId },
-      update: { lastSeen: new Date(), agentVersion: '0.1.0', os: 'Windows 11' },
-      create: { machineId, hostname: `ALB-PC-${i + 1}`, os: 'Windows 11', agentVersion: '0.1.0', lastSeen: new Date() },
-    });
-    created.push({ id: user.id, deviceId: device.id, dept: p.dept, behavior: p.behavior, diligence: p.diligence, hoDip: hoDipFor(p.behavior), monitors: monitorsFor(p.dept), workPool: buildPool(p.dept), siteBase: siteBaseFor(p.dept) });
+  const BATCH = 200;
+  for (let bi = 0; bi < PEOPLE.length; bi += BATCH) {
+    const slice = PEOPLE.slice(bi, bi + BATCH);
+    for (let i = 0; i < slice.length; i++) {
+      const p = slice[i];
+      const idx = bi + i;
+      const sid = `S-1-5-21-DEMO-${1000 + idx}`;
+      const user = await prisma.monitoredUser.upsert({
+        where: { sid },
+        update: { displayName: p.name, department: p.dept, hourlyRate: p.rate },
+        create: { sid, displayName: p.name, department: p.dept, email: `demo${idx}@sinsu-demo.cz`, hourlyRate: p.rate },
+      });
+      const machineId = `DEMO-PC-${idx + 1}`;
+      const device = await prisma.device.upsert({
+        where: { machineId },
+        update: { lastSeen: new Date(), agentVersion: '0.9.2', os: idx % 5 === 0 ? 'macOS 14' : 'Windows 11' },
+        create: { machineId, hostname: `SINSU-PC-${String(idx + 1).padStart(4, '0')}`, os: idx % 5 === 0 ? 'macOS 14' : 'Windows 11', agentVersion: '0.9.2', lastSeen: new Date() },
+      });
+      created.push({
+        id: user.id,
+        deviceId: device.id,
+        dept: p.dept,
+        behavior: p.behavior,
+        diligence: p.diligence,
+        hoDip: hoDipFor(p.behavior),
+        monitors: monitorsFor(p.dept),
+        workPool: buildPool(p.dept),
+        siteBase: siteBaseFor(p.dept),
+      });
+    }
+    if ((bi + BATCH) % 400 === 0 || bi + BATCH >= PEOPLE.length) {
+      console.log(`  ${Math.min(bi + BATCH, PEOPLE.length)} / ${PEOPLE.length} uživatelů…`);
+    }
   }
 
+  // ─── 3) Reset aktivních dat těchto uživatelů ─────────────────────────────
   const userIds = created.map((c) => c.id);
-  await prisma.activityInterval.deleteMany({ where: { userId: { in: userIds } } });
-  await prisma.activityHourly.deleteMany({ where: { userId: { in: userIds } } });
-  await prisma.dailyStat.deleteMany({ where: { userId: { in: userIds } } });
-  await prisma.dailyAppStat.deleteMany({ where: { userId: { in: userIds } } });
-  await prisma.absence.deleteMany({ where: { userId: { in: userIds } } });
+  console.log('Mažu staré intervaly a absence (idempotentní reseed)…');
+  for (let i = 0; i < userIds.length; i += 500) {
+    const batch = userIds.slice(i, i + 500);
+    await prisma.activityInterval.deleteMany({ where: { userId: { in: batch } } });
+    await prisma.activityHourly.deleteMany({ where: { userId: { in: batch } } });
+    await prisma.dailyStat.deleteMany({ where: { userId: { in: batch } } });
+    await prisma.dailyAppStat.deleteMany({ where: { userId: { in: batch } } });
+    await prisma.absence.deleteMany({ where: { userId: { in: batch } } });
+  }
 
-  const today = floorToDay(new Date()); // začátek dnešního místního dne (ČR)
-  const batch: Prisma.ActivityIntervalCreateManyInput[] = [];
+  // ─── 4) ActivityInterval – 30 dní, 15min intervaly ───────────────────────
+  // Důvod 15min: 1991 lidí × 22 prac. dnů × 32 intervalů (8h × 4/h) = ~1.4M
+  // řádků. Při 5min by to bylo 4.2M – seed by trval násobně déle. Pro reálné
+  // produkční data agenta posílá 60s intervaly, ale demo to simuluje.
+  console.log('Generuji intervaly aktivity (15min granularita, 30 dní)…');
+  const today = floorToDay(new Date());
+  let batch: Prisma.ActivityIntervalCreateManyInput[] = [];
   const absences: Prisma.AbsenceCreateManyInput[] = [];
+  const FLUSH_AT = 1000;
 
-  for (const c of created) {
+  for (let pi = 0; pi < created.length; pi++) {
+    const c = created[pi];
     for (let dayBack = 0; dayBack < 30; dayBack++) {
-      const dayStart = addDays(today, -dayBack); // místní půlnoc daného dne (UTC instant)
+      const dayStart = addDays(today, -dayBack);
       const lp = localParts(dayStart);
       const dow = localDow(dayStart);
-      if (dow === 0 || dow === 6) continue;
+      if (dow === 0 || dow === 6) continue; // víkend – bez intervalů
       const date = dayStart;
 
-      // HR absence (OKbase): nemoc/dovolená → ten den bez PC aktivity (mimo podvodníky).
+      // Absence: ~3 % nemoc, ~7 % dovolená per workday. Cheaters jezdí vždy.
       if (!c.behavior.startsWith('cheater')) {
         const r = Math.random();
-        const leave = r < 0.03 ? 'NEMOC' : r < 0.09 ? 'DOVOLENA' : null;
+        const leave = r < 0.03 ? 'NEMOC' : r < 0.10 ? 'DOVOLENA' : null;
         if (leave) {
           absences.push({ userId: c.id, date, type: leave, source: 'OKBASE' });
-          continue; // absence = žádné intervaly
+          continue;
         }
       }
 
-      // Home office den (z OKbase by to byl fakt). Podvodníci jezdí do kanceláře.
-      const isHO = c.behavior.startsWith('cheater') ? false : Math.random() < 0.25;
-      if (isHO) {
-        absences.push({ userId: c.id, date, type: 'HOME_OFFICE', source: 'OKBASE' });
-      }
+      const isHO = c.behavior.startsWith('cheater') ? false : Math.random() < 0.22;
+      if (isHO) absences.push({ userId: c.id, date, type: 'HOME_OFFICE', source: 'OKBASE' });
 
+      // 8 prac. hod × 4 intervalů (po 15 min)
       for (let hour = 8; hour < 16; hour++) {
-        for (let min = 0; min < 60; min += 5) {
-          const intervalStart = zonedToUtc(lp.year, lp.month, lp.day, hour, min); // místní 8–16 h (ČR)
+        for (let min = 0; min < 60; min += 15) {
+          const intervalStart = zonedToUtc(lp.year, lp.month, lp.day, hour, min);
           const row = makeRow(c, intervalStart, isHO);
           if (row) batch.push(row);
+          if (batch.length >= FLUSH_AT) {
+            await prisma.activityInterval.createMany({ data: batch });
+            batch = [];
+          }
         }
       }
     }
+    if ((pi + 1) % 200 === 0) console.log(`  intervaly: ${pi + 1} / ${created.length} uživatelů`);
   }
-
-  // Idempotentni seed: pokud uz intervaly existuji (z drivejsiho behu kdy byl
-  // sentinel jine verze), preskoc, jinak by createMany padl na UNIQUE constraint.
-  // SQLite/Prisma nepodporuje skipDuplicates v createMany pro tento driver.
-  const existingIntervals = await prisma.activityInterval.count();
-  if (existingIntervals === 0) {
-    for (let i = 0; i < batch.length; i += 1000) {
-      await prisma.activityInterval.createMany({ data: batch.slice(i, i + 1000) });
+  if (batch.length > 0) await prisma.activityInterval.createMany({ data: batch });
+  if (absences.length > 0) {
+    // SQLite limit – po 500
+    for (let i = 0; i < absences.length; i += 500) {
+      await prisma.absence.createMany({ data: absences.slice(i, i + 500) });
     }
-    if (absences.length) await prisma.absence.createMany({ data: absences });
-  } else {
-    // eslint-disable-next-line no-console
-    console.log(`Demo intervaly preskoceny – ${existingIntervals} uz existuje.`);
   }
+  console.log(`  Vytvořeno intervalů: ~${created.length * 22 * 32} (záleží na absencích)`);
 
-  // Demo licence: reálné placené aplikace Sinsu Platform + seaty/cena (CZK/měsíc/licence).
-  // Část je dobře využitá (zelená), část leží ladem (červená = úspora).
-  // projectpro.exe nikdo nepoužívá → 100% plýtvání pro ukázku.
-  // Počty licencí naladěné pro ~100 lidí: část je předplacená „do foroty"
-  // (nevyužité licence = úspora), část dobře využitá.
-  const LICENSES = [
-    { appName: 'sldworks.exe', category: 'CAD / Konstrukce', type: 'WORK', seats: 25, costPerSeat: 4500 }, // SolidWorks – drahé, jen konstrukce
-    { appName: 'navision.exe', category: 'Podnikový systém', type: 'WORK', seats: 90, costPerSeat: 1500 }, // Microsoft Navision
-    { appName: 'crm.exe', category: 'CRM', type: 'WORK', seats: 55, costPerSeat: 1200 }, // Microsoft Dynamics CRM
-    { appName: 'econ.exe', category: 'Podnikový systém', type: 'WORK', seats: 12, costPerSeat: 800 }, // E-CON
-    { appName: 'excel.exe', category: 'Kancelář', type: 'WORK', seats: 110, costPerSeat: 350 }, // Office – téměř všichni
-    { appName: 'code.exe', category: 'Vývoj', type: 'WORK', seats: 10, costPerSeat: 250 },
-    { appName: 'okbase.exe', category: 'Docházka / HR', type: 'WORK', seats: 12, costPerSeat: 120 },
-    { appName: 'projectpro.exe', category: 'Projektové řízení', type: 'WORK', seats: 15, costPerSeat: 900 }, // nikdo nepoužívá → 100% plýtvání
-  ];
-  // Vyčisti staré licence (ať audit ukazuje jen aktuální sadu).
+  // ─── 5) Licence + utilization realistic ─────────────────────────────────
+  console.log('Resetuji licence – realistická utilizace…');
   await prisma.appCategory.updateMany({ data: { licensed: false, seats: null, costPerSeat: null } });
+  const LICENSES = [
+    // Plně využité – seats odpovídá počtu uživatelů konstrukce
+    { appName: 'sldworks.exe', category: 'CAD / Konstrukce', type: 'WORK', seats: 200, costPerSeat: 4500 },
+    { appName: 'navision.exe', category: 'Podnikový systém', type: 'WORK', seats: 1500, costPerSeat: 1500 },
+    { appName: 'crm.exe', category: 'CRM', type: 'WORK', seats: 500, costPerSeat: 1200 },
+    { appName: 'econ.exe', category: 'Podnikový systém', type: 'WORK', seats: 80, costPerSeat: 800 },
+    { appName: 'excel.exe', category: 'Kancelář', type: 'WORK', seats: 2000, costPerSeat: 350 },
+    { appName: 'code.exe', category: 'Vývoj', type: 'WORK', seats: 150, costPerSeat: 250 },
+    { appName: 'powerpnt.exe', category: 'Kancelář', type: 'WORK', seats: 200, costPerSeat: 350 },
+    // Plýtvání – předplaceno víc než využíváno (úspora pro auditora)
+    { appName: 'projectpro.exe', category: 'Project management', type: 'WORK', seats: 50, costPerSeat: 800 }, // nikdo nepoužívá
+    { appName: 'visiopro.exe', category: 'Diagramy', type: 'WORK', seats: 80, costPerSeat: 600 }, // sotva 5 lidí
+  ];
   for (const l of LICENSES) {
     await prisma.appCategory.upsert({
       where: { appName: l.appName },
@@ -232,53 +400,117 @@ async function main() {
     });
   }
 
-  // Demo Print & USB events – sekce v dashboardu by jinak byla prázdná.
+  // ─── 6) Print, USB, HW health, Admins, Audit, Claims ────────────────────
   await seedPrintAndUsb(created);
-
-  // HW health snapshots pro IT > Zdraví zařízení tab.
   await seedDeviceHealth(created);
-
-  // Další admin účty pro Přístupy sekci (manager, IT, viewer).
   await seedAdditionalAdmins();
-
-  // Vzorek auditu přístupů – ukáže "Kdo se na koho díval".
   await seedAccessAuditSamples(created);
-
-  // 2-3 OPEN classification claims (zaměstnanec si stěžuje na kategorizaci).
   await seedClassificationClaims(created);
 
+  // ─── 7) Settings & aggregation ──────────────────────────────────────────
+  await saveSettings({
+    printTrackingEnabled: true,
+    capturePrintDocName: true,
+    usbTrackingEnabled: true,
+    captureUsbFilename: true,
+    showDemoDevices: true,
+  });
+
+  console.log('Spouštím agregaci (může trvat 1-3 min při 1.4M intervalech)…');
   const hours = await aggregateAll();
-  // eslint-disable-next-line no-console
-  console.log(`Seed hotov: ${created.length} uživatelů, ${batch.length} intervalů, ${absences.length} HO dnů, ${hours} agregátů.`);
+  console.log(`Seed hotov: ${created.length} uživatelů, ${absences.length} absencí, ${hours} agregačních párů.`);
 }
 
-/**
- * Demo data pro Tisk & USB sekce v dashboardu. Bez nich vypadá tab prázdně
- * a investor / zákazník netuší, jak by feature vypadala v reálu.
- *
- * Hodnoty:
- *  - 30 dní zpětně, ~70% uživatelů aspoň občas tiskne (HR a Vedení nejvíc).
- *  - "Cheater" profily mají abnormálně velké objemy (vzorky pro odbor security).
- *  - USB události naopak řidší – běžně 1-2 events / týden / user, ale Konstrukce
- *    a Vedení občas vynáší CAD soubory nebo prezentace.
- */
-async function seedPrintAndUsb(users: Person[]) {
-  // Idempotentní: pokud uz existuji Print/USB zaznamy, preskoc.
-  // Resi pripad, kdy uzivatel upgraduje seed bez `docker compose down -v`
-  // (volume s .seeded sentinelem zustal, ale Print/USB tabulky jsou prazdne).
+/** Vyrobí 1 interval pro uživatele v konkrétní 15-min slot. */
+function makeRow(c: Person, intervalStart: Date, isHO: boolean): Prisma.ActivityIntervalCreateManyInput | null {
+  const last = c.siteBase.split('.')[1];
+  const clientIp = isHO ? `192.168.${rnd(255)}.${rnd(255)}` : `${c.siteBase}.${last}.${rnd(254) + 1}`;
+
+  const base: Prisma.ActivityIntervalCreateManyInput = {
+    userId: c.id,
+    deviceId: c.deviceId,
+    intervalStart,
+    intervalSeconds: 60, // agent posílá 60s; demo aproximuje 15min jako "průměr" stejné šance
+    activeSeconds: 0,
+    idleSeconds: 0,
+    keystrokeCount: 0,
+    mouseEvents: 0,
+    sessionLocked: false,
+    monitorCount: c.monitors,
+    clientIp,
+    typingMs: 0,
+    typingKeystrokeCount: 0,
+  };
+
+  // Production workers mají málo PC času (60% intervalů locked, zbytek pomalu)
+  if (PRODUCTION_DEPTS.has(c.dept) && Math.random() < 0.6) {
+    return { ...base, sessionLocked: true, activeSeconds: 0, idleSeconds: 60 };
+  }
+
+  const dipFactor = isHO ? 1 - c.hoDip : 1;
+  const effectiveDiligence = c.diligence * dipFactor;
+
+  // Cheater behaviors: mouse jiggler (mírná mouse aktivita pořád), keyboard (rytmické úhozy)
+  if (c.behavior === 'cheater_mouse') {
+    return { ...base, activeSeconds: 60, idleSeconds: 0, foregroundApp: 'chrome.exe', windowTitle: 'YouTube', mouseEvents: 50 + rnd(20), keystrokeCount: 0 };
+  }
+  if (c.behavior === 'cheater_keyboard') {
+    return { ...base, activeSeconds: 60, idleSeconds: 0, foregroundApp: 'winword.exe', windowTitle: null, keystrokeCount: 180 + rnd(15), mouseEvents: rnd(3), typingMs: 60_000, typingKeystrokeCount: 180 + rnd(15) };
+  }
+
+  const nonWorkProb = c.behavior === 'slacker' ? 0.32 : (1 - effectiveDiligence) * 0.55;
+  const r = Math.random();
+  let app: string;
+  let title: string | null = null;
+  let active: number;
+  if (r < nonWorkProb) {
+    if (Math.random() < 0.6) { app = 'chrome.exe'; title = pick(BROWSER_NONWORK_TITLES); }
+    else { app = pick(NONWORK_APPS); }
+    active = 30 + rnd(30);
+  } else if (r < nonWorkProb + 0.10) {
+    app = 'chrome.exe'; title = pick(BROWSER_WORK_TITLES); active = 40 + rnd(20);
+  } else if (Math.random() < 0.04) {
+    app = pick(UNKNOWN_APPS); active = 30 + rnd(30);
+  } else {
+    const w = pick(c.workPool);
+    app = w[0]; title = w[1];
+    active = Math.random() > 0.85 ? rnd(15) : 45 + rnd(15);
+  }
+
+  const ks = active > 30 && TYPING_APPS.has(app) ? rnd(220) : rnd(30);
+  const mouse = app === 'sldworks.exe' ? 50 + rnd(100) : active > 15 ? rnd(75) : rnd(8);
+  // Typing session: pokud > 30 znaků v intervalu, předpokládáme souvislý
+  // typing pattern – pro fázi 2 KPM. (Realisticky agent posílá per-keydown.)
+  const typingMs = ks > 30 ? Math.min(60_000, ks * 200) : 0;
+
+  return {
+    ...base,
+    activeSeconds: active,
+    idleSeconds: 60 - active,
+    foregroundApp: app,
+    windowTitle: title,
+    keystrokeCount: ks,
+    mouseEvents: mouse,
+    sessionLocked: active < 8 && Math.random() > 0.6,
+    typingMs,
+    typingKeystrokeCount: typingMs > 0 ? ks : 0,
+  };
+}
+
+async function seedPrintAndUsb(users: Person[]): Promise<void> {
   const existingPrint = await prisma.printJob.count();
   const existingUsb = await prisma.usbFileEvent.count();
   if (existingPrint > 0 || existingUsb > 0) {
-    // eslint-disable-next-line no-console
     console.log(`Demo Print/USB preskocen – uz existuji zaznamy (${existingPrint} tisk + ${existingUsb} USB).`);
     return;
   }
+  console.log('Generuji print + USB události…');
 
-  const PRINTERS = ['HP LaserJet M404 (Tiskárna kancelář 1)', 'Canon iR-ADV C5550 (Tiskárna recepce)', 'Brother HL-L2370 (Tiskárna sklad)'];
-  const PAPER_SIZES = ['A4', 'A4', 'A4', 'A4', 'A3', 'A4', 'A5']; // distribuce
-  const DOC_NAMES = ['Faktura', 'Smlouva s dodavatelem', 'Cenová nabídka', 'Týdenní report', 'Technický výkres', 'Personální podklady', 'Návrh dovolené'];
-  const USB_LABELS = ['SanDisk-USB-32GB', 'Kingston-DataTraveler', 'Externí HDD WD', 'Apple TimeMachine'];
-  const USB_EXTENSIONS = ['pdf', 'docx', 'xlsx', 'jpg', 'png', 'dwg', 'zip', 'mp4'];
+  const PRINTERS = ['HP LaserJet M404 (Tiskárna kancelář 1)', 'Canon iR-ADV C5550 (Tiskárna recepce)', 'Brother HL-L2370 (Tiskárna sklad)', 'HP Color LaserJet (Vedení)', 'Kyocera Ecosys (Konstrukce)'];
+  const PAPER_SIZES = ['A4', 'A4', 'A4', 'A4', 'A3', 'A4', 'A5'];
+  const DOC_NAMES = ['Faktura', 'Smlouva s dodavatelem', 'Cenová nabídka', 'Týdenní report', 'Technický výkres', 'Personální podklady', 'Návrh dovolené', 'Reklamační protokol', 'Servisní list', 'Mzdový lístek'];
+  const USB_LABELS = ['SanDisk-USB-32GB', 'Kingston-DataTraveler', 'Externí HDD WD', 'Apple TimeMachine', 'Verbatim 64GB'];
+  const USB_EXTENSIONS = ['pdf', 'docx', 'xlsx', 'jpg', 'png', 'dwg', 'zip', 'mp4', 'step', 'iges'];
   const ACTIONS = ['CREATE', 'WRITE', 'READ', 'DELETE'];
 
   const today = new Date();
@@ -286,35 +518,39 @@ async function seedPrintAndUsb(users: Person[]) {
   const usbEvents: Prisma.UsbFileEventCreateManyInput[] = [];
 
   for (const u of users) {
-    const isHeavyPrinter = u.dept === 'Personalistika' || u.dept === 'Vedení' || u.dept === 'Ekonomika';
     const isCheater = u.behavior.startsWith('cheater');
-    const printsPerWeek = isCheater ? 80 + rnd(40) : isHeavyPrinter ? 15 + rnd(15) : 3 + rnd(6);
+    // Tisk podle role: vedení/HR/ekonomika tisknou hodně, výroba málo
+    const heavyPrinter = ['Personalistika', 'Vedení', 'Ekonomika', 'Reklamace', 'Právní'].includes(u.dept);
+    const noPrinter = ['Výroba — Hala 1', 'Výroba — Hala 2', 'Výroba — Hala 3', 'Sklad', 'Údržba'].includes(u.dept);
+    if (noPrinter && Math.random() < 0.85) continue; // většina jich neprintuje
+    const printsPerWeek = isCheater ? 60 + rnd(50) : heavyPrinter ? 12 + rnd(15) : 2 + rnd(5);
 
     for (let d = 0; d < 30; d++) {
       const date = new Date(today); date.setDate(date.getDate() - d);
-      // Tisk: jeden uživatel v den dělá 0–N úloh
       const jobsToday = Math.random() < 0.4 ? Math.round(printsPerWeek / 7 * (0.5 + Math.random())) : 0;
       for (let j = 0; j < jobsToday; j++) {
         const jobAt = new Date(date);
-        jobAt.setHours(isCheater && Math.random() < 0.3 ? 19 + rnd(4) : 8 + rnd(8), rnd(60), rnd(60));
+        jobAt.setHours(isCheater && Math.random() < 0.25 ? 19 + rnd(4) : 8 + rnd(8), rnd(60), rnd(60));
         printJobs.push({
           deviceId: u.deviceId,
           userId: u.id,
           printerName: pick(PRINTERS),
-          documentName: Math.random() < 0.6 ? `${pick(DOC_NAMES)} ${1000 + rnd(9000)}.pdf` : null,
-          pages: 1 + rnd(isCheater ? 50 : 10),
-          copies: Math.random() < 0.1 ? 1 + rnd(5) : 1,
+          documentName: Math.random() < 0.55 ? `${pick(DOC_NAMES)} ${1000 + rnd(9000)}.pdf` : null,
+          pages: 1 + rnd(isCheater ? 40 : 8),
+          copies: Math.random() < 0.08 ? 1 + rnd(5) : 1,
           paperSize: pick(PAPER_SIZES),
-          color: Math.random() < 0.25,
-          duplex: Math.random() < 0.4,
+          color: Math.random() < 0.20,
+          duplex: Math.random() < 0.35,
           sizeBytes: 50_000 + rnd(2_000_000),
           jobAt,
         });
       }
 
-      // USB: výrazně řidší než tisk
-      if (Math.random() < (isCheater ? 0.5 : 0.1)) {
-        const eventsToday = isCheater ? 5 + rnd(20) : 1 + rnd(3);
+      // USB events – konstrukce výrazně víc (CAD soubory), pak ostatní výjimečně
+      const usbHeavy = ['Konstrukce', 'Vývoj', 'Vědecké oddělení', 'Marketing'].includes(u.dept);
+      const usbProb = isCheater ? 0.4 : usbHeavy ? 0.15 : 0.05;
+      if (Math.random() < usbProb) {
+        const eventsToday = isCheater ? 5 + rnd(15) : 1 + rnd(3);
         for (let e = 0; e < eventsToday; e++) {
           const evAt = new Date(date);
           evAt.setHours(8 + rnd(10), rnd(60), rnd(60));
@@ -326,7 +562,7 @@ async function seedPrintAndUsb(users: Person[]) {
             action,
             driveLetter: 'E:',
             driveLabel: pick(USB_LABELS),
-            fileName: Math.random() < 0.4 ? `${pick(DOC_NAMES).toLowerCase().replace(/\s/g, '_')}_${rnd(1000)}.${ext}` : null,
+            fileName: Math.random() < 0.35 ? `${pick(DOC_NAMES).toLowerCase().replace(/\s/g, '_')}_${rnd(1000)}.${ext}` : null,
             fileExt: ext,
             sizeBytes: action === 'DELETE' ? BigInt(0) : BigInt(1_000_000 + rnd(500_000_000)),
             eventAt: evAt,
@@ -346,105 +582,36 @@ async function seedPrintAndUsb(users: Person[]) {
       await prisma.usbFileEvent.createMany({ data: usbEvents.slice(i, i + 1000) });
     }
   }
-  // eslint-disable-next-line no-console
-  console.log(`Demo Print/USB: ${printJobs.length} tiskových úloh, ${usbEvents.length} USB událostí.`);
-
-  // Zapni Print & USB tracking v Settings, aby data byla viditelná v UI.
-  await saveSettings({
-    printTrackingEnabled: true,
-    capturePrintDocName: true,
-    usbTrackingEnabled: true,
-    captureUsbFilename: true,
-  });
+  console.log(`Demo Print/USB: ${printJobs.length} úloh, ${usbEvents.length} USB událostí.`);
 }
 
-function makeRow(c: Person, intervalStart: Date, isHO: boolean): Prisma.ActivityIntervalCreateManyInput | null {
-  // Lokální IP: v kanceláři podsíť provozovny, na Home Office domácí síť → „Mimo firmu".
-  const clientIp = isHO ? `192.168.1.${10 + rnd(240)}` : `${c.siteBase}.${rnd(254)}.${10 + rnd(240)}`;
-  const base = { deviceId: c.deviceId, userId: c.id, intervalStart, intervalSeconds: 300, monitorCount: c.monitors, clientIp };
-
-  // Podvodníci: vypadají „aktivně" celý den, ale vzor je strojový.
-  if (c.behavior === 'cheater_mouse') {
-    return { ...base, activeSeconds: 295, idleSeconds: 5, foregroundApp: 'excel.exe', windowTitle: null, keystrokeCount: 0, mouseEvents: 5 + rnd(2), sessionLocked: false };
-  }
-  if (c.behavior === 'cheater_keyboard') {
-    return { ...base, activeSeconds: 300, idleSeconds: 0, foregroundApp: 'winword.exe', windowTitle: null, keystrokeCount: 585 + rnd(8), mouseEvents: 0, sessionLocked: false };
-  }
-
-  // Běžní lidé: občas PC off, mix práce/neutrál/mimopráce dle píle.
-  // Na home office méně pilní lidé poleví víc (hoDip).
-  const hoDip = isHO ? c.hoDip : 0;
-  const offChance = (1 - c.diligence) * 0.25 + (intervalStart.getHours() >= 14 ? 0.08 : 0) + hoDip;
-  if (Math.random() < offChance) return null;
-
-  const nonWorkProb = (1 - c.diligence) * 0.35 + hoDip * 0.5;
-  const r = Math.random();
-  let app: string;
-  let title: string | null = null;
-  let active: number;
-  if (r < nonWorkProb) {
-    if (Math.random() < 0.5) { app = 'chrome.exe'; title = pick(BROWSER_NONWORK_TITLES); } else { app = pick(NONWORK_APPS); }
-    active = 240 + rnd(60);
-  } else if (r < nonWorkProb + 0.14) {
-    app = 'chrome.exe'; title = pick(BROWSER_WORK_TITLES); active = 200 + rnd(90);
-  } else if (Math.random() < 0.05) {
-    // nezařazená interní aplikace → UNKNOWN (vyjmuto, dokud admin nezařadí)
-    app = pick(UNKNOWN_APPS); active = 200 + rnd(90);
-  } else {
-    const w = pick(c.workPool);
-    app = w[0]; title = w[1];
-    active = Math.random() > 0.85 ? rnd(60) : 240 + rnd(60);
-  }
-  // CAD/PDF jsou ovládané hlavně myší → málo úhozů; psací aplikace hodně.
-  const ks = active > 120 && TYPING_APPS.has(app) ? rnd(900) : rnd(120);
-  const mouse = app === 'sldworks.exe' ? 200 + rnd(400) : active > 60 ? rnd(300) : rnd(30);
-  return { ...base, activeSeconds: active, idleSeconds: 300 - active, foregroundApp: app, windowTitle: title, keystrokeCount: ks, mouseEvents: mouse, sessionLocked: active < 30 && Math.random() > 0.6 };
-}
-
-/**
- * Demo HW snapshots pro IT > Zdraví zařízení. Existující service vrací voidly
- * (zaměří se na demo devices), tady jen tenký wrapper s logem.
- */
 async function seedDeviceHealth(_users: Person[]): Promise<void> {
   const before = await prisma.deviceHealth.count();
   await ensureDemoDeviceHealth();
   const after = await prisma.deviceHealth.count();
-  // eslint-disable-next-line no-console
-  console.log(`Demo HW health: ${after - before} novych snapshotu (drive ${before}).`);
+  console.log(`Demo HW health: ${after - before} nových snapshotů (dříve ${before}).`);
 }
 
-/**
- * Demo admin účty – pro Přístupy sekci. Jeden ADMIN (default), 2× MANAGER
- * s přiřazenými odděleními, 1× IT, 1× VIEWER. Manageři mají rozsah jen
- * na svá oddělení, ať uživatel vidí RBAC v praxi.
- */
 async function seedAdditionalAdmins(): Promise<void> {
   const existing = await prisma.adminUser.count({ where: { username: { not: 'admin' } } });
   if (existing > 0) {
-    // eslint-disable-next-line no-console
     console.log(`Demo admins preskoceny – uz existuje ${existing} dalsi admin uctu.`);
     return;
   }
-
   const password = hashPassword('Demo1234!');
   const accounts = [
-    { username: 'manager.obchod', fullName: 'Jan Novák – ředitel obchodu', role: 'MANAGER', depts: ['Obchod ČR', 'Obchod Export'] },
-    { username: 'manager.vyroba', fullName: 'Petra Svobodová – vedoucí výroby', role: 'MANAGER', depts: ['Výroba', 'Montáže a servis'] },
+    { username: 'manager.obchod', fullName: 'Jan Novák – ředitel obchodu', role: 'MANAGER', depts: ['Obchod ČR', 'Obchod Export', 'Obchod EU'] },
+    { username: 'manager.vyroba', fullName: 'Petra Svobodová – vedoucí výroby', role: 'MANAGER', depts: ['Výroba — Hala 1', 'Výroba — Hala 2', 'Výroba — Hala 3', 'Montáže a servis'] },
+    { username: 'manager.konstrukce', fullName: 'Marek Dvořák – vedoucí konstrukce', role: 'MANAGER', depts: ['Konstrukce', 'Vývoj'] },
+    { username: 'manager.hr', fullName: 'Hana Procházková – personální ředitelka', role: 'MANAGER', depts: ['Personalistika', 'HR Akademie', 'Tréning'] },
     { username: 'it.spravce', fullName: 'Tomáš Procházka – IT správce', role: 'IT', depts: [] },
     { username: 'auditor', fullName: 'Hana Veselá – interní audit', role: 'VIEWER', depts: [] },
   ];
-
   for (const a of accounts) {
     const user = await prisma.adminUser.upsert({
       where: { username: a.username },
       update: {},
-      create: {
-        username: a.username,
-        passwordHash: password,
-        role: a.role,
-        fullName: a.fullName,
-        email: `${a.username}@sinsu-demo.cz`,
-      },
+      create: { username: a.username, passwordHash: password, role: a.role, fullName: a.fullName, email: `${a.username}@sinsu-demo.cz` },
     });
     for (const dept of a.depts) {
       await prisma.adminUserDepartment.upsert({
@@ -454,19 +621,12 @@ async function seedAdditionalAdmins(): Promise<void> {
       });
     }
   }
-  // eslint-disable-next-line no-console
-  console.log(`Demo admins: ${accounts.length} uctu (heslo "Demo1234!" pro vsechny – jen demo).`);
+  console.log(`Demo admins: ${accounts.length} uctu (heslo "Demo1234!").`);
 }
 
-/**
- * Demo audit přístupů – ukáže "Kdo se na koho díval" v Administraci.
- * Pár záznamů z posledních dní: admin koukl na top podezřelé, IT exportoval
- * intervaly, manager prohlížel své oddělení, atd.
- */
 async function seedAccessAuditSamples(users: Person[]): Promise<void> {
   const existing = await prisma.accessAudit.count();
   if (existing > 5) {
-    // eslint-disable-next-line no-console
     console.log(`Demo audit preskocen – uz existuje ${existing} zaznamu.`);
     return;
   }
@@ -477,10 +637,9 @@ async function seedAccessAuditSamples(users: Person[]): Promise<void> {
   const now = Date.now();
   const action = ['VIEW', 'VIEW', 'VIEW', 'EXPORT', 'LOGIN'] as const;
   const detail = ['detail uzivatele 30 dni', 'integrity panel', 'score timeline', 'hourly export xlsx', 'admin sign-in'];
-
-  for (let i = 0; i < 18; i++) {
+  for (let i = 0; i < 40; i++) {
     const admin = admins[i % admins.length];
-    const target = users[(i * 7) % users.length];
+    const target = users[(i * 73) % users.length];
     samples.push({
       adminId: admin.id,
       adminIdentity: admin.username,
@@ -491,51 +650,30 @@ async function seedAccessAuditSamples(users: Person[]): Promise<void> {
     });
   }
   await prisma.accessAudit.createMany({ data: samples });
-  // eslint-disable-next-line no-console
   console.log(`Demo audit: ${samples.length} zaznamu o pristupech.`);
 }
 
-/**
- * Demo classification claims – pár zaměstnanců si stěžuje, že jejich
- * pracovní aplikace je nesprávně klasifikovaná. Pro Administrace → Klasifikace
- * → záložka Claims.
- */
 async function seedClassificationClaims(users: Person[]): Promise<void> {
   const existing = await prisma.classificationClaim.count();
   if (existing > 0) {
-    // eslint-disable-next-line no-console
     console.log(`Demo claims preskoceny – ${existing} uz existuje.`);
     return;
   }
-  if (users.length < 3) return;
+  if (users.length < 50) return;
+  // Vyber uživatele z různých oddělení pro realističtější mix.
+  const u1 = users.find((u) => u.dept === 'Konstrukce')!;
+  const u2 = users.find((u) => u.dept === 'Personalistika')!;
+  const u3 = users.find((u) => u.dept === 'IT')!;
+  const u4 = users.find((u) => u.dept === 'Obchod ČR')!;
+  const u5 = users.find((u) => u.dept === 'Marketing')!;
   const claims: Prisma.ClassificationClaimCreateManyInput[] = [
-    {
-      userId: users[0].id,
-      target: 'projectpro.exe',
-      targetKind: 'APP',
-      suggested: 'WORK',
-      note: 'Tohle je naše interní projektová appka, ne zábava. Klasifikujte prosím jako práci.',
-      status: 'OPEN',
-    },
-    {
-      userId: users[5 % users.length].id,
-      target: 'linkedin.com',
-      targetKind: 'TITLE',
-      suggested: 'WORK',
-      note: 'Hledám obchodní leady, není to soukromá zábava.',
-      status: 'OPEN',
-    },
-    {
-      userId: users[12 % users.length].id,
-      target: 'youtube.com',
-      targetKind: 'TITLE',
-      suggested: 'WORK',
-      note: 'Sledoval jsem školicí video o novém CRM. Ne reklamace zatím.',
-      status: 'RESOLVED',
-    },
+    { userId: u1.id, target: 'projectpro.exe', targetKind: 'APP', suggested: 'WORK', note: 'Naše interní projektová appka, ne zábava. Klasifikujte prosím jako práci.', status: 'OPEN' },
+    { userId: u2.id, target: 'linkedin.com', targetKind: 'TITLE', suggested: 'WORK', note: 'Hledám kandidáty na pozice, není to soukromá zábava.', status: 'OPEN' },
+    { userId: u3.id, target: 'youtube.com', targetKind: 'TITLE', suggested: 'WORK', note: 'Sledoval jsem školicí video o novém Kubernetes.', status: 'RESOLVED' },
+    { userId: u4.id, target: 'utilitka.exe', targetKind: 'APP', suggested: 'WORK', note: 'Vlastní utility na export dat z CRM, je to pracovní nástroj.', status: 'OPEN' },
+    { userId: u5.id, target: 'figma.com', targetKind: 'TITLE', suggested: 'WORK', note: 'Tvořím marketingové grafiky.', status: 'RESOLVED' },
   ];
   await prisma.classificationClaim.createMany({ data: claims });
-  // eslint-disable-next-line no-console
   console.log(`Demo claims: ${claims.length} reklamaci klasifikace.`);
 }
 

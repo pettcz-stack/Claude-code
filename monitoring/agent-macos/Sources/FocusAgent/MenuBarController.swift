@@ -9,10 +9,13 @@ import AppKit
 ///
 /// Implementace:
 ///  - NSStatusBar.system.statusItem (variable length) s SF Symbol ikonkou.
-///  - Klik → menu se 3 položkami:
+///  - Klik → menu se 2 položkami:
 ///      1) "Můj report" → POST /api/v1/self/token → otevři default browser.
-///      2) "Otevřít diagnostiku" → otevři Finder na /Library/Application Support/FOCUS/.
-///      3) "Verze 0.9.2 (build ...)" – informativní, neklikatelná.
+///      2) "Verze 0.9.X (build ...)" – informativní, neklikatelná (pro support).
+///
+/// VĚDOMĚ se NEVYSTAVUJE složka agenta, log soubory ani diagnostika –
+/// zaměstnanec nesmí mít přístup k internímu stavu agenta. Tyto věci patří
+/// IT správci přes Finder / Terminal / dashboard, ne přes tray.
 ///
 /// Visibility: pokud `employeeReportEnabled=false` (Nastavení v dashboardu),
 /// ikona se nezobrazí – stejně jako Windows Sender lastEmployeeReportEnabled.
@@ -49,7 +52,9 @@ final class MenuBarController {
 
         let menu = NSMenu()
 
-        // "Můj report"
+        // "Můj report" – jediná uživatelská akce.
+        // Zaměstnanec NESMÍ mít přístup k diagnostickým složkám, logům ani
+        // konfiguraci agenta – to je doména správce / IT, ne monitorovaného.
         let reportItem = NSMenuItem(title: "Můj report…", action: #selector(MenuTarget.openReport), keyEquivalent: "")
         let target = MenuTarget(sender: sender)
         reportItem.target = target
@@ -57,14 +62,7 @@ final class MenuBarController {
 
         menu.addItem(NSMenuItem.separator())
 
-        // "Otevřít diagnostiku" – Finder na /Library/Application Support/FOCUS
-        let diagItem = NSMenuItem(title: "Otevřít složku agenta…", action: #selector(MenuTarget.openFocusFolder), keyEquivalent: "")
-        diagItem.target = target
-        menu.addItem(diagItem)
-
-        menu.addItem(NSMenuItem.separator())
-
-        // Info o verzi (neklikatelné)
+        // Info o verzi (neklikatelné) – pomáhá s podporou: uživatel řekne, co vidí.
         let infoItem = NSMenuItem(title: "FOCUS Agent \(AgentInfo.version) (build \(AgentInfo.buildId))", action: nil, keyEquivalent: "")
         infoItem.isEnabled = false
         menu.addItem(infoItem)
@@ -113,8 +111,4 @@ final class MenuBarController {
         }
     }
 
-    @objc func openFocusFolder() {
-        let url = URL(fileURLWithPath: "/Library/Application Support/FOCUS", isDirectory: true)
-        NSWorkspace.shared.activateFileViewerSelecting([url])
-    }
 }
