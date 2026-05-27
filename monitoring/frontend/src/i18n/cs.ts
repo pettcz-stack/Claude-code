@@ -6,6 +6,28 @@ export const cs = {
   app: {
     tagline: 'monitoring firemních PC',
   },
+  empty: {
+    noDevices: {
+      title: 'Žádné zařízení zatím nehlásí',
+      body: 'Nainstaluj FOCUS agenta na PC zaměstnance. Po prvním spuštění (cca 2 min) se zde objeví data.',
+      downloadAgent: 'Stáhnout agenta',
+    },
+    noRange: {
+      title: 'Žádná data v tomto období',
+      body: 'Zkus rozšířit časový rozsah (Týden / Měsíc / Vlastní) – pravděpodobně jste tehdy ještě neměřili.',
+    },
+    noResult: {
+      title: 'Nic neodpovídá filtru',
+      body: 'Vymaž search nebo přepni status filter na "Vše".',
+    },
+    noDataYet: {
+      title: 'Zařízení nasazené, čekáme na data',
+      body: 'První interval dorazí ~2 minuty po enrollmentu agenta. Refresh stránky za chvíli.',
+    },
+    error: {
+      title: 'Něco se nepodařilo',
+    },
+  },
   userMenu: {
     devMode: 'Vývojářský režim',
     devModeTooltip: 'Zobrazí ⓘ ikonky u metrik s vysvětlením, jak jsou počítány. Užitečné pro auditora / DPO / debug.',

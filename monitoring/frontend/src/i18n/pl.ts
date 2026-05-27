@@ -4,6 +4,17 @@ export const pl: typeof cs = {
   app: {
     tagline: 'monitoring komputerów służbowych',
   },
+  empty: {
+    noDevices: {
+      title: 'Żadne urządzenie jeszcze nie raportuje',
+      body: 'Zainstaluj agenta FOCUS na PC pracownika. Dane pojawią się ~2 minuty po pierwszym uruchomieniu.',
+      downloadAgent: 'Pobierz agenta',
+    },
+    noRange: { title: 'Brak danych w tym okresie', body: 'Spróbuj poszerzyć zakres czasu.' },
+    noResult: { title: 'Nic nie pasuje do filtra', body: 'Wyczyść wyszukiwanie lub ustaw filtr na "Wszystko".' },
+    noDataYet: { title: 'Urządzenie wdrożone, czekamy na dane', body: 'Pierwszy interwał dotrze ~2 minuty po wdrożeniu.' },
+    error: { title: 'Coś poszło nie tak' },
+  },
   userMenu: {
     devMode: 'Tryb deweloperski',
     devModeTooltip: 'Pokazuje ⓘ ikonki przy metrykach z wyjaśnieniem sposobu obliczania. Przydatne dla audytora / DPO / debugowania.',

@@ -4,6 +4,7 @@ import { api, type DeviceHealthRow, type DeviceHealthDetail, type HealthStatus }
 import { useT, type Locale } from './i18n/index.js';
 import { useSort, SortHeader } from './tableSort.js';
 import { usePagination } from './pagination.js';
+import { EmptyState } from './EmptyState.js';
 
 // Mapování locale → BCP-47 pro toLocale*String (čeština chce 'cs-CZ' atd.)
 function bcp47(locale: Locale): string {
@@ -56,6 +57,11 @@ export function HardwareHealthView() {
   // alfabeticky. Manazer pak nejcasteji prepne na batteryHealthPct asc.
   const { sorted: sortedRows, key: sortKey, dir: sortDir, setSort } = useSort(filtered, 'status', 'asc');
   const { paged: pagedRows, controls: paginationControls } = usePagination(sortedRows, 50);
+
+  // Žádná zařízení po prvním načtení = onboarding stav.
+  if (!loading && rows.length === 0) {
+    return <div className="card p-5"><EmptyState variant="noDevices" /></div>;
+  }
 
   return (
     <div className="space-y-4">

@@ -4,6 +4,17 @@ export const de: typeof cs = {
   app: {
     tagline: 'Überwachung von Firmen-PCs',
   },
+  empty: {
+    noDevices: {
+      title: 'Noch keine Geräte aktiv',
+      body: 'Installiere den FOCUS Agent auf einem Mitarbeiter-PC. Daten erscheinen ~2 Minuten nach erstem Start.',
+      downloadAgent: 'Agent herunterladen',
+    },
+    noRange: { title: 'Keine Daten in diesem Zeitraum', body: 'Erweitere den Zeitbereich.' },
+    noResult: { title: 'Nichts entspricht dem Filter', body: 'Suche löschen oder Filter auf "Alle".' },
+    noDataYet: { title: 'Gerät eingesetzt, warte auf Daten', body: 'Erstes Intervall kommt ~2 Minuten nach Enrollment.' },
+    error: { title: 'Etwas ist schiefgelaufen' },
+  },
   userMenu: {
     devMode: 'Entwicklermodus',
     devModeTooltip: 'Zeigt ⓘ Icons neben Metriken mit Erklärung der Berechnung. Nützlich für Auditor / DPO / Debugging.',

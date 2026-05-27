@@ -4,6 +4,28 @@ export const en: typeof cs = {
   app: {
     tagline: 'work PC monitoring',
   },
+  empty: {
+    noDevices: {
+      title: 'No devices reporting yet',
+      body: 'Install the FOCUS agent on an employee\'s PC. Data appears here ~2 minutes after first launch.',
+      downloadAgent: 'Download agent',
+    },
+    noRange: {
+      title: 'No data for this period',
+      body: 'Try widening the time range (Week / Month / Custom) – likely no measurements at that time.',
+    },
+    noResult: {
+      title: 'Nothing matches the filter',
+      body: 'Clear the search or set status filter to "All".',
+    },
+    noDataYet: {
+      title: 'Device deployed, waiting for data',
+      body: 'First interval arrives ~2 minutes after agent enrollment. Refresh shortly.',
+    },
+    error: {
+      title: 'Something went wrong',
+    },
+  },
   userMenu: {
     devMode: 'Developer mode',
     devModeTooltip: 'Shows ⓘ icons next to metrics explaining how they are calculated. Useful for auditors / DPO / debugging.',

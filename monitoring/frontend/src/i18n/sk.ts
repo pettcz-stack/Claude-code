@@ -4,6 +4,17 @@ export const sk: typeof cs = {
   app: {
     tagline: 'monitoring firemných PC',
   },
+  empty: {
+    noDevices: {
+      title: 'Žiadne zariadenie zatiaľ nehlási',
+      body: 'Nainštaluj FOCUS agenta na PC zamestnanca. Dáta sa tu zobrazia ~2 minúty po prvom spustení.',
+      downloadAgent: 'Stiahnuť agenta',
+    },
+    noRange: { title: 'Žiadne dáta v tomto období', body: 'Skús rozšíriť časový rozsah.' },
+    noResult: { title: 'Nič nezodpovedá filtru', body: 'Vymaž vyhľadávanie alebo nastav filter na "Všetko".' },
+    noDataYet: { title: 'Zariadenie nasadené, čakáme na dáta', body: 'Prvý interval dorazí ~2 minúty po enrollmente.' },
+    error: { title: 'Niečo sa nepodarilo' },
+  },
   userMenu: {
     devMode: 'Vývojársky režim',
     devModeTooltip: 'Zobrazí ⓘ ikonky pri metrikách s vysvetlením, ako sú počítané. Užitočné pre auditora / DPO / debug.',

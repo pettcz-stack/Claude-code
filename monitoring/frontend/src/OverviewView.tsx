@@ -9,6 +9,7 @@ import { ScoreScaleLegend } from './Legend.js';
 import { TYPE_COLORS, scoreHex, scoreColor } from './util.js';
 import { useT } from './i18n/index.js';
 import { MetricInfo } from './MetricInfo.js';
+import { EmptyState } from './EmptyState.js';
 
 function Kpi({ icon, label, value, sub, accent, color, info }: { icon: React.ReactNode; label: string; value: string; sub?: React.ReactNode; accent?: string; color?: string; info?: string }) {
   return (
@@ -41,6 +42,14 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
   useEffect(() => { api.overview(from, to, department).then(setO).catch(() => setO(null)); }, [from, to, department]);
   useEffect(() => { api.monitors(from, to, department).then(setMon).catch(() => setMon(null)); }, [from, to, department]);
   if (!o) return <PageSkeleton />;
+
+  // Žádné zařízení = onboarding stav. Žádné aktivity = data zatím nedoběhly.
+  if (o.kpi.deviceCount === 0) {
+    return <div className="card p-5"><EmptyState variant="noDevices" /></div>;
+  }
+  if (o.kpi.userCount === 0 && o.kpi.deviceCount > 0) {
+    return <div className="card p-5"><EmptyState variant="noDataYet" /></div>;
+  }
 
   const employeeWord = (n: number) =>
     n === 1 ? t('overview.employeeOne') : n >= 2 && n <= 4 ? t('overview.employeeFew') : t('overview.employeeMany');
