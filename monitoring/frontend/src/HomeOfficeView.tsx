@@ -3,6 +3,7 @@ import { House, Building2, ArrowDown, ArrowUp } from 'lucide-react';
 import { api, type HomeOffice } from './api.js';
 import { ScoreScaleLegend } from './Legend.js';
 import { scoreColor } from './util.js';
+import { useT } from './i18n/index.js';
 
 function BigScore({ icon, label, score, sub }: { icon: React.ReactNode; label: string; score: number; sub: string }) {
   return (
@@ -17,13 +18,14 @@ function BigScore({ icon, label, score, sub }: { icon: React.ReactNode; label: s
 export function HomeOfficeView({ from, to, department, onOpenUser }: {
   from: string; to: string; department?: string; onOpenUser: (id: string) => void;
 }) {
+  const { t } = useT();
   const [d, setD] = useState<HomeOffice | null>(null);
   const [unit, setUnit] = useState<'hours' | 'days'>('hours');
   useEffect(() => { api.homeOffice(from, to, department).then(setD).catch(() => setD(null)); }, [from, to, department]);
-  if (!d) return <p className="muted-2">Načítám…</p>;
+  if (!d) return <p className="muted-2">{t('common.loading')}</p>;
 
   const diff = d.company.hoScore - d.company.officeScore;
-  const amt = (days: number) => (unit === 'hours' ? `${days * 8} h` : `${days} dní`);
+  const amt = (days: number) => (unit === 'hours' ? `${days * 8} h` : `${days} ${t('homeoffice.daysShort')}`);
 
   return (
     <div className="space-y-4">
@@ -32,74 +34,74 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
       {/* Rychlý přehled HO množství + přepínač jednotek */}
       <div className="card flex flex-wrap items-center gap-4 p-4">
         <div>
-          <div className="text-xs uppercase muted-2">Odpracováno z Home Office za období (celá firma)</div>
+          <div className="text-xs uppercase muted-2">{t('homeoffice.hoWorkedTitle')}</div>
           <div className="text-2xl font-bold">{amt(d.company.hoDays)}</div>
-          <div className="text-xs muted-2">{d.company.usersWithHo} zaměstnanců mělo alespoň 1 den Home Office</div>
+          <div className="text-xs muted-2">{t('homeoffice.hoWorkedEmployees', { n: d.company.usersWithHo })}</div>
         </div>
         <div className="ml-auto flex gap-1 rounded-lg bg-gray-100 p-1 text-sm dark:bg-slate-800">
-          <button onClick={() => setUnit('hours')} className={`rounded px-3 py-1 ${unit === 'hours' ? 'bg-white shadow-sm dark:bg-slate-700' : 'muted'}`}>Hodiny</button>
-          <button onClick={() => setUnit('days')} className={`rounded px-3 py-1 ${unit === 'days' ? 'bg-white shadow-sm dark:bg-slate-700' : 'muted'}`}>Pracovní dny</button>
+          <button onClick={() => setUnit('hours')} className={`rounded px-3 py-1 ${unit === 'hours' ? 'bg-white shadow-sm dark:bg-slate-700' : 'muted'}`}>{t('homeoffice.unitHours')}</button>
+          <button onClick={() => setUnit('days')} className={`rounded px-3 py-1 ${unit === 'days' ? 'bg-white shadow-sm dark:bg-slate-700' : 'muted'}`}>{t('homeoffice.unitDays')}</button>
         </div>
       </div>
 
       {/* Headline srovnání */}
       <div className="grid gap-4 md:grid-cols-3">
-        <BigScore icon={<House size={16} className="text-emerald-600" />} label="Skóre efektivity – Home Office (%)" score={d.company.hoScore} sub={`${amt(d.company.hoDays)} na HO · ${d.company.hoActiveHours} h aktivní práce`} />
-        <BigScore icon={<Building2 size={16} className="text-emerald-600" />} label="Skóre efektivity – kancelář (%)" score={d.company.officeScore} sub={`${amt(d.company.officeDays)} v kanceláři · ${d.company.officeActiveHours} h aktivní práce`} />
+        <BigScore icon={<House size={16} className="text-emerald-600" />} label={t('homeoffice.hoScoreLabel')} score={d.company.hoScore} sub={t('homeoffice.hoActiveSub', { amt: amt(d.company.hoDays), h: d.company.hoActiveHours })} />
+        <BigScore icon={<Building2 size={16} className="text-emerald-600" />} label={t('homeoffice.officeScoreLabel')} score={d.company.officeScore} sub={t('homeoffice.officeActiveSub', { amt: amt(d.company.officeDays), h: d.company.officeActiveHours })} />
         <div className="card flex flex-col items-center justify-center p-6">
-          <div className="mb-1 text-center text-sm muted">Rozdíl efektivity: Home Office − kancelář (procentní body)</div>
+          <div className="mb-1 text-center text-sm muted">{t('homeoffice.diffLabel')}</div>
           <div className={`flex items-center gap-1 text-4xl font-bold ${diff < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
-            {diff < 0 ? <ArrowDown size={28} /> : <ArrowUp size={28} />} {diff > 0 ? '+' : ''}{diff} p.b.
+            {diff < 0 ? <ArrowDown size={28} /> : <ArrowUp size={28} />} {diff > 0 ? '+' : ''}{diff} {t('homeoffice.pp')}
           </div>
           <div className="mt-2 text-center text-xs muted-2">
-            {diff < -3 ? 'Na home office se pracuje méně efektivně.' : diff > 3 ? 'Na home office se pracuje efektivněji.' : 'Efektivita HO a kanceláře je srovnatelná.'}
+            {diff < -3 ? t('homeoffice.diffWorse') : diff > 3 ? t('homeoffice.diffBetter') : t('homeoffice.diffSimilar')}
           </div>
         </div>
       </div>
 
       {/* Podíl zábavy */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="card p-4"><div className="text-xs uppercase muted-2">Podíl zábavy – Home Office (%)</div><div className="text-2xl font-bold text-red-500">{d.company.hoNonWorkPct} %</div></div>
-        <div className="card p-4"><div className="text-xs uppercase muted-2">Podíl zábavy – kancelář (%)</div><div className="text-2xl font-bold">{d.company.officeNonWorkPct} %</div></div>
+        <div className="card p-4"><div className="text-xs uppercase muted-2">{t('homeoffice.funShareHo')}</div><div className="text-2xl font-bold text-red-500">{d.company.hoNonWorkPct} %</div></div>
+        <div className="card p-4"><div className="text-xs uppercase muted-2">{t('homeoffice.funShareOffice')}</div><div className="text-2xl font-bold">{d.company.officeNonWorkPct} %</div></div>
       </div>
 
       {/* Oddělení */}
       <div className="card p-5">
-        <h3 className="mb-3 text-sm font-semibold">Skóre efektivity podle oddělení: Home Office vs. kancelář (%)</h3>
+        <h3 className="mb-3 text-sm font-semibold">{t('homeoffice.byDeptTitle')}</h3>
         <div className="space-y-3">
           {d.byDept.map((x) => (
             <div key={x.department} className="flex items-center gap-3">
               <div className="w-40 shrink-0 truncate text-sm">
                 {x.department}
-                <span className="ml-1 text-xs muted-2">({amt(x.hoDays)} HO)</span>
+                <span className="ml-1 text-xs muted-2">({amt(x.hoDays)} {t('homeoffice.hoSuffix')})</span>
               </div>
               <div className="flex-1 space-y-1">
-                <Bar label="Home Office" value={x.hoScore} color="#6366f1" />
-                <Bar label="Kancelář" value={x.officeScore} color="#64748b" />
+                <Bar label={t('homeoffice.barHomeOffice')} value={x.hoScore} color="#6366f1" />
+                <Bar label={t('homeoffice.barOffice')} value={x.officeScore} color="#64748b" />
               </div>
             </div>
           ))}
-          {d.byDept.length === 0 && <p className="text-sm muted-2">Žádné HO dny v období.</p>}
+          {d.byDept.length === 0 && <p className="text-sm muted-2">{t('homeoffice.noHoDays')}</p>}
         </div>
         <div className="mt-3 flex gap-4 text-xs muted">
-          <span className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-sm" style={{ background: '#6366f1' }} /> Home office</span>
-          <span className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-sm" style={{ background: '#64748b' }} /> Kancelář</span>
-          <span className="muted-2">· delší pruh = vyšší skóre (0–100 %)</span>
+          <span className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-sm" style={{ background: '#6366f1' }} /> {t('homeoffice.legendHomeOffice')}</span>
+          <span className="flex items-center gap-1"><i className="inline-block h-3 w-3 rounded-sm" style={{ background: '#64748b' }} /> {t('homeoffice.legendOffice')}</span>
+          <span className="muted-2">{t('homeoffice.legendScale')}</span>
         </div>
       </div>
 
       {/* Per-user: největší propad na HO */}
       <div className="card p-5">
-        <h3 className="mb-1 text-sm font-semibold">Zaměstnanci – skóre efektivity: Home Office vs. kancelář</h3>
-        <p className="mb-3 text-xs muted-2">Seřazeno podle největšího propadu skóre na Home Office (nahoře ti, kdo doma pracují výrazně méně efektivně).</p>
+        <h3 className="mb-1 text-sm font-semibold">{t('homeoffice.perUserTitle')}</h3>
+        <p className="mb-3 text-xs muted-2">{t('homeoffice.perUserHint')}</p>
         <table className="w-full">
           <thead><tr>
-            <th className="th">Zaměstnanec</th>
-            <th className="th">Oddělení</th>
-            <th className="th text-right">Home Office ({unit === 'hours' ? 'hodiny' : 'dny'})</th>
-            <th className="th text-right">Skóre na Home Office (%)</th>
-            <th className="th text-right">Skóre v kanceláři (%)</th>
-            <th className="th text-right">Rozdíl (procentní body)</th>
+            <th className="th">{t('homeoffice.perUserColUser')}</th>
+            <th className="th">{t('homeoffice.perUserColDept')}</th>
+            <th className="th text-right">{t('homeoffice.perUserColHoDays', { unit: unit === 'hours' ? t('homeoffice.unitHoursShort') : t('homeoffice.unitDaysShort') })}</th>
+            <th className="th text-right">{t('homeoffice.perUserColHoScore')}</th>
+            <th className="th text-right">{t('homeoffice.perUserColOfficeScore')}</th>
+            <th className="th text-right">{t('homeoffice.perUserColDiff')}</th>
           </tr></thead>
           <tbody>
             {d.perUser.map((u) => (

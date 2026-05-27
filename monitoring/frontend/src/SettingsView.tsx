@@ -47,18 +47,18 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
   useEffect(load, []);
 
   async function save() {
-    setMsg('Ukládám…');
+    setMsg(t('common.saving'));
     try {
       await api.saveSettings({ alertsEnabled: enabled, alertRecipients: recipients, offlineMinutes: offline, funMode, healthMode, growthMode, interpretMonitors, employeeReportEnabled, showDemoDevices, privacyStoreDomainOnly, retentionDaysIntervals: retentionDays, selfAuditEnabled });
-      setMsg(null); toast('Nastavení uloženo');
-    } catch (e) { toast('Uložení selhalo: ' + e, 'error'); }
+      setMsg(null); toast(t('settings.settingsSaved'));
+    } catch (e) { toast(t('settings.saveFailed') + e, 'error'); }
     load();
   }
   async function runNow() {
-    setMsg('Spouštím kontrolu…');
+    setMsg(t('settings.runStartingCheck'));
     const r = await api.runAlerts();
     setMsg(null);
-    toast(r.skipped ? `Přeskočeno: ${r.skipped}` : `Hotovo – praktiky: ${r.integritySent}, offline: ${r.offlineSent}`, r.skipped ? 'info' : 'success');
+    toast(r.skipped ? t('settings.runSkipped', { info: String(r.skipped) }) : t('settings.runDone', { integrity: r.integritySent, offline: r.offlineSent }), r.skipped ? 'info' : 'success');
   }
 
   // Sekce na stránce – pomáhá uživateli rychle skočit, kam potřebuje.
@@ -76,7 +76,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
   return (
     <div className="max-w-3xl space-y-4">
       {/* Quick-nav TOC – kliknutím přeskočíš na sekci. Skrytý na mobilech (overflow). */}
-      <nav aria-label="Nastavení – obsah" className="sticky top-[57px] z-[5] -mx-1 mb-2 hidden flex-wrap gap-1.5 rounded-lg border border-gray-200 bg-white/90 px-2 py-2 text-xs backdrop-blur dark:border-slate-700 dark:bg-slate-900/85 md:flex">
+      <nav aria-label={t('settings.tocAriaLabel')} className="sticky top-[57px] z-[5] -mx-1 mb-2 hidden flex-wrap gap-1.5 rounded-lg border border-gray-200 bg-white/90 px-2 py-2 text-xs backdrop-blur dark:border-slate-700 dark:bg-slate-900/85 md:flex">
         {tocItems.map((it) => (
           <a key={it.id} href={`#${it.id}`} className="rounded-md px-2 py-1 muted-2 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-slate-800 dark:hover:text-white">
             {it.label}
@@ -85,21 +85,21 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
       </nav>
 
       <section id="alerts" className="card p-5 scroll-mt-32">
-        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Bell size={16} className="text-emerald-600" /> E-mailová upozornění</h3>
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Bell size={16} className="text-emerald-600" /> {t('settings.sections.emailAlerts')}</h3>
 
         {!smtp && (
           <div className="mb-4 flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
             <AlertTriangle size={16} className="mt-0.5" />
-            <span>SMTP server zatím není nastaven (proměnné <code>SMTP_HOST</code> atd. na serveru). Bez něj se e-maily neodešlou.</span>
+            <span>{t('settings.smtpMissing')}</span>
           </div>
         )}
 
         <label className="mb-4 flex items-center gap-2 text-sm">
           <input type="checkbox" checked={enabled} disabled={!canEdit} onChange={(e) => setEnabled(e.target.checked)} />
-          Posílat upozornění (detekce pirátských praktik + výpadek agenta)
+          {t('settings.sendAlertsLabel')}
         </label>
 
-        <label className="mb-1 block text-sm muted">E-maily příjemců (oddělené čárkou)</label>
+        <label className="mb-1 block text-sm muted">{t('settings.recipientsLabel')}</label>
         <input
           value={recipients}
           disabled={!canEdit}
@@ -108,7 +108,7 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
           className="field mb-4 w-full"
         />
 
-        <label className="mb-1 block text-sm muted">Hlásit „agent offline" po (minutách bez dat)</label>
+        <label className="mb-1 block text-sm muted">{t('settings.offlineAfterLabel')}</label>
         <input
           type="number"
           min={5}
@@ -121,8 +121,8 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
 
         {canEdit && (
           <div className="flex items-center gap-3">
-            <button onClick={save} className="btn-primary"><Save size={15} /> Uložit</button>
-            <button onClick={runNow} className="btn-ghost"><Play size={15} /> Spustit kontrolu teď</button>
+            <button onClick={save} className="btn-primary"><Save size={15} /> {t('common.save')}</button>
+            <button onClick={runNow} className="btn-ghost"><Play size={15} /> {t('settings.runCheckNow')}</button>
             {msg && <span className="text-sm muted">{msg}</span>}
           </div>
         )}
@@ -146,50 +146,50 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
         <label className="mb-4 flex items-start gap-3 text-sm">
           <input type="checkbox" checked={privacyStoreDomainOnly} disabled={!canEdit} onChange={(e) => setPrivacyStoreDomainOnly(e.target.checked)} className="mt-1" />
           <span>
-            <span className="font-medium">Ukládat z prohlížeče jen doménu, ne celý titulek</span>
-            <span className="muted-2"> Místo „Schůzka 14:00 – Outlook" se uloží jen „outlook.com". Méně osobních dat, lepší soukromí (vhodné pro DE/expanzi). Klasifikace (práce/zábava/sázky) funguje dál podle pravidel domén.</span>
+            <span className="font-medium">{t('settings.domainOnlyTitle')}</span>
+            <span className="muted-2">{t('settings.domainOnlyLongDesc')}</span>
           </span>
         </label>
 
-        <label className="mb-1 block text-sm muted">Mazat detail aktivity starší než (dní)</label>
+        <label className="mb-1 block text-sm muted">{t('settings.retentionLabel')}</label>
         <div className="mb-1 flex items-center gap-2">
           <input type="number" min={7} max={3650} value={retentionDays} disabled={!canEdit} onChange={(e) => setRetentionDays(Number(e.target.value))} className="field w-32" />
-          <span className="text-xs muted-2">{retentionDays >= 1825 ? '≈ 5 let i víc – maximum, drží detail navždy' : retentionDays >= 365 ? '≈ rok i víc – CZ standard' : '< rok – privacy-first (DE)'}</span>
+          <span className="text-xs muted-2">{retentionDays >= 1825 ? t('settings.retentionLong') : retentionDays >= 365 ? t('settings.retentionMed') : t('settings.retentionShort')}</span>
         </div>
         <div className="mb-2 flex flex-wrap gap-1.5 text-xs">
-          <span className="muted-2">Rychlá volba:</span>
+          <span className="muted-2">{t('settings.quickPick')}</span>
           {[
-            { v: 90, l: '90 dní (privacy-first)' },
-            { v: 365, l: '1 rok' },
-            { v: 1095, l: '3 roky' },
-            { v: 1825, l: '5 let (drží vše)' },
+            { v: 90, l: t('settings.retentionQuick90') },
+            { v: 365, l: t('settings.retentionQuick1Year') },
+            { v: 1095, l: t('settings.retentionQuick3Years') },
+            { v: 1825, l: t('settings.retentionQuick5Years') },
           ].map(({ v, l }) => (
             <button key={v} disabled={!canEdit} onClick={() => setRetentionDays(v)} className={`rounded-full border px-2 py-0.5 text-xs ${retentionDays === v ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'border-gray-300 dark:border-slate-600'}`}>{l}</button>
           ))}
         </div>
         <p className="mb-3 text-xs muted-2">
-          Maže se jen <b>syrový detail</b> (minutové intervaly s titulky oken). <b>Denní agregáty</b> (kolik % byla práce / zábava / sázky / sítě, kolik hodin) <b>zůstávají navždy</b> – historickou statistiku neztratíš. Když chceš mít detail typu „přesně 14. 1. 2025 ve 14:32 byl na sazka.cz" navždy, dej 5 let; když chceš mít přísný privacy režim, nech 90 dní.
+          {t('settings.retentionExplanationPrefix')}<b>{t('settings.retentionExplanationRaw')}</b>{t('settings.retentionExplanationMid')}<b>{t('settings.retentionExplanationDaily')}</b>{t('settings.retentionExplanationDailyDesc')}<b>{t('settings.retentionExplanationForever')}</b>{t('settings.retentionExplanationSuffix')}
         </p>
 
         {canEdit && (
           <div className="mt-3">
-            <button onClick={save} className="btn-primary"><Save size={15} /> Uložit</button>
+            <button onClick={save} className="btn-primary"><Save size={15} /> {t('common.save')}</button>
           </div>
         )}
       </section>
 
       <section className="card p-5">
-        <h3 className="mb-3 text-sm font-semibold">Ukázková (demo) data</h3>
+        <h3 className="mb-3 text-sm font-semibold">{t('settings.sections.demoData')}</h3>
         <label className="flex items-start gap-3 text-sm">
           <input type="checkbox" checked={showDemoDevices} disabled={!canEdit} onChange={(e) => setShowDemoDevices(e.target.checked)} className="mt-1" />
           <span>
-            <span className="font-medium">Zobrazovat ukázková zařízení a uživatele</span>
-            <span className="muted-2"> Pro produkční provoz vypněte – v přehledech, žebříčcích, exportech ani v upozorněních se pak ukázková data (vygenerovaná pro demo) nebudou objevovat. Záznamy v databázi zůstávají, jen jsou skryté – kdykoli můžete přepínač zase zapnout.</span>
+            <span className="font-medium">{t('settings.showDemoTitle')}</span>
+            <span className="muted-2">{t('settings.showDemoLongDesc')}</span>
           </span>
         </label>
         {canEdit && (
           <div className="mt-3">
-            <button onClick={save} className="btn-primary"><Save size={15} /> Uložit</button>
+            <button onClick={save} className="btn-primary"><Save size={15} /> {t('common.save')}</button>
           </div>
         )}
       </section>
@@ -200,51 +200,51 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
         <label className="mb-4 flex items-start gap-3 rounded-lg bg-emerald-50 p-3 text-sm dark:bg-emerald-500/10">
           <input type="checkbox" checked={employeeReportEnabled} disabled={!canEdit} onChange={(e) => setEmployeeReportEnabled(e.target.checked)} className="mt-1" />
           <span>
-            <span className="flex items-center gap-1.5 font-medium"><BadgeCheck size={15} className="text-emerald-600" /> Zpřístupnit report přímo zaměstnancům</span>
-            <span className="muted-2">Výchozí stav je vypnuto. Po zapnutí uvidí každý zaměstnanec svůj vlastní report (ikonka v liště PC) – svůj dnešní rozpad: kolik % času pracoval, kolik % byla zábava na PC a kolik % byly neměřitelné aktivity. Vidí jen sám sebe, ne kolegy. Když je vypnuto, do aplikace má přístup jen vedení / HR / IT podle rolí.</span>
+            <span className="flex items-center gap-1.5 font-medium"><BadgeCheck size={15} className="text-emerald-600" /> {t('settings.enableSelfReportTitle')}</span>
+            <span className="muted-2">{t('settings.enableSelfReportLongDesc')}</span>
           </span>
         </label>
 
         <label className={`mb-4 flex items-start gap-3 text-sm ${!employeeReportEnabled ? 'opacity-50' : ''}`}>
           <input type="checkbox" checked={selfAuditEnabled} disabled={!canEdit || !employeeReportEnabled} onChange={(e) => setSelfAuditEnabled(e.target.checked)} className="mt-1" />
           <span>
-            <span className="font-medium">Ukázat zaměstnanci „kdo se na moje data díval"</span>
-            <span className="muted-2"> Doplňkový panel v reportu zaměstnance s výpisem přístupů (kdo a kdy se na něj koukal). <b>Defaultně vypnuto.</b> Doporučeno spíš pro firmy s odbory / pro německý trh (Betriebsrat to vyžaduje) nebo pro maximální transparentnost. {!employeeReportEnabled && <i>Aktivuje se jen pokud je zapnutý report zaměstnance výše.</i>}</span>
+            <span className="font-medium">{t('settings.enableSelfAuditTitle')}</span>
+            <span className="muted-2">{t('settings.enableSelfAuditLongDesc')}<b>{t('settings.enableSelfAuditDefault')}</b>{t('settings.enableSelfAuditRecommendation')}{!employeeReportEnabled && <i>{t('settings.enableSelfAuditDepNote')}</i>}</span>
           </span>
         </label>
 
-        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide muted-2">Volitelné režimy reportu</h4>
+        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide muted-2">{t('settings.optionalReportModes')}</h4>
 
         <label className="mb-3 flex items-start gap-3 text-sm">
           <input type="checkbox" checked={funMode} disabled={!canEdit} onChange={(e) => setFunMode(e.target.checked)} className="mt-1" />
           <span>
-            <span className="flex items-center gap-1.5 font-medium"><Smile size={15} className="text-amber-500" /> Ocenění a zajímavosti</span>
-            <span className="muted-2">Odznaky, „naťukaná" vzdálenost prstů, kalorie spálené psaním, hravé srovnání s kolegy. Motivuje k výkonu.</span>
+            <span className="flex items-center gap-1.5 font-medium"><Smile size={15} className="text-amber-500" /> {t('settings.funModeTitle')}</span>
+            <span className="muted-2">{t('settings.funModeLongDesc')}</span>
           </span>
         </label>
 
         <label className="mb-3 flex items-start gap-3 text-sm">
           <input type="checkbox" checked={healthMode} disabled={!canEdit} onChange={(e) => setHealthMode(e.target.checked)} className="mt-1" />
           <span>
-            <span className="flex items-center gap-1.5 font-medium"><HeartPulse size={15} className="text-rose-500" /> Tipy pro pohodu při práci</span>
-            <span className="muted-2">Mikro-tipy proveditelné při práci (bez přestávek): postavit se a pracovat ve stoje, narovnat záda, doušek vody, pohled do dálky.</span>
+            <span className="flex items-center gap-1.5 font-medium"><HeartPulse size={15} className="text-rose-500" /> {t('settings.healthModeTitle')}</span>
+            <span className="muted-2">{t('settings.healthModeLongDesc')}</span>
           </span>
         </label>
 
         <label className="flex items-start gap-3 text-sm">
           <input type="checkbox" checked={growthMode} disabled={!canEdit} onChange={(e) => setGrowthMode(e.target.checked)} className="mt-1" />
           <span>
-            <span className="flex items-center gap-1.5 font-medium"><Quote size={15} className="text-indigo-500" /> Rozvojový režim</span>
-            <span className="muted-2">Moudro dne od velikánů (Tomáš Baťa a další), které firma ctí. Jeden citát na celý den – předává firemní hodnoty.</span>
+            <span className="flex items-center gap-1.5 font-medium"><Quote size={15} className="text-indigo-500" /> {t('settings.growthModeTitle')}</span>
+            <span className="muted-2">{t('settings.growthModeLongDesc')}</span>
           </span>
         </label>
 
         {canEdit && (
-          <button onClick={save} className="btn-primary mt-4"><Save size={15} /> Uložit režimy</button>
+          <button onClick={save} className="btn-primary mt-4"><Save size={15} /> {t('settings.saveModes')}</button>
         )}
 
         <p className="mt-4 text-xs muted-2">
-          Plánováno: self-service přístup pro zaměstnance (každý jen svá data) a soutěž „Zaměstnanec měsíce".
+          {t('settings.plannedNoteEmployee')}
         </p>
       </section>
 
@@ -253,31 +253,26 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
       </section>
 
       <section className="card p-5">
-        <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Sparkles size={16} className="text-violet-500" /> Interpretace dat</h3>
+        <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Sparkles size={16} className="text-violet-500" /> {t('settings.sections.interpretation')}</h3>
         <p className="mb-4 text-xs muted-2">
-          Data na serveru zůstávají vždy úplná a nezměněná. Interpretace pouze mění, <em>jak</em> se z nich
-          počítá výsledek – lze je kdykoli vypnout a skóre se vrátí k surovým hodnotám.
+          {t('settings.interpretWarningLong')}
         </p>
 
         <label className="flex items-start gap-3 text-sm">
           <input type="checkbox" checked={interpretMonitors} disabled={!canEdit} onChange={(e) => setInterpretMonitors(e.target.checked)} className="mt-1" />
           <span>
-            <span className="flex items-center gap-1.5 font-medium"><Monitor size={15} className="text-sky-500" /> Zohlednit počet monitorů ve skóre</span>
+            <span className="flex items-center gap-1.5 font-medium"><Monitor size={15} className="text-sky-500" /> {t('settings.pirateMonitorTitle')}</span>
             <span className="muted-2">
-              U práce, které prokazatelně pomáhá druhý monitor (kancelář, vývoj, podnikové systémy,
-              projektové řízení, grafika), je člověk s jedním monitorem v nevýhodě – dle studií odvede
-              o 20–35 % méně než se dvěma. Po zapnutí dostane handicapový bonus: stejný výkon na jednom
-              monitoru = vyšší skóre než na dvou/třech. Férovější srovnání lidí s nerovným vybavením.
+              {t('settings.pirateMonitorLongDesc')}
             </span>
             <span className="mt-1 block text-xs muted-2">
-              <strong>Následek ve výsledcích:</strong> u dotčených lidí poroste zobrazené skóre v přehledu,
-              žebříčku i v jejich reportu. Surová data, kategorie ani časy se nemění. Vypnutím se vše vrátí zpět.
+              <strong>{t('settings.pirateMonitorConsequence')}</strong>{t('settings.pirateMonitorConsequenceDesc')}
             </span>
           </span>
         </label>
 
         {canEdit && (
-          <button onClick={save} className="btn-primary mt-4"><Save size={15} /> Uložit interpretaci</button>
+          <button onClick={save} className="btn-primary mt-4"><Save size={15} /> {t('settings.saveInterpretation')}</button>
         )}
       </section>
 
