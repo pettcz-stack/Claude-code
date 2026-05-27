@@ -13,10 +13,11 @@ COPY scripts ./scripts
 COPY src ./src
 # 1) Sync postgres schema z mastera (zaručí 100% shodu modelů).
 # 2) Vygeneruj Prisma client proti POSTGRES schema.
-# 3) Zkompiluj TypeScript.
+# 3) Zkompiluj TypeScript přes npx (node_modules/.bin není v PATH, dokud
+#    nejsme uvnitř `npm run` skriptu – proto explicitně npx).
 RUN npm run prisma:sync \
  && npx prisma generate --schema=prisma/schema.postgres.prisma \
- && tsc -p tsconfig.json
+ && npx tsc -p tsconfig.json
 
 # ── Runtime stage ────────────────────────────────────────────────────────────
 FROM node:20-alpine
