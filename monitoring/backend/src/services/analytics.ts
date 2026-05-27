@@ -239,15 +239,20 @@ async function perUser(userIds: string[], from: Date, to: Date): Promise<Map<str
  * (jen ořežeme okno).
  */
 async function firstSeenInRange(userIds: string[], from: Date): Promise<Map<string, Date>> {
-  const rows = await prisma.activityInterval.groupBy({
+  // Optimalizace: groupBy nad ActivityInterval (1.4M+ rows) byl pomalý.
+  // DailyStat má per-user-per-day řádky (~44k pro 1991 useři × 22 dní),
+  // jeho MIN(date) je dostatečná aproximace prvního nasazení agenta.
+  // V edge-case kdy agent byl nasazen ráno a interval ještě negeneroval
+  // DailyStat row, použije se `from` jako fallback (správné chování).
+  const rows = await prisma.dailyStat.groupBy({
     by: ['userId'],
     where: { userId: { in: userIds } },
-    _min: { intervalStart: true },
+    _min: { date: true },
   });
   const map = new Map<string, Date>();
   for (const r of rows) {
-    if (!r._min.intervalStart) continue;
-    const firstTs = r._min.intervalStart > from ? r._min.intervalStart : from;
+    if (!r._min.date) continue;
+    const firstTs = r._min.date > from ? r._min.date : from;
     map.set(r.userId, firstTs);
   }
   return map;
@@ -540,12 +545,15 @@ export async function heatmap(from: Date, to: Date, department?: string | string
         })
       ).map((u) => u.id);
 
-  const rows = await prisma.activityInterval.findMany({
-    where: { userId: { in: userIds }, intervalStart: { gte: from, lt: to } },
-    select: { intervalStart: true, activeSeconds: true, foregroundApp: true, windowTitle: true, userId: true },
+  // Optimalizace: použijeme ActivityHourly (~350k řádků) místo ActivityInterval
+  // (1.4M+ řádků). Klasifikace dělaná z `topApp` (1× per hour) místo per-60s.
+  // Trochu méně přesné rozlišení work/nonwork v hodině, ale 4× rychlejší.
+  // Heatmap stejně zobrazuje agregáty per (dow × hour), takže rozdíl není viditelný.
+  const rows = await prisma.activityHourly.findMany({
+    where: { userId: { in: userIds }, hourStart: { gte: from, lt: to } },
+    select: { hourStart: true, activeMinutes: true, topApp: true, userId: true },
   });
 
-  // Pro klasifikaci stejné funkce jako jinde (apps + web rules + dept overrides).
   const catMap = await getCategoryMap();
   const webRules = await getWebRules();
   const deptRules = await getDeptRules();
@@ -553,7 +561,6 @@ export async function heatmap(from: Date, to: Date, department?: string | string
     ? new Map((await prisma.monitoredUser.findMany({ where: { id: { in: userIds } }, select: { id: true, department: true } })).map((u) => [u.id, u.department]))
     : new Map<string, string | null>();
 
-  // počet výskytů každého dne v týdnu v období (pro průměr na slot), místní čas
   const dowCount = new Array(7).fill(0);
   for (let d = floorToDay(from); d.getTime() < to.getTime(); d = addDays(d, 1)) {
     dowCount[localDow(d)]++;
@@ -562,21 +569,18 @@ export async function heatmap(from: Date, to: Date, department?: string | string
   const sumActive: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
   const sumWork: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
   const sumNonwork: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
-  // Počet OBSERVOVANÝCH intervalů (any) – aby frontend rozlišil prázdné sloty
-  // "nikdy nehlásil" (agent nenasazen) vs. "hlásil, ale 0 aktivity".
   const observed: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
   let firstActivityAt: Date | null = null;
   for (const r of rows) {
-    const dow = localDow(r.intervalStart);
-    const h = localHour(r.intervalStart);
-    const min = r.activeSeconds / 60;
-    sumActive[dow][h] += min;
+    const dow = localDow(r.hourStart);
+    const h = localHour(r.hourStart);
+    sumActive[dow][h] += r.activeMinutes;
     observed[dow][h] += 1;
-    if (!firstActivityAt || r.intervalStart < firstActivityAt) firstActivityAt = r.intervalStart;
-    if (min > 0) {
-      const info = classifyActivity(catMap, webRules, r.foregroundApp, r.windowTitle, deptRules, userDept.get(r.userId) ?? null);
-      if (info.type === 'WORK' || info.type === 'NEUTRAL') sumWork[dow][h] += min;
-      else if (info.type === 'NON_WORK') sumNonwork[dow][h] += min;
+    if (!firstActivityAt || r.hourStart < firstActivityAt) firstActivityAt = r.hourStart;
+    if (r.activeMinutes > 0 && r.topApp) {
+      const info = classifyActivity(catMap, webRules, r.topApp, null, deptRules, userDept.get(r.userId) ?? null);
+      if (info.type === 'WORK' || info.type === 'NEUTRAL') sumWork[dow][h] += r.activeMinutes;
+      else if (info.type === 'NON_WORK') sumNonwork[dow][h] += r.activeMinutes;
     }
   }
 

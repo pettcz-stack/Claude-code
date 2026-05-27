@@ -179,44 +179,92 @@ function buildPool(dept: string): Pick[] {
   return [...(POOLS[dept] ?? []), ...POOL_COMMON];
 }
 
-// Persona – širší škála chování, aby v dashboardu byla viditelná variance.
-// Distribuce mezi 1991 lidmi (přibližně, dle náhody):
-//   normal           ~50%  – stabilní, jen občasné dobré/špatné dny
-//   top              ~12%  – konzistentně vysoké výkony, dlouhé focus bloky
-//   slacker          ~7%   – viditelně nízká aktivita, hodně browsingu
-//   social_media     ~10%  – pracuje, ale často Facebook/Instagram
-//   streamer         ~5%   – YouTube/Netflix běží na pozadí (chrome.exe long titles)
-//   chatty           ~9%   – hodně Teams/Slack, méně klasické "deep work"
-//   gamer            ~3%   – přes oběd 30-45 min hry
-//   cheater_mouse    5 ks  – mouse jiggler, 8h "aktivní" bez kláves
-//   cheater_keyboard 4 ks  – AHK script, rytmické úhozy
-//   cheater_subtle   6 ks  – podvádí jen v Po a St (ostatní dny normální) → hůř detekovatelní
+// Persona – široká škála archetypů, aby dashboard nebyl flat.
+// Distribuce mezi 1991 lidmi (přibližně):
+//   top              ~8%   – exemplární zaměstnanec, dlouhé focus bloky
+//   normal           ~28%  – průměrný pracovník
+//   chatty           ~9%   – hodně Teams/Slack, málo "deep work"
+//   social_media     ~11%  – pracuje, ale často FB/Insta/LinkedIn
+//   streamer         ~5%   – YouTube/Netflix v pozadí
+//   gamer            ~3%   – přes oběd hry
+//   slacker          ~9%   – viditelně nízká aktivita
+//   ghost            ~7%   – sotva zapne PC (terén, schůzky, klidnou má kávu)
+//   absent_frequent  ~4%   – často nemocný/dovolená
+//   sales_road       ~5%   – obchodník na cestách, krátké PC bursty
+//   manager_busy     ~5%   – manažer, hodně schůzek (PC locked = na meetingu)
+//   cheater_mouse    5 ks  – mouse jiggler
+//   cheater_keyboard 4 ks  – AHK keyboard bot
+//   cheater_subtle   6 ks  – podvádí jen Po/St
 type Persona =
-  | 'normal' | 'top' | 'slacker' | 'social_media' | 'streamer'
-  | 'chatty' | 'gamer'
+  | 'top' | 'normal' | 'chatty' | 'social_media' | 'streamer' | 'gamer'
+  | 'slacker' | 'ghost' | 'absent_frequent' | 'sales_road' | 'manager_busy'
   | 'cheater_mouse' | 'cheater_keyboard' | 'cheater_subtle';
 
 function hoDipFor(p: Persona): number {
-  if (p === 'slacker' || p === 'streamer' || p === 'gamer') return 0.32; // doma viditelně poleví
-  if (p === 'social_media') return 0.18;
-  if (p.startsWith('cheater')) return 0; // podvodníci jedou stejně (vzor je strojový)
-  if (p === 'top') return 0.03; // top performeři doma stejně válí
-  return 0.10; // běžní lidé jen mírně
+  if (p === 'slacker' || p === 'streamer' || p === 'gamer') return 0.25;
+  if (p === 'social_media') return 0.15;
+  if (p.startsWith('cheater')) return 0;
+  if (p === 'top') return 0.03;
+  if (p === 'sales_road') return 0.20;
+  if (p === 'manager_busy') return 0.10;
+  return 0.08;
 }
 
-function baseDiligenceFor(p: Persona): number {
-  // Nižší střed → větší rozdíly. Plus uniform noise z rng() v genPeople.
+/**
+ * Per-persona baseDiligence range = jakou část intervalu je člověk aktivně
+ * (typing + mouse) když je u PC. Široký range mezi/uvnitř person → reálná variance.
+ *
+ * Tahle hodnota se přímo promítne do active/idle poměru = "% pracovní doby"
+ * v dashboardu. Tj. baseDiligence 0.80 → ~80% aktivně, 20% idle.
+ */
+function baseDiligenceRangeFor(p: Persona): [number, number] {
   switch (p) {
-    case 'top': return 0.88;
-    case 'normal': return 0.74;
-    case 'chatty': return 0.68;
-    case 'social_media': return 0.60;
-    case 'streamer': return 0.55;
-    case 'slacker': return 0.42;
-    case 'gamer': return 0.58;
+    case 'top':             return [0.82, 0.94];
+    case 'normal':          return [0.62, 0.84]; // většina firmy spadne sem
+    case 'chatty':          return [0.55, 0.78];
+    case 'social_media':    return [0.50, 0.72];
+    case 'streamer':        return [0.42, 0.65];
+    case 'gamer':           return [0.45, 0.68];
+    case 'slacker':         return [0.20, 0.45];
+    case 'ghost':           return [0.65, 0.85];
+    case 'absent_frequent': return [0.55, 0.78];
+    case 'sales_road':      return [0.70, 0.88];
+    case 'manager_busy':    return [0.58, 0.78];
     case 'cheater_mouse':
     case 'cheater_keyboard':
-    case 'cheater_subtle': return 0.95;
+    case 'cheater_subtle':  return [0.95, 0.98];
+  }
+}
+
+/**
+ * Pravděpodobnost že interval bude "away" (= člověk u PC chvíli není).
+ * **TOTO JE REALITA**: většina kancelářských zaměstnanců je u PC celých 6-7 h denně,
+ * jen občas chodí na schůzku / na záchod / ke kafi.
+ *
+ * Hodnoty kalibrovány tak aby celofiremní průměr "u PC" činil ~75-80% pracovní
+ * doby = ~6-6.5 h ze 8h. Realisticky.
+ *
+ * Výjimky (málo lidí, big effect):
+ * - manager_busy 30%: hodně schůzek
+ * - sales_road 40%: cestování za klienty
+ * - ghost (jen výroba/sklad) 60%: operátoři u strojů
+ */
+function lockProbabilityFor(p: Persona): number {
+  switch (p) {
+    case 'ghost':           return 0.60; // výroba/sklad – operátoři
+    case 'absent_frequent': return 0.18; // má jen víc absencí, ne víc lock
+    case 'sales_road':      return 0.40;
+    case 'manager_busy':    return 0.30;
+    case 'chatty':          return 0.15; // občas přijde na meeting
+    case 'slacker':         return 0.18; // občas se zdrží na cigaretě
+    case 'social_media':    return 0.12;
+    case 'streamer':        return 0.08;
+    case 'gamer':           return 0.10;
+    case 'top':             return 0.06;
+    case 'normal':          return 0.10;
+    case 'cheater_mouse':
+    case 'cheater_keyboard':
+    case 'cheater_subtle':  return 0;
   }
 }
 
@@ -233,12 +281,13 @@ function pickFrom<T>(a: T[]): T { return a[Math.floor(rng() * a.length)]; }
 
 /**
  * Deterministická "kvalita dne" pro daného člověka. Hash userId+dayKey →
- * multiplier 0.78 - 1.22. Tj. každý má občas skvělý den (motivace, deadline)
- * a občas mizerný (nemocný, rozhádaný s manželkou, nuda v práci).
+ * multiplier 0.55 - 1.45 (dramatický spread: skvělé dny, mizerné dny).
+ * `consistency` per-user dále reguluje šíři: erratický pracovník má větší
+ * rozkmit (0.4-1.6), stabilní pracovník menší (0.85-1.15).
  *
  * Bez tohoto by všechny dny vypadaly identicky (flat data).
  */
-function dayQualityHash(userId: string, dayMs: number): number {
+function dayQualityHash(userId: string, dayMs: number, consistency: number): number {
   let h = 0x12345678;
   const key = `${userId}#${dayMs}`;
   for (let i = 0; i < key.length; i++) {
@@ -246,7 +295,9 @@ function dayQualityHash(userId: string, dayMs: number): number {
     h |= 0;
   }
   const n = ((h >>> 0) % 10000) / 10000; // 0..1
-  return 0.78 + n * 0.44; // 0.78 .. 1.22
+  // consistency 1.0 = stabilní (range 0.85-1.15), 0.0 = erratický (range 0.5-1.5)
+  const half = 0.50 - consistency * 0.35; // 0.15 .. 0.50
+  return (1.0 - half) + n * (2 * half);
 }
 
 /**
@@ -273,10 +324,16 @@ function hourCurve(hour: number, minute: number): number {
   return 0.55;
 }
 
-function genPeople(): { name: string; dept: string; persona: Persona; baseDiligence: number; fridayMul: number; startHour: number; lunchOffset: number; rate: number }[] {
+type PersonSpec = {
+  name: string; dept: string; persona: Persona;
+  baseDiligence: number; lockProb: number; consistency: number;
+  fridayMul: number; startHour: number; lunchOffset: number; rate: number;
+};
+
+function genPeople(): PersonSpec[] {
   rngState = 987654321; // reset pro deterministické pořadí
   const used = new Set<string>();
-  const people: { name: string; dept: string; persona: Persona; baseDiligence: number; fridayMul: number; startHour: number; lunchOffset: number; rate: number }[] = [];
+  const people: PersonSpec[] = [];
 
   // Plochý seznam oddělení (nafouknutý podle size)
   const depts: string[] = [];
@@ -295,33 +352,76 @@ function genPeople(): { name: string; dept: string; persona: Persona; baseDilige
       if (!used.has(name)) { used.add(name); unique = true; break; }
     }
     if (!unique) {
-      // Statisticky téměř nemožné při ~7k variant a 1991 lidech, ale pro
-      // jistotu fallback s pořadovým číslem.
       name = `${name} ${people.length + 1}`;
       used.add(name);
     }
-    // Persona distribution (rng() je deterministický → seed reseed = stejné osoby)
-    const r = rng();
+    // Persona distribution (rng() deterministický → reseed = stejné osoby).
+    // Manažeři u manažerských oddělení automaticky 'manager_busy', terénní
+    // role automaticky 'sales_road' / 'ghost' s vyšší pravděpodobností.
     let persona: Persona;
-    if (r < 0.50) persona = 'normal';
-    else if (r < 0.62) persona = 'top';
-    else if (r < 0.72) persona = 'social_media';
-    else if (r < 0.81) persona = 'chatty';
-    else if (r < 0.88) persona = 'slacker';
-    else if (r < 0.93) persona = 'streamer';
-    else persona = 'gamer';
+    const r = rng();
+    if (dept === 'Vedení') {
+      // Vedení – manažeři, hodně schůzek
+      persona = r < 0.70 ? 'manager_busy' : r < 0.90 ? 'top' : 'normal';
+    } else if (dept === 'Audit' || dept === 'Právní' || dept === 'Compliance') {
+      // Vážná oddělení, mostly top performers
+      persona = r < 0.30 ? 'top' : r < 0.85 ? 'normal' : r < 0.95 ? 'chatty' : 'social_media';
+    } else if (PRODUCTION_DEPTS.has(dept)) {
+      // Výroba/sklad = operátoři u strojů (ghost), občas vedoucí směny normální
+      persona = r < 0.75 ? 'ghost' : r < 0.85 ? 'normal' : r < 0.93 ? 'absent_frequent' : 'slacker';
+    } else if (dept.startsWith('Obchod')) {
+      // Obchodníci – někteří na cestách, někteří v kanceláři
+      persona = r < 0.20 ? 'sales_road' : r < 0.30 ? 'top' : r < 0.55 ? 'normal' : r < 0.70 ? 'chatty' : r < 0.82 ? 'social_media' : r < 0.90 ? 'slacker' : r < 0.95 ? 'streamer' : 'gamer';
+    } else if (dept === 'Zákaznický servis' || dept === 'Reklamace') {
+      // Hodně Teams/Slack/CRM = chatty dominantní
+      persona = r < 0.40 ? 'chatty' : r < 0.55 ? 'normal' : r < 0.70 ? 'social_media' : r < 0.80 ? 'top' : r < 0.90 ? 'slacker' : r < 0.97 ? 'streamer' : 'gamer';
+    } else if (dept === 'IT' || dept === 'Vývoj' || dept === 'Datacentrum') {
+      // Vývojáři – často deep focus, někdo streamer (hudba v pozadí)
+      persona = r < 0.20 ? 'top' : r < 0.55 ? 'normal' : r < 0.65 ? 'streamer' : r < 0.75 ? 'chatty' : r < 0.85 ? 'social_media' : r < 0.92 ? 'gamer' : r < 0.97 ? 'slacker' : 'manager_busy';
+    } else if (dept === 'Recepce') {
+      // Recepce = pořád u PC, ale hodně přerušení (návštěvy)
+      persona = r < 0.40 ? 'chatty' : r < 0.70 ? 'normal' : r < 0.85 ? 'social_media' : 'top';
+    } else {
+      // Standardní rozložení pro kancelářské profese.
+      // KLÍČOVÁ ZMĚNA: 80%+ "běžných u PC" person (normal/top/chatty/social/streamer/slacker),
+      // jen ~5% terénních / hodně absentních. Ne 25% jak dřív.
+      if (r < 0.10) persona = 'top';
+      else if (r < 0.45) persona = 'normal';
+      else if (r < 0.60) persona = 'chatty';
+      else if (r < 0.72) persona = 'social_media';
+      else if (r < 0.78) persona = 'streamer';
+      else if (r < 0.81) persona = 'gamer';
+      else if (r < 0.90) persona = 'slacker';
+      else if (r < 0.94) persona = 'absent_frequent'; // jen 4% – víc absencí, ne víc lock
+      else if (r < 0.97) persona = 'sales_road';      // 3%
+      else persona = 'manager_busy';                  // 3%
+    }
 
-    const baseDiligence = baseDiligenceFor(persona) + (rng() - 0.5) * 0.18; // ±9% noise
-    // Friday dip per-person: někdo má 0.75 (zlatý pátek), jiný 0.95 (kone-week pracant)
-    const fridayMul = 0.75 + rng() * 0.20;
-    // Začátek dne: ranní ptáčata (7), normální (8), pozdě vstávající (9)
+    // Individuální baseDiligence ZE ŠIROKÉHO RANGU dané persony – ne fixed value.
+    // Dva "normal" lidé budou mít diligence 0.55 vs 0.85 = výrazně jiný profil.
+    const [dMin, dMax] = baseDiligenceRangeFor(persona);
+    const baseDiligence = dMin + rng() * (dMax - dMin);
+
+    // Individuální lockProb (±5 % okolo persony) – ne každý "normal" je stejně přítomný
+    const lockProb = Math.max(0, Math.min(0.95, lockProbabilityFor(persona) + (rng() - 0.5) * 0.10));
+
+    // Consistency: 0 = velmi erratický (rozkmit dny ±50 %), 1 = stabilní (±15 %)
+    // Cheateři jsou strojově stabilní (~1.0), slackeři/ghost erratičtí.
+    let consistency: number;
+    if (persona.startsWith('cheater')) consistency = 0.95;
+    else if (persona === 'top') consistency = 0.70 + rng() * 0.20;
+    else if (persona === 'slacker' || persona === 'ghost') consistency = 0.10 + rng() * 0.30;
+    else consistency = 0.35 + rng() * 0.45;
+
+    // Friday dip per-person
+    const fridayMul = 0.65 + rng() * 0.30; // 0.65-0.95 (širší než dřív)
+    // Pracovní okno
     const startRoll = rng();
     const startHour = startRoll < 0.15 ? 7 : startRoll < 0.85 ? 8 : 9;
-    // Posun oběda ±30 min (někdo jde dřív, někdo později)
     const lunchOffset = (rng() < 0.5 ? -1 : 1) * Math.floor(rng() * 3) * 15;
     const [rateMin, rateMax] = rateRangeFor(dept);
     const rate = rngRange(rateMin, rateMax);
-    people.push({ name, dept, persona, baseDiligence: Math.max(0.30, Math.min(0.98, baseDiligence)), fridayMul, startHour, lunchOffset, rate });
+    people.push({ name, dept, persona, baseDiligence, lockProb, consistency, fridayMul, startHour, lunchOffset, rate });
   }
 
   // 15 cheaterů (0.75% z 1991) – 3 typy. Distribuovaní napříč odděleními ať detekce
@@ -351,7 +451,10 @@ function genPeople(): { name: string; dept: string; persona: Persona; baseDilige
     const target = people.find((p) => p.dept === c.dept && p.persona === 'normal');
     if (target) {
       target.persona = c.persona;
-      target.baseDiligence = baseDiligenceFor(c.persona);
+      const [dMin, dMax] = baseDiligenceRangeFor(c.persona);
+      target.baseDiligence = dMin + rng() * (dMax - dMin);
+      target.lockProb = lockProbabilityFor(c.persona);
+      target.consistency = c.persona.startsWith('cheater') ? 0.95 : target.consistency;
     }
   }
   return people;
@@ -363,6 +466,7 @@ const rnd = (n: number) => Math.floor(Math.random() * n);
 type Person = {
   id: string; deviceId: string; dept: string;
   persona: Persona; baseDiligence: number; hoDip: number;
+  lockProb: number; consistency: number;
   fridayMul: number; startHour: number; lunchOffset: number;
   monitors: number; workPool: Pick[]; siteBase: string;
 };
@@ -450,6 +554,8 @@ async function main() {
         persona: p.persona,
         baseDiligence: p.baseDiligence,
         hoDip: hoDipFor(p.persona),
+        lockProb: p.lockProb,
+        consistency: p.consistency,
         fridayMul: p.fridayMul,
         startHour: p.startHour,
         lunchOffset: p.lunchOffset,
@@ -538,7 +644,7 @@ async function main() {
       if (isHO) absences.push({ userId: c.id, date, type: 'HOME_OFFICE', source: 'OKBASE' });
 
       // Per-day variance: každý člověk má dobré/špatné dny (hash userId+den)
-      const dayMul = dayQualityHash(c.id, dayStart.getTime());
+      const dayMul = dayQualityHash(c.id, dayStart.getTime(), c.consistency);
       // Friday dip (per-person)
       const dowMul = dow === 5 ? c.fridayMul : dow === 1 ? 0.92 : 1.0;
       // Cheater_subtle: cheatuje jen v pondělí a středu, jinak normální
@@ -659,44 +765,56 @@ function makeRow(
     typingKeystrokeCount: 0,
   };
 
-  // Lunch break – 30 min locked uprostřed dne (každý den, každý člověk)
+  // Lunch break (30 min uprostřed dne) – krátká pauza, idle (ne locked, většina lidí
+  // zamkne až když odchází ze stolu, na obědě jen někteří)
   if (isLunch) {
+    return Math.random() < 0.40
+      ? { ...base, sessionLocked: true, activeSeconds: 0, idleSeconds: 60 }
+      : { ...base, sessionLocked: false, activeSeconds: 0, idleSeconds: 60 };
+  }
+
+  // Cheateři – konstantní strojový vzor (cheater_subtle filtrován v calleru, ten chodí přes normální cestu)
+  if (persona === 'cheater_mouse') {
+    return { ...base, activeSeconds: 60, idleSeconds: 0, foregroundApp: 'chrome.exe', windowTitle: 'YouTube', mouseEvents: 52 + rnd(5), keystrokeCount: 0 };
+  }
+  if (persona === 'cheater_keyboard') {
+    return { ...base, activeSeconds: 60, idleSeconds: 0, foregroundApp: 'winword.exe', windowTitle: null, keystrokeCount: 180 + rnd(8), mouseEvents: rnd(3), typingMs: 60_000, typingKeystrokeCount: 180 + rnd(8) };
+  }
+
+  // ── "Mimo PC" rozhodnutí: per-user lockProb × hourCurve faktor.
+  // Toto je hlavní zdroj rozdílů v PC času mezi lidmi. Lock prob je per-persona,
+  // ale modulovaná hodinou (lunch i mimo lunch méně lock, ráno víc).
+  const hMul = hourCurve(hour, minute);
+  const lockMul = hMul < 0.5 ? 1.4 : hMul > 1.0 ? 0.6 : 1.0; // ráno/pozdě častěji mimo PC, v peaku méně
+  if (Math.random() < c.lockProb * lockMul) {
     return { ...base, sessionLocked: true, activeSeconds: 0, idleSeconds: 60 };
   }
 
-  // Production workers: 60% intervalů locked (operátoři u strojů, nepoužívají PC)
-  if (PRODUCTION_DEPTS.has(c.dept) && Math.random() < 0.6) {
-    return { ...base, sessionLocked: true, activeSeconds: 0, idleSeconds: 60 };
-  }
-
-  // Gameři: 12:30-13:00 sneak hra (jen pondělí, středa, pátek – ať to není každý den)
+  // Gameři: 12:30-13:00 sneak hra (jen Po/St/Pá)
   const dow = new Date(intervalStart).getUTCDay();
   if (persona === 'gamer' && hour === 12 && minute >= 30 && (dow === 1 || dow === 3 || dow === 5)) {
     return { ...base, activeSeconds: 55, idleSeconds: 5, foregroundApp: 'steam.exe', windowTitle: pick(['Counter-Strike 2', 'Dota 2', 'League of Legends']), mouseEvents: 80 + rnd(40), keystrokeCount: 40 + rnd(40) };
   }
 
-  // ── Cheateři – konstantní vzor (kromě subtle, ten je už filtrován v calleru) ──
-  if (persona === 'cheater_mouse') {
-    return { ...base, activeSeconds: 60, idleSeconds: 0, foregroundApp: 'chrome.exe', windowTitle: 'YouTube', mouseEvents: 50 + rnd(20), keystrokeCount: 0 };
-  }
-  if (persona === 'cheater_keyboard') {
-    return { ...base, activeSeconds: 60, idleSeconds: 0, foregroundApp: 'winword.exe', windowTitle: null, keystrokeCount: 180 + rnd(15), mouseEvents: rnd(3), typingMs: 60_000, typingKeystrokeCount: 180 + rnd(15) };
-  }
-
-  // ── Normální variance: hodinová křivka × dayMul × persona × HO dip ──
-  const hMul = hourCurve(hour, minute);
+  // ── Když JE u PC: výkon = baseDiligence × dayMul × hodinová křivka × HO dip ──
   const dipFactor = isHO ? 1 - c.hoDip : 1;
-  const effectiveDiligence = Math.max(0.10, Math.min(1.0, c.baseDiligence * dayMul * hMul * dipFactor));
+  const effectiveDiligence = Math.max(0.15, Math.min(0.98, c.baseDiligence * dayMul * dipFactor));
 
-  // Per-persona "noise" v non-work probabilitě
+  // Hodinová křivka teď ovlivňuje JEN šíři "active" pásma, ne celkové processing.
+  // Tj. v peak hour je člověk plně aktivní (55s), v warmup jen 30-40s.
+  const peakActive = Math.round(effectiveDiligence * 60); // max 60s
+  const hourScale = 0.65 + hMul * 0.30; // 0.65 - 0.99 (peak vs warmup)
+
+  // Per-persona "non-work" pravděpodobnost
   let nonWorkProb: number;
   switch (persona) {
-    case 'slacker':       nonWorkProb = 0.40 - effectiveDiligence * 0.20; break;
-    case 'social_media':  nonWorkProb = 0.28 - effectiveDiligence * 0.10; break;
-    case 'streamer':      nonWorkProb = 0.32 - effectiveDiligence * 0.15; break;
-    case 'chatty':        nonWorkProb = 0.12; break; // málo browsingu, ale málo deep work
-    case 'top':           nonWorkProb = 0.04; break;
-    default:              nonWorkProb = (1 - effectiveDiligence) * 0.45; break;
+    case 'top':           nonWorkProb = 0.03; break;
+    case 'slacker':       nonWorkProb = 0.45 - effectiveDiligence * 0.20; break;
+    case 'social_media':  nonWorkProb = 0.22 - effectiveDiligence * 0.08; break;
+    case 'streamer':      nonWorkProb = 0.30 - effectiveDiligence * 0.10; break;
+    case 'chatty':        nonWorkProb = 0.08; break;
+    case 'gamer':         nonWorkProb = 0.18 - effectiveDiligence * 0.05; break;
+    default:              nonWorkProb = (1 - effectiveDiligence) * 0.30;
   }
 
   const r = Math.random();
@@ -705,40 +823,36 @@ function makeRow(
   let active: number;
 
   if (persona === 'streamer' && hour >= 14 && Math.random() < 0.35) {
-    // Streamer má YouTube/Netflix na pozadí odpoledne
     app = 'chrome.exe'; title = pick(['YouTube – Long video essay', 'Netflix – Watching', 'Twitch – streamer live']);
-    active = 8 + rnd(15); // málo aktivního – běží to na pozadí
+    active = 10 + rnd(15);
   } else if (persona === 'social_media' && Math.random() < 0.18) {
-    // Social media check
     app = 'chrome.exe'; title = pick(['Facebook', 'Instagram', 'LinkedIn – feed']);
-    active = 20 + rnd(25);
+    active = Math.round((25 + rnd(20)) * hourScale);
   } else if (persona === 'chatty' && Math.random() < 0.45) {
-    // Chatty: většinou Teams/Slack
     app = Math.random() < 0.7 ? 'teams.exe' : 'slack.exe';
     title = pick(['Obecné – chat', 'Tým call', 'Direct message']);
-    active = 35 + rnd(20);
+    active = Math.round((40 + rnd(15)) * hourScale);
   } else if (r < nonWorkProb) {
     if (Math.random() < 0.6) { app = 'chrome.exe'; title = pick(BROWSER_NONWORK_TITLES); }
     else { app = pick(NONWORK_APPS); }
-    active = 25 + rnd(30);
+    active = Math.round((30 + rnd(20)) * hourScale);
   } else if (r < nonWorkProb + 0.10) {
-    app = 'chrome.exe'; title = pick(BROWSER_WORK_TITLES); active = 35 + rnd(20);
-  } else if (Math.random() < 0.04) {
-    app = pick(UNKNOWN_APPS); active = 25 + rnd(30);
+    app = 'chrome.exe'; title = pick(BROWSER_WORK_TITLES);
+    active = Math.round((peakActive - rnd(8)) * hourScale);
+  } else if (Math.random() < 0.03) {
+    app = pick(UNKNOWN_APPS);
+    active = Math.round((35 + rnd(15)) * hourScale);
   } else {
     const w = pick(c.workPool);
     app = w[0]; title = w[1];
-    // Top performeři mají delší focus bloky (55-60s aktivní), slackeři jen 30-50s
-    const peakActive = persona === 'top' ? 55 + rnd(5) : 40 + rnd(18);
-    const lowActive = rnd(15);
-    active = Math.random() > 0.85 ? lowActive : peakActive;
+    // Většina intervalů aktivních blízko maximu (peakActive), občas "thinking" interval
+    active = Math.random() > 0.88 ? rnd(15) : Math.round(peakActive * hourScale * (0.85 + Math.random() * 0.15));
   }
 
-  // Aplikuj hodinovou křivku přímo na active (warmup → méně aktivní vteřin)
-  active = Math.max(0, Math.min(60, Math.round(active * (0.55 + hMul * 0.45))));
+  active = Math.max(0, Math.min(60, active));
 
-  const ks = active > 30 && TYPING_APPS.has(app) ? Math.round(rnd(220) * dayMul) : rnd(30);
-  const mouse = app === 'sldworks.exe' ? 50 + rnd(100) : active > 15 ? rnd(75) : rnd(8);
+  const ks = active > 30 && TYPING_APPS.has(app) ? Math.round((40 + rnd(180)) * dayMul) : rnd(30);
+  const mouse = app === 'sldworks.exe' ? 50 + rnd(100) : active > 15 ? 10 + rnd(60) : rnd(8);
   const typingMs = ks > 30 ? Math.min(60_000, ks * 200) : 0;
 
   return {
@@ -749,7 +863,7 @@ function makeRow(
     windowTitle: title,
     keystrokeCount: ks,
     mouseEvents: mouse,
-    sessionLocked: active < 8 && Math.random() > 0.6,
+    sessionLocked: active < 5 && Math.random() > 0.7,
     typingMs,
     typingKeystrokeCount: typingMs > 0 ? ks : 0,
   };

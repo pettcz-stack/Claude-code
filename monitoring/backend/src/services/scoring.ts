@@ -125,14 +125,18 @@ export async function scoreboardRows(from: Date, to: Date, department?: string |
   const holidays = holidayWeekdaySet(from, to);
   const absMap = await absenceByUser(ids, from, to, holidays);
   const firstSeen = new Map<string, Date>();
-  const minIntervals = await prisma.activityInterval.groupBy({
+  // Optimalizace: groupBy nad ActivityInterval (1.4M+ rows) byl pomalý.
+  // DailyStat má per-user-per-day, jen ~44k řádků – stejně použitelné jako
+  // first-seen aproximace (přesnost na den, kterou stejně potřebujeme pro
+  // expected workdays).
+  const minDailyStats = await prisma.dailyStat.groupBy({
     by: ['userId'],
     where: { userId: { in: ids } },
-    _min: { intervalStart: true },
+    _min: { date: true },
   });
-  for (const r of minIntervals) {
-    if (!r._min.intervalStart) continue;
-    firstSeen.set(r.userId, r._min.intervalStart > from ? r._min.intervalStart : from);
+  for (const r of minDailyStats) {
+    if (!r._min.date) continue;
+    firstSeen.set(r.userId, r._min.date > from ? r._min.date : from);
   }
   const now = Date.now();
   const expectedOf = (uid: string) => {

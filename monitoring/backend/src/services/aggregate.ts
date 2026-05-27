@@ -1,7 +1,7 @@
 import { prisma } from '../db.js';
 import { getCategoryMap } from './categories.js';
 import { classifyActivity, getWebRules } from './classify.js';
-import { computeIntegrity } from './integrity.js';
+import { computeIntegrity, computeIntegrityFromIntervals } from './integrity.js';
 import { getSites, resolveSite } from './sites.js';
 import { getDeptRules } from './deptrules.js';
 import { floorToDay as tzFloorToDay, floorToHour as tzFloorToHour, addDays } from './tz.js';
@@ -303,12 +303,20 @@ export async function aggregateAllFast(): Promise<{ users: number; hours: number
       siteAgg: Map<string, { category: string; type: string; min: number }>;
     };
     const dayMap = new Map<number, DayAgg>();
+    // Per-day intervals (jen aktivní >= 30 s) pro výpočet integrity – už načteno
+    // z DB, žádný další roundtrip. Ušetří 22 SQLite query per user × 1991 useři = 44k queries.
+    const dayActiveMap = new Map<number, Array<{ intervalStart: Date; intervalSeconds: number; activeSeconds: number; keystrokeCount: number; mouseEvents: number; foregroundApp: string | null }>>();
 
     for (const it of intervals) {
       const hStart = floorToHour(it.intervalStart);
       const dStart = floorToDay(it.intervalStart);
       const hKey = hStart.getTime();
       const dKey = dStart.getTime();
+      if (it.activeSeconds >= 30) {
+        let arr = dayActiveMap.get(dKey);
+        if (!arr) { arr = []; dayActiveMap.set(dKey, arr); }
+        arr.push({ intervalStart: it.intervalStart, intervalSeconds: it.intervalSeconds, activeSeconds: it.activeSeconds, keystrokeCount: it.keystrokeCount, mouseEvents: it.mouseEvents, foregroundApp: it.foregroundApp });
+      }
 
       let h = hourMap.get(hKey);
       if (!h) { h = { hourStart: hStart, activeSeconds: 0, idleSeconds: 0, lockedSeconds: 0, keystrokeTotal: 0, mouseTotal: 0, appActive: new Map() }; hourMap.set(hKey, h); }
@@ -384,7 +392,8 @@ export async function aggregateAllFast(): Promise<{ users: number; hours: number
       let monitorTop = 0, mb = -1; for (const [c, m] of d.monMin) if (m > mb) { mb = m; monitorTop = c; }
       let domWorkCat: string | null = null, db = -1; for (const [c, m] of d.catMin) if (m > db) { db = m; domWorkCat = c; }
       let site: string | null = null, sb = -1; for (const [c, m] of d.locMin) if (m > sb) { sb = m; site = c || null; }
-      const integ = await computeIntegrity(u.id, d.day, addDays(d.day, 1));
+      const dayActive = dayActiveMap.get(d.day.getTime()) ?? [];
+      const integ = computeIntegrityFromIntervals(u.id, dayActive);
       dailyRows.push({
         userId: u.id, date: d.day,
         workMin: d.work, nonWorkMin: d.nonwork, idleMin: d.idle, unknownMin: d.unknown,
