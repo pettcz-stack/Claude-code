@@ -9,6 +9,9 @@ export const config = {
   // Retence (viz NAVRH.md §6, §14). Syrová data krátce, agregáty dlouho.
   rawRetentionDays: Number(process.env.RAW_RETENTION_DAYS ?? 35),
   hourlyRetentionDays: Number(process.env.HOURLY_RETENTION_DAYS ?? 540), // ~18 měsíců
+  // Audit přístupů – kdo z adminů kdy nahlédl na data zaměstnance.
+  // GDPR čl. 32: min. 12 měsíců pro doložení transparentnosti při kontrole.
+  auditRetentionDays: Number(process.env.AUDIT_RETENTION_DAYS ?? 365),
   // Zapnutí plánovaných úloh (agregace doběhů + retence).
   enableJobs: (process.env.ENABLE_JOBS ?? 'true') !== 'false',
   // CORS: prázdné = žádný CORS (SPA je same-origin). Jinak konkrétní origin.
