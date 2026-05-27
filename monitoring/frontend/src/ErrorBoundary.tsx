@@ -8,9 +8,8 @@ interface State { hasError: boolean; message: string }
  * v libovolné komponentě smazala celý dashboard – uživatel vidí bílou
  * obrazovku a netuší, co se stalo.
  *
- * S boundárkou zobrazíme přátelské hlášení, tlačítko na refresh a
- * v dev konzoli vyhodíme console.error pro vývojáře. Pro produkční
- * telemetrii (Sentry apod.) sem přidat hook.
+ * Texty jsou v češtině – boundary je výjimečný kód mimo i18n strom
+ * (i18n provider sám může vyhodit chybu, takže nesmí na něm záviset).
  */
 export class ErrorBoundary extends Component<Props, State> {
   state: State = { hasError: false, message: '' };
@@ -28,18 +27,15 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!this.state.hasError) return this.props.children;
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6 dark:bg-slate-900">
-        <div className="card max-w-md p-6 text-center">
-          <div className="mb-2 text-3xl">😕</div>
-          <div className="text-base font-semibold">FOCUS – něco se pokazilo</div>
-          <div className="mt-2 text-xs muted-2 break-words">{this.state.message}</div>
-          <button
-            onClick={() => window.location.reload()}
-            className="btn-primary mt-4"
-          >
-            Obnovit stránku
+        <div className="card max-w-md p-7 text-center">
+          <div className="mb-3 text-3xl">😕</div>
+          <div className="text-base font-semibold">FOCUS – něco se pokazilo / something went wrong</div>
+          <div className="mt-3 break-words text-xs muted-2">{this.state.message}</div>
+          <button onClick={() => window.location.reload()} className="btn-primary mt-5">
+            Obnovit stránku / Reload page
           </button>
           <div className="mt-3 text-[10px] muted-2">
-            Pokud chyba přetrvává, kontaktuj IT správce (popis chyby zkopíruj z textu výše).
+            Pokud chyba přetrvává, kontaktuj IT správce. / If the error persists, contact your IT admin.
           </div>
         </div>
       </div>

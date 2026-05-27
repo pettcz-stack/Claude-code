@@ -24,6 +24,8 @@ import { SettingsView } from './SettingsView.js';
 import { EmployeeSelfReport } from './EmployeeSelfReport.js';
 import { Login } from './Login.js';
 import { useTheme } from './theme.js';
+import { useT } from './i18n/index.js';
+import { LanguageSwitcher } from './LanguageSwitcher.js';
 import { isoDate, startOfLocalDay } from './util.js';
 
 type Tab = 'overview' | 'homeoffice' | 'detail' | 'selfreport' | 'scoreboard' | 'alerts' | 'trends' | 'apps' | 'software' | 'calendar' | 'summary' | 'admin' | 'settings' | 'health';
@@ -81,6 +83,7 @@ function WarmingScreen() {
 }
 
 export default function App() {
+  const { t } = useT();
   const [theme, toggleTheme] = useTheme();
   const [me, setMe] = useState<Me | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -236,12 +239,16 @@ export default function App() {
           ))}
         </nav>
         <div className="space-y-2 border-t border-gray-200 p-3 dark:border-slate-700/70">
-          <button onClick={toggleTheme} className="btn-ghost w-full justify-start">
-            {dark ? <Sun size={16} /> : <Moon size={16} />} {dark ? 'Světlý režim' : 'Tmavý režim'}
-          </button>
+          <div className="flex items-center justify-between gap-2">
+            <button onClick={toggleTheme} className="btn-ghost flex-1 justify-start">
+              {dark ? <Sun size={16} /> : <Moon size={16} />}
+              <span className="hidden lg:inline">{dark ? t('common.off') === 'Off' ? 'Light mode' : 'Světlý režim' : 'Dark'}</span>
+            </button>
+            <LanguageSwitcher compact />
+          </div>
           <div className="flex items-center justify-between px-1">
             <div className="text-xs"><div className="font-medium">{me.username}</div><div className="muted-2">{me.role}</div></div>
-            <button onClick={() => { auth.logout(); setMe(null); }} className="muted-2 hover:text-red-500" title="Odhlásit"><LogOut size={17} /></button>
+            <button onClick={() => { auth.logout(); setMe(null); }} className="muted-2 hover:text-red-500" title={t('common.logout')}><LogOut size={17} /></button>
           </div>
         </div>
       </aside>

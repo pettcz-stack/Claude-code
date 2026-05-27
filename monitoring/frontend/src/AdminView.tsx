@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Mail, Save, MessageSquareWarning, Download, UserX } from 'lucide-react';
 import { api, type AdminUserRow, type AuditRow, type ClaimRow, type Device } from './api.js';
+import { useT } from './i18n/index.js';
 
 export function AdminView({ role }: { role: string }) {
+  const { t } = useT();
   const [devices, setDevices] = useState<Device[]>([]);
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [audit, setAudit] = useState<AuditRow[]>([]);
@@ -38,16 +40,14 @@ export function AdminView({ role }: { role: string }) {
     try { await api.exportUser(u.id); } catch (e) { setError(String(e)); }
   }
   async function eraseUser(u: AdminUserRow) {
-    const confirmation = window.prompt(
-      `GDPR výmaz zaměstnance „${u.displayName ?? u.id}".\n\n` +
-      `Nevratně se smažou všechny intervaly, agregáty, absence a kalendář.\n` +
-      `Profil bude pseudonymizován. Audit přístupů zůstane (forenzní záznam).\n\n` +
-      `Pokud opravdu chceš výmaz provést, napiš slovo SMAZAT:`,
-    );
-    if (confirmation !== 'SMAZAT') return;
+    const name = u.displayName ?? u.id;
+    const title = t('gdpr.deletePromptTitle', { name });
+    const keyword = t('gdpr.deletePromptKeyword');
+    const confirmation = window.prompt(`${title}\n\n${t('gdpr.deletePromptBody')}`);
+    if (confirmation !== keyword) return;
     try {
       const r = await api.eraseUser(u.id);
-      alert(`Hotovo. Smazáno: ${Object.entries(r.deleted).map(([k, v]) => `${k}=${v}`).join(', ')}`);
+      alert(t('gdpr.deleteDone') + Object.entries(r.deleted).map(([k, v]) => `${k}=${v}`).join(', '));
       loadAll();
     } catch (e) { setError(String(e)); }
   }
@@ -104,8 +104,8 @@ export function AdminView({ role }: { role: string }) {
                   <td className="td text-right">
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => saveUser(u)} className="btn-ghost" title="Uložit změny"><Save size={14} /> Uložit</button>
-                      <button onClick={() => exportUser(u)} className="btn-ghost" title="GDPR čl. 20 – stáhnout všechna data o zaměstnanci jako JSON"><Download size={14} /></button>
-                      <button onClick={() => eraseUser(u)} className="btn-ghost text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" title="GDPR čl. 17 – nevratně smazat všechna data zaměstnance"><UserX size={14} /></button>
+                      <button onClick={() => exportUser(u)} className="btn-ghost" title={t('gdpr.exportTooltip')}><Download size={14} /></button>
+                      <button onClick={() => eraseUser(u)} className="btn-ghost text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" title={t('gdpr.eraseTooltip')}><UserX size={14} /></button>
                     </div>
                   </td>
                 </tr>

@@ -7,8 +7,10 @@ import { DiagnosticLog } from './DiagnosticLog.js';
 import { SecurityCheckPanel } from './SecurityCheckPanel.js';
 import { PasswordChangePanel } from './PasswordChangePanel.js';
 import { SessionsPanel } from './SessionsPanel.js';
+import { useT } from './i18n/index.js';
 
 export function SettingsView({ canEdit }: { canEdit: boolean }) {
+  const { t } = useT();
   const [enabled, setEnabled] = useState(true);
   const [recipients, setRecipients] = useState('');
   const [offline, setOffline] = useState(20);
@@ -106,19 +108,17 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
       </div>
 
       <div className="card p-5">
-        <h3 className="mb-3 text-sm font-semibold">Soukromí a uchovávání dat (GDPR)</h3>
+        <h3 className="mb-3 text-sm font-semibold">{t('settings.sections.privacy')}</h3>
 
         <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
-          <div className="mb-1 font-semibold">⚠️ Co FOCUS sbírá – přečti před nasazením</div>
+          <div className="mb-1 font-semibold">⚠️ {t('settings.privacyBanner.title')}</div>
           <ul className="ml-4 list-disc space-y-0.5">
-            <li>Aktivní/nečinný čas, název aktivní aplikace, počet úhozů a kliků (NIKDY ne obsah).</li>
-            <li><b>Titulek aktivního okna</b> jen pokud bylo CAPTURETITLE=1 při instalaci MSI. Default je VYPNUTO.</li>
-            <li>HW telemetrie pro IT (CPU, RAM, baterie, disky, BIOS, antivirus).</li>
-            <li>Hostname, MAC, lokální IP, Windows SID a jméno přihlášeného uživatele.</li>
+            {t('settings.privacyBanner.collected').split('\n').map((line, i) => (
+              <li key={i}>{line}</li>
+            ))}
           </ul>
           <div className="mt-2">
-            Před nasazením musíš zaměstnance <b>písemně poučit</b> dle § 316 odst. 3 ZP a čl. 13 GDPR.
-            Vzor poučení a další právní šablony jsou v repu: <code>monitoring/docs/pravni/</code>.
+            {t('settings.privacyBanner.legalNotice')}<code>monitoring/docs/pravni/</code>.
           </div>
         </div>
 
