@@ -60,7 +60,9 @@ ENV ENABLE_JOBS=false
 EXPOSE 8080
 
 # Healthcheck pro docker / kubernetes — Prometheus si /metrics scrapuje sám.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+# start-period=5min: pro 1991-osobní seed (1.4M intervalů + agregace) je 20s málo
+# a healthcheck by zabil kontejner s restart-loop. 5 min stačí pro fresh seed.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5m --retries=3 \
   CMD wget -qO- http://localhost:8080/api/v1/health | grep -q '"status":"ok"' || exit 1
 
 # Při startu: migrace → (volitelně) demo seed → server.
