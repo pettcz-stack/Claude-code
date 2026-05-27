@@ -1211,25 +1211,33 @@ async function seedPiracyActivity(users: Person[]): Promise<void> {
 
   const today = floorToDay(new Date());
   const newRows: Prisma.ActivityIntervalCreateManyInput[] = [];
+  // Per-user dedup set – aby random pick (dayBack, hour, min) nedával 2 stejné
+  // sloty per user (unique constraint deviceId+userId+intervalStart by selhal).
+  const usedSlots = new Set<string>();
   let injected = 0;
   for (const p of piratePlan) {
-    const user = p.user; // non-null po filtru výše
+    const user = p.user;
     if (!user) continue;
-    // Spočítej intervals to inject = hodin/týden × ~4.3 týdnů × 4 intervaly/h
     const totalIntervals = Math.round(p.intensityHoursPerWeek * 4.3 * 4);
     const last = user.siteBase.split('.')[1];
     const clientIp = `${user.siteBase}.${last}.${rnd(254) + 1}`;
-    // Rozsypej intervaly náhodně přes posledních 30 dní (jen workdays)
-    for (let i = 0; i < totalIntervals; i++) {
+    let attempts = 0;
+    let placed = 0;
+    while (placed < totalIntervals && attempts < totalIntervals * 4) {
+      attempts++;
       const dayBack = rnd(30);
       const dayStart = addDays(today, -dayBack);
       const dow = localDow(dayStart);
-      if (dow === 0 || dow === 6) { i--; continue; }
+      if (dow === 0 || dow === 6) continue;
       const lp = localParts(dayStart);
-      // Pirátská aktivita typicky pozdě odpoledne nebo přes oběd (kdy nikdo nekouká)
-      const hour = pick([12, 13, 14, 15, 16, 17]);
+      // Pirátská aktivita po pracovní době – 17-19 (mimo work windows 7-17).
+      const hour = pick([17, 18, 19]);
       const min = pick([0, 15, 30, 45]);
       const intervalStart = zonedToUtc(lp.year, lp.month, lp.day, hour, min);
+      const slotKey = `${user.id}|${intervalStart.getTime()}`;
+      if (usedSlots.has(slotKey)) continue;
+      usedSlots.add(slotKey);
+      placed++;
       newRows.push({
         userId: user.id, deviceId: user.deviceId,
         intervalStart, intervalSeconds: 900,
@@ -1246,6 +1254,7 @@ async function seedPiracyActivity(users: Person[]): Promise<void> {
   }
   // Insert in batches
   for (let i = 0; i < newRows.length; i += 500) {
+    // Bezpečné: piracy intervaly jsou 17-19h (mimo všechny work windows 7-17)
     await prisma.activityInterval.createMany({ data: newRows.slice(i, i + 500) });
   }
   console.log(`Demo piracy: ${piratePlan.length} uživatelů s ${injected} pirátskými intervaly.`);
@@ -1322,6 +1331,7 @@ async function seedAfterHoursActivity(users: Person[]): Promise<void> {
     }
   }
   for (let i = 0; i < rows.length; i += 500) {
+    // Bezpečné: after-hours intervaly jsou 21-23h (mimo všechny work windows)
     await prisma.activityInterval.createMany({ data: rows.slice(i, i + 500) });
   }
   console.log(`Demo after-hours: ${nightWorkers.length} uživatelů s ${rows.length} nočními intervaly.`);
