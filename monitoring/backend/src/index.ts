@@ -12,6 +12,7 @@ import { ensureDefaultSites } from './services/sites.js';
 import { ensureDefaultDeptRules } from './services/deptrules.js';
 import { ensureDemoDeviceHealth } from './services/healthDemo.js';
 import { scheduleRetentionPruning } from './services/retention.js';
+import { scheduleCompaction } from './services/compaction.js';
 import { cq } from './services/cachedQueries.js';
 import { floorToDay, addDays } from './services/tz.js';
 import { sendReport } from './services/report.js';
@@ -31,6 +32,7 @@ const server = app.listen(config.port, async () => {
   await ensureDefaultDeptRules();
   if (config.enableDemoData) await ensureDemoDeviceHealth();
   scheduleRetentionPruning();
+  scheduleCompaction();
   // eslint-disable-next-line no-console
   console.log(`FOCUS backend naslouchá na portu ${config.port}`);
   // Předehřej cache pro výchozí období (poslední měsíc) → první načtení je rychlé.
