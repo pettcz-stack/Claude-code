@@ -105,6 +105,20 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
       <div className="card p-5">
         <h3 className="mb-3 text-sm font-semibold">Soukromí a uchovávání dat (GDPR)</h3>
 
+        <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
+          <div className="mb-1 font-semibold">⚠️ Co FOCUS sbírá – přečti před nasazením</div>
+          <ul className="ml-4 list-disc space-y-0.5">
+            <li>Aktivní/nečinný čas, název aktivní aplikace, počet úhozů a kliků (NIKDY ne obsah).</li>
+            <li><b>Titulek aktivního okna</b> jen pokud bylo CAPTURETITLE=1 při instalaci MSI. Default je VYPNUTO.</li>
+            <li>HW telemetrie pro IT (CPU, RAM, baterie, disky, BIOS, antivirus).</li>
+            <li>Hostname, MAC, lokální IP, Windows SID a jméno přihlášeného uživatele.</li>
+          </ul>
+          <div className="mt-2">
+            Před nasazením musíš zaměstnance <b>písemně poučit</b> dle § 316 odst. 3 ZP a čl. 13 GDPR.
+            Vzor poučení a další právní šablony jsou v repu: <code>monitoring/docs/pravni/</code>.
+          </div>
+        </div>
+
         <label className="mb-4 flex items-start gap-3 text-sm">
           <input type="checkbox" checked={privacyStoreDomainOnly} disabled={!canEdit} onChange={(e) => setPrivacyStoreDomainOnly(e.target.checked)} className="mt-1" />
           <span>
