@@ -5,11 +5,12 @@ import { ScoreScaleLegend } from './Legend.js';
 import { scoreColor } from './util.js';
 import { useT } from './i18n/index.js';
 import { useSort, SortHeader } from './tableSort.js';
+import { MetricInfo } from './MetricInfo.js';
 
-function BigScore({ icon, label, score, sub }: { icon: React.ReactNode; label: string; score: number; sub: string }) {
+function BigScore({ icon, label, score, sub, info }: { icon: React.ReactNode; label: string; score: number; sub: string; info?: string }) {
   return (
     <div className="card flex flex-col items-center justify-center p-6">
-      <div className="mb-1 flex items-center gap-2 text-sm muted">{icon} {label}</div>
+      <div className="mb-1 flex items-center gap-2 text-sm muted">{icon} {label}{info && <MetricInfo text={info} />}</div>
       <div className="text-5xl font-bold" style={{ color: scoreColor(score) }}>{score}%</div>
       <div className="mt-1 text-xs muted-2">{sub}</div>
     </div>
@@ -59,8 +60,8 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
 
       {/* Headline srovnání */}
       <div className="grid gap-4 md:grid-cols-3">
-        <BigScore icon={<House size={16} className="text-emerald-600" />} label={t('homeoffice.hoScoreLabel')} score={d.company.hoScore} sub={t('homeoffice.hoActiveSub', { amt: amt(d.company.hoDays), h: d.company.hoActiveHours })} />
-        <BigScore icon={<Building2 size={16} className="text-emerald-600" />} label={t('homeoffice.officeScoreLabel')} score={d.company.officeScore} sub={t('homeoffice.officeActiveSub', { amt: amt(d.company.officeDays), h: d.company.officeActiveHours })} />
+        <BigScore icon={<House size={16} className="text-emerald-600" />} label={t('homeoffice.hoScoreLabel')} score={d.company.hoScore} sub={t('homeoffice.hoActiveSub', { amt: amt(d.company.hoDays), h: d.company.hoActiveHours })} info={t('methodology.homeOfficeScore')} />
+        <BigScore icon={<Building2 size={16} className="text-emerald-600" />} label={t('homeoffice.officeScoreLabel')} score={d.company.officeScore} sub={t('homeoffice.officeActiveSub', { amt: amt(d.company.officeDays), h: d.company.officeActiveHours })} info={t('methodology.homeOfficeScore')} />
         <div className="card flex flex-col items-center justify-center p-6">
           <div className="mb-1 text-center text-sm muted">{t('homeoffice.diffLabel')}</div>
           <div className={`flex items-center gap-1 text-4xl font-bold ${diff < 0 ? 'text-red-500' : 'text-emerald-500'}`}>

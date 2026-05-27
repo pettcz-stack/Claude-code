@@ -6,6 +6,7 @@ import { useToast } from './Toast.js';
 import { AppIcon, useAppName } from './appMeta.js';
 import { useT } from './i18n/index.js';
 import { useSort, SortHeader } from './tableSort.js';
+import { MetricInfo } from './MetricInfo.js';
 
 export function SoftwareView({ from, to, department, canEdit }: { from: string; to: string; department?: string; canEdit: boolean }) {
   const { t } = useT();
@@ -64,7 +65,7 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="card p-4">
-          <div className="mb-1 flex items-center gap-1.5 text-xs uppercase muted-2"><Wallet size={13} /> {t('software.wasteKpi', { unit })}</div>
+          <div className="mb-1 flex items-center gap-1.5 text-xs uppercase muted-2"><Wallet size={13} /> {t('software.wasteKpi', { unit })}<MetricInfo text={t('methodology.waste')} /></div>
           <div className="text-3xl font-bold text-red-500">{kc(data.totalWasteCost)}</div>
           <div className="text-xs muted-2">{t('software.wasteKpiDesc', { unit })}</div>
         </div>
@@ -125,7 +126,7 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
 
       <div className="card p-5">
         <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="flex items-center gap-2 text-sm font-semibold"><KeyRound size={16} className="text-emerald-600" /> {t('software.auditTitle')}</h3>
+          <h3 className="flex items-center gap-2 text-sm font-semibold"><KeyRound size={16} className="text-emerald-600" /> {t('software.auditTitle')}<MetricInfo text={t('methodology.softwareUtil')} /></h3>
           <div className="flex items-center gap-2">
             <Search size={14} className="muted-2" />
             <input value={appSearch} onChange={(e) => setAppSearch(e.target.value)} placeholder={t('software.searchAppPlaceholder')} className="field w-56" />

@@ -6,11 +6,12 @@ import { ScoreScaleLegend } from './Legend.js';
 import { AppIcon, useAppName } from './appMeta.js';
 import { minutesToHm, chipClass, typeLabel, TYPE_COLORS, scoreColor } from './util.js';
 import { useT } from './i18n/index.js';
+import { MetricInfo } from './MetricInfo.js';
 
-function Card({ title, icon, children, accent }: { title: string; icon: React.ReactNode; children: React.ReactNode; accent?: string }) {
+function Card({ title, icon, children, accent, info }: { title: string; icon: React.ReactNode; children: React.ReactNode; accent?: string; info?: string }) {
   return (
     <div className="card p-4">
-      <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide muted-2">{icon} {title}</div>
+      <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide muted-2">{icon} {title}{info && <MetricInfo text={info} />}</div>
       <div className={`text-lg font-semibold ${accent ?? ''}`}>{children}</div>
     </div>
   );
@@ -98,7 +99,7 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card title={t('scoreView.cardKpmTitle')} icon={<Keyboard size={13} />}>
+        <Card title={t('scoreView.cardKpmTitle')} icon={<Keyboard size={13} />} info={s.typingKpm > 0 ? t('methodology.kpmTyping') : t('methodology.kpmAvg')}>
           {s.typingKpm > 0 ? s.typingKpm : s.avgKpm} <span className="text-sm font-normal muted">{t('scoreView.kpmUnit')}</span>
           <div className="mt-1 text-xs font-normal text-emerald-500">{t('scoreView.kpmNote', { n: s.kpmPercentile })} {s.kpmPercentile >= 50 ? '🎉' : ''}</div>
           {s.typingKpm > 0 && s.typingMinutes > 0 && (
@@ -107,8 +108,8 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
             </div>
           )}
         </Card>
-        <Card title={t('scoreView.cardActiveWork')} icon={<Clock size={13} />} accent="text-emerald-500">{minutesToHm(s.workMinutes)}</Card>
-        <Card title={t('scoreView.cardFun')} icon={<AlertTriangle size={13} />} accent="text-red-500">{minutesToHm(s.nonWorkMinutes)}</Card>
+        <Card title={t('scoreView.cardActiveWork')} icon={<Clock size={13} />} accent="text-emerald-500" info={t('methodology.activeWork')}>{minutesToHm(s.workMinutes)}</Card>
+        <Card title={t('scoreView.cardFun')} icon={<AlertTriangle size={13} />} accent="text-red-500" info={t('methodology.nonWorkPct')}>{minutesToHm(s.nonWorkMinutes)}</Card>
         <Card title={t('scoreView.cardTopApp')} icon={<AppWindow size={13} />}>
           {s.topApp
             ? <span className="flex items-center gap-2"><AppIcon app={s.topApp} size={16} /> {appName(s.topApp)}</span>
@@ -121,7 +122,7 @@ export function ScoreView({ user, from, to }: { user: User; from: string; to: st
               ))}</span>
             : '—'}
         </Card>
-        <Card title={t('scoreView.cardMonitors')} icon={<Monitor size={13} />}>
+        <Card title={t('scoreView.cardMonitors')} icon={<Monitor size={13} />} info={t('methodology.monitorTypical')}>
           {s.monitorTypical ? `${s.monitorTypical} ` : '— '}<span className="text-sm font-normal muted">{s.monitorTypical === 1 ? t('scoreView.screenOne') : s.monitorTypical >= 2 && s.monitorTypical <= 4 ? t('scoreView.screenFew') : t('scoreView.screenMany')}</span>
           <div className="mt-1 text-xs font-normal muted-2">{t('scoreView.multiMonitorPct', { n: s.multiMonitorPct })}</div>
         </Card>

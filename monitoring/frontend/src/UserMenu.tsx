@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { LogOut, ChevronDown, ShieldCheck } from 'lucide-react';
+import { LogOut, ChevronDown, ShieldCheck, Code2 } from 'lucide-react';
 import { useT } from './i18n/index.js';
+import { useDevMode } from './devMode.js';
 
 const ROLE_COLOR: Record<string, string> = {
   ADMIN: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
@@ -16,6 +17,7 @@ const ROLE_COLOR: Record<string, string> = {
  */
 export function UserMenu({ username, role, onLogout }: { username: string; role: string; onLogout: () => void }) {
   const { t } = useT();
+  const { devMode, setDevMode } = useDevMode();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -47,7 +49,7 @@ export function UserMenu({ username, role, onLogout }: { username: string; role:
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-1.5 w-56 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+        <div className="absolute right-0 z-50 mt-1.5 w-64 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
           <div className="border-b border-gray-100 px-4 py-3 dark:border-slate-800">
             <div className="text-sm font-medium">{username}</div>
             <div className="mt-1 flex items-center gap-1.5 text-[11px]">
@@ -55,9 +57,24 @@ export function UserMenu({ username, role, onLogout }: { username: string; role:
               <span className={`inline-block rounded px-1.5 py-0 font-medium uppercase ${ROLE_COLOR[role] ?? ROLE_COLOR.VIEWER}`}>{role}</span>
             </div>
           </div>
+          {role === 'ADMIN' && (
+            <button
+              onClick={() => setDevMode(!devMode)}
+              className="flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-slate-800"
+              title={t('userMenu.devModeTooltip')}
+            >
+              <span className="flex items-center gap-2">
+                <Code2 size={14} className="text-blue-500" />
+                <span>{t('userMenu.devMode')}</span>
+              </span>
+              <span className={`inline-block h-4 w-7 rounded-full transition-colors ${devMode ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-slate-600'} relative`}>
+                <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all ${devMode ? 'left-3.5' : 'left-0.5'}`} />
+              </span>
+            </button>
+          )}
           <button
             onClick={() => { setOpen(false); onLogout(); }}
-            className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-slate-800"
+            className="flex w-full items-center gap-2 border-t border-gray-100 px-4 py-2 text-left text-sm hover:bg-gray-50 dark:border-slate-800 dark:hover:bg-slate-800"
           >
             <LogOut size={14} className="text-red-500" />
             <span>{t('common.logout')}</span>

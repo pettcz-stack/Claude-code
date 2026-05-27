@@ -8,11 +8,12 @@ import { PageSkeleton } from './Skeleton.js';
 import { ScoreScaleLegend } from './Legend.js';
 import { TYPE_COLORS, scoreHex, scoreColor } from './util.js';
 import { useT } from './i18n/index.js';
+import { MetricInfo } from './MetricInfo.js';
 
-function Kpi({ icon, label, value, sub, accent, color }: { icon: React.ReactNode; label: string; value: string; sub?: React.ReactNode; accent?: string; color?: string }) {
+function Kpi({ icon, label, value, sub, accent, color, info }: { icon: React.ReactNode; label: string; value: string; sub?: React.ReactNode; accent?: string; color?: string; info?: string }) {
   return (
     <div className="card p-4">
-      <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide muted-2">{icon} {label}</div>
+      <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide muted-2">{icon} {label}{info && <MetricInfo text={info} />}</div>
       <div className={`text-2xl font-bold ${accent ?? ''}`} style={color ? { color } : undefined}>{value}</div>
       {sub && <div className="mt-0.5 text-xs">{sub}</div>}
     </div>
@@ -50,16 +51,20 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
 
       {/* KPI strip */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi icon={<Gauge size={13} />} label={t('overview.kpiAvgScore')} value={`${o.kpi.avgScore} %`} color={scoreColor(o.kpi.avgScore)} sub={<Delta d={o.kpi.avgScoreDelta} />} />
-        <Kpi icon={<Clock size={13} />} label={t('overview.kpiActiveWork')} value={`${o.kpi.activeHours} h`} sub={<span className="muted-2">{t('overview.kpiActiveWorkSub', { n: o.kpi.userCount })}</span>} />
-        <Kpi icon={<Wifi size={13} />} label={t('overview.kpiOnlineNow')} value={`${o.kpi.onlineCount}`} sub={<span className="muted-2">{t('overview.kpiOnlineSub', { n: o.kpi.deviceCount })}</span>} />
-        <Kpi icon={<ShieldAlert size={13} />} label={t('overview.kpiSuspicion')} value={`${o.kpi.flaggedCount}`} accent={o.kpi.flaggedCount ? 'text-red-500' : ''} sub={<span className="muted-2">{t('overview.kpiSuspicionSub')}</span>} />
+        <Kpi icon={<Gauge size={13} />} label={t('overview.kpiAvgScore')} value={`${o.kpi.avgScore} %`} color={scoreColor(o.kpi.avgScore)} sub={<Delta d={o.kpi.avgScoreDelta} />}
+          info={t('methodology.avgScore')} />
+        <Kpi icon={<Clock size={13} />} label={t('overview.kpiActiveWork')} value={`${o.kpi.activeHours} h`} sub={<span className="muted-2">{t('overview.kpiActiveWorkSub', { n: o.kpi.userCount })}</span>}
+          info={t('methodology.activeWork')} />
+        <Kpi icon={<Wifi size={13} />} label={t('overview.kpiOnlineNow')} value={`${o.kpi.onlineCount}`} sub={<span className="muted-2">{t('overview.kpiOnlineSub', { n: o.kpi.deviceCount })}</span>}
+          info={t('methodology.online')} />
+        <Kpi icon={<ShieldAlert size={13} />} label={t('overview.kpiSuspicion')} value={`${o.kpi.flaggedCount}`} accent={o.kpi.flaggedCount ? 'text-red-500' : ''} sub={<span className="muted-2">{t('overview.kpiSuspicionSub')}</span>}
+          info={t('methodology.suspicion')} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Rozdělení času */}
         <div className="card flex flex-col items-center justify-center p-6">
-          <h3 className="mb-3 self-start text-sm font-semibold">{t('overview.timeSplit')}</h3>
+          <h3 className="mb-3 self-start text-sm font-semibold">{t('overview.timeSplit')}<MetricInfo text={t('methodology.timeSplit')} /></h3>
           <Donut
             size={170}
             segments={[
@@ -80,7 +85,7 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
 
         {/* Srovnání oddělení */}
         <div className="card p-5 lg:col-span-2">
-          <h3 className="mb-1 text-sm font-semibold">{t('overview.deptScore')}</h3>
+          <h3 className="mb-1 text-sm font-semibold">{t('overview.deptScore')}<MetricInfo text={t('methodology.deptScore')} /></h3>
           <p className="mb-3 text-xs muted-2">{t('overview.deptScoreSub')}</p>
           <div className="space-y-2.5">
             {o.departments.map((d) => (

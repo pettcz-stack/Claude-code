@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type Heatmap as HeatmapData } from './api.js';
 import { useT } from './i18n/index.js';
+import { MetricInfo } from './MetricInfo.js';
 
 export function HeatmapView({ from, to, department, userId }: { from: string; to: string; department?: string; userId?: string }) {
   const { t } = useT();
@@ -41,7 +42,7 @@ export function HeatmapView({ from, to, department, userId }: { from: string; to
 
   return (
     <div className="card p-5">
-      <h3 className="mb-1 text-sm font-semibold">{t('heatmap.chartTitle')}</h3>
+      <h3 className="mb-1 text-sm font-semibold">{t('heatmap.chartTitle')}<MetricInfo text={t('methodology.heatmapCell')} /></h3>
       <p className="mb-3 text-xs muted-2">
         <b>{t('heatmap.chartSubtitlePart1')}</b>{t('heatmap.chartSubtitlePart1Desc')}
         <b> {t('heatmap.chartSubtitlePart2')}</b>{t('heatmap.chartSubtitlePart2Desc')}
