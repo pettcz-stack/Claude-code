@@ -100,7 +100,7 @@ enum HealthCollector {
         return r
     }
 
-    /// pmset -g batt
+    /// pmset -g batt + ioreg AppleSmartBattery (zdraví, cykly).
     private static func batteryInfo() -> [String: Any]? {
         guard let out = runCommand("/usr/bin/pmset", args: ["-g", "batt"]) else { return nil }
         // Když není baterie (Mac mini, Mac Pro), výstup řekne "InternalBattery" se nepublikuje.
@@ -114,7 +114,37 @@ enum HealthCollector {
             if let v = Int(s) { r["batteryChargePct"] = v }
         }
         r["onAcPower"] = !out.contains("discharging")
+
+        // ioreg -rn AppleSmartBattery → "CycleCount", "DesignCapacity", "MaxCapacity"
+        // (na T2/Apple Silicon Macech označení mírně liší – kontrolujeme oba klíče).
+        if let io = runCommand("/usr/sbin/ioreg", args: ["-rn", "AppleSmartBattery"]) {
+            if let cycles = intFromIoreg(io, key: "CycleCount") {
+                r["batteryCycles"] = cycles
+            }
+            // Design = výrobní kapacita, Max = aktuální (po opotřebení).
+            // Health% = round(MaxCapacity / DesignCapacity * 100).
+            let design = intFromIoreg(io, key: "DesignCapacity")
+                ?? intFromIoreg(io, key: "AppleRawBatteryDesignCapacity")
+            let maxCap = intFromIoreg(io, key: "AppleRawMaxCapacity")
+                ?? intFromIoreg(io, key: "MaxCapacity")
+            if let d = design, let m = maxCap, d > 0 {
+                let pct = Int((Double(m) / Double(d)) * 100.0)
+                // Sanity clamp – některé Macy hlásí MaxCapacity > Design po kalibraci.
+                r["batteryHealthPct"] = max(0, min(100, pct))
+            }
+        }
         return r
+    }
+
+    /// Vytáhne integer hodnotu klíče z výstupu `ioreg`. Formát řádku:
+    ///   `"CycleCount" = 234`
+    private static func intFromIoreg(_ output: String, key: String) -> Int? {
+        let pattern = "\"\(key)\"\\s*=\\s*(\\d+)"
+        guard let re = try? NSRegularExpression(pattern: pattern),
+              let m = re.firstMatch(in: output, range: NSRange(output.startIndex..., in: output)),
+              m.numberOfRanges >= 2,
+              let r = Range(m.range(at: 1), in: output) else { return nil }
+        return Int(output[r])
     }
 
     /// diskutil list + apfs info → souhrn diskového prostoru
