@@ -745,7 +745,6 @@ async function main() {
   console.log('Resetuji licence – realistická utilizace…');
   await prisma.appCategory.updateMany({ data: { licensed: false, seats: null, costPerSeat: null } });
   const LICENSES = [
-    // Plně využité – seats odpovídá počtu uživatelů konstrukce
     { appName: 'sldworks.exe', category: 'CAD / Konstrukce', type: 'WORK', seats: 200, costPerSeat: 4500 },
     { appName: 'navision.exe', category: 'Podnikový systém', type: 'WORK', seats: 1500, costPerSeat: 1500 },
     { appName: 'crm.exe', category: 'CRM', type: 'WORK', seats: 500, costPerSeat: 1200 },
@@ -753,9 +752,8 @@ async function main() {
     { appName: 'excel.exe', category: 'Kancelář', type: 'WORK', seats: 2000, costPerSeat: 350 },
     { appName: 'code.exe', category: 'Vývoj', type: 'WORK', seats: 150, costPerSeat: 250 },
     { appName: 'powerpnt.exe', category: 'Kancelář', type: 'WORK', seats: 200, costPerSeat: 350 },
-    // Plýtvání – předplaceno víc než využíváno (úspora pro auditora)
-    { appName: 'projectpro.exe', category: 'Project management', type: 'WORK', seats: 50, costPerSeat: 800 }, // nikdo nepoužívá
-    { appName: 'visiopro.exe', category: 'Diagramy', type: 'WORK', seats: 80, costPerSeat: 600 }, // sotva 5 lidí
+    { appName: 'projectpro.exe', category: 'Project management', type: 'WORK', seats: 50, costPerSeat: 800 },
+    { appName: 'visiopro.exe', category: 'Diagramy', type: 'WORK', seats: 80, costPerSeat: 600 },
   ];
   for (const l of LICENSES) {
     await prisma.appCategory.upsert({
@@ -765,12 +763,38 @@ async function main() {
     });
   }
 
-  // ─── 6) Print, USB, HW health, Admins, Audit, Claims ────────────────────
+  // ─── 5b) Pirátský software – klíčové pro IT auditora ────────────────────
+  // Aplikace označené `category: 'Pirátský software'` se použijí pro detekci
+  // v alerts.ts (PIRATED_SOFTWARE flag). Type=NON_WORK → snižuje skóre uživatele
+  // (správně – nelegální činnost není práce).
+  const PIRATED_APPS = [
+    { appName: 'photoshop_crack.exe',  category: 'Pirátský software', type: 'NON_WORK' },
+    { appName: 'illustrator_crack.exe',category: 'Pirátský software', type: 'NON_WORK' },
+    { appName: 'autocad_pirated.exe',  category: 'Pirátský software', type: 'NON_WORK' },
+    { appName: 'sldworks_keygen.exe',  category: 'Pirátský software', type: 'NON_WORK' },
+    { appName: 'idea_pirated.exe',     category: 'Pirátský software', type: 'NON_WORK' },
+    { appName: 'office_kms.exe',       category: 'Pirátský software', type: 'NON_WORK' },
+    { appName: 'winrar_crack.exe',     category: 'Pirátský software', type: 'NON_WORK' },
+    { appName: 'vmware_keygen.exe',    category: 'Pirátský software', type: 'NON_WORK' },
+    { appName: 'mimikatz.exe',         category: 'Pirátský software', type: 'NON_WORK' }, // hacker tool
+    { appName: 'utorrent.exe',         category: 'Pirátský software', type: 'NON_WORK' }, // torrent klient
+  ];
+  for (const a of PIRATED_APPS) {
+    await prisma.appCategory.upsert({
+      where: { appName: a.appName },
+      create: { appName: a.appName, category: a.category, type: a.type, licensed: false },
+      update: { category: a.category, type: a.type, licensed: false },
+    });
+  }
+
+  // ─── 6) Print, USB, HW health, Admins, Audit, Claims, Piracy ────────────
   await seedPrintAndUsb(created);
   await seedDeviceHealth(created);
   await seedAdditionalAdmins();
   await seedAccessAuditSamples(created);
   await seedClassificationClaims(created);
+  await seedPiracyActivity(created);
+  await seedAfterHoursActivity(created);
 
   // ─── 7) Settings & aggregation ──────────────────────────────────────────
   await saveSettings({
@@ -1135,6 +1159,172 @@ async function seedClassificationClaims(users: Person[]): Promise<void> {
   ];
   await prisma.classificationClaim.createMany({ data: claims });
   console.log(`Demo claims: ${claims.length} reklamaci klasifikace.`);
+}
+
+/**
+ * Seed pirátského software: 18 uživatelů aktivně používá nelicencované SW.
+ * Realisticky distribuovaní napříč rolemi:
+ *  - Marketing (Photoshop/Illustrator cracked) – designeři co nechtěli platit Adobe
+ *  - Konstrukce (AutoCAD/SolidWorks keygen) – designer s vlastním projektem
+ *  - Vývoj (JetBrains pirated) – freelance side projects
+ *  - IT (mimikatz, nmap) – security tools nebo malicious intent
+ *  - Random rolI (Office KMS, WinRAR crack, uTorrent, VMware keygen)
+ */
+async function seedPiracyActivity(users: Person[]): Promise<void> {
+  const existing = await prisma.activityInterval.count({
+    where: { foregroundApp: { contains: '_crack' } },
+  });
+  if (existing > 0) {
+    console.log(`Demo piracy preskoceno – uz existuje ${existing} intervalu.`);
+    return;
+  }
+
+  // Vyber pirátů per oddělení/persona
+  const findCandidate = (predicate: (u: Person) => boolean): Person | undefined =>
+    users.find((u) => predicate(u) && !u.persona.startsWith('cheater'));
+
+  const piratePlan: { user: Person | undefined; app: string; intensityHoursPerWeek: number; reason: string }[] = [
+    // 5× Marketing – Adobe cracked
+    { user: findCandidate((u) => u.dept === 'Marketing'), app: 'photoshop_crack.exe',  intensityHoursPerWeek: 8, reason: 'Designer Adobe crack' },
+    { user: users.filter((u) => u.dept === 'Marketing')[3], app: 'illustrator_crack.exe', intensityHoursPerWeek: 6, reason: 'Designer Adobe crack' },
+    { user: users.filter((u) => u.dept === 'Marketing')[7], app: 'photoshop_crack.exe',  intensityHoursPerWeek: 4, reason: 'Designer Adobe crack' },
+    { user: users.filter((u) => u.dept === 'Marketing')[11], app: 'illustrator_crack.exe', intensityHoursPerWeek: 3, reason: 'Designer Adobe crack' },
+    { user: users.filter((u) => u.dept === 'Marketing')[15], app: 'photoshop_crack.exe', intensityHoursPerWeek: 5, reason: 'Designer Adobe crack' },
+    // 4× Konstrukce – AutoCAD/SW keygen (vlastní side projekty doma)
+    { user: findCandidate((u) => u.dept === 'Konstrukce'), app: 'autocad_pirated.exe',   intensityHoursPerWeek: 3, reason: 'CAD side project' },
+    { user: users.filter((u) => u.dept === 'Konstrukce')[20], app: 'sldworks_keygen.exe', intensityHoursPerWeek: 4, reason: 'CAD side project' },
+    { user: users.filter((u) => u.dept === 'Konstrukce')[45], app: 'autocad_pirated.exe', intensityHoursPerWeek: 2, reason: 'CAD side project' },
+    { user: users.filter((u) => u.dept === 'Konstrukce')[80], app: 'sldworks_keygen.exe', intensityHoursPerWeek: 5, reason: 'CAD side project' },
+    // 3× Vývoj – cracked IDE
+    { user: findCandidate((u) => u.dept === 'Vývoj'), app: 'idea_pirated.exe', intensityHoursPerWeek: 12, reason: 'Vývojář cracked IDE' },
+    { user: users.filter((u) => u.dept === 'Vývoj')[12], app: 'idea_pirated.exe', intensityHoursPerWeek: 8, reason: 'Vývojář cracked IDE' },
+    { user: users.filter((u) => u.dept === 'Vývoj')[30], app: 'idea_pirated.exe', intensityHoursPerWeek: 6, reason: 'Vývojář cracked IDE' },
+    // 3× IT – security/hacker tools (mohou být legitimní pro pentestera, ale bez schválení = problém)
+    { user: findCandidate((u) => u.dept === 'IT'), app: 'mimikatz.exe', intensityHoursPerWeek: 2, reason: 'Security tool bez schvaleni' },
+    { user: users.filter((u) => u.dept === 'IT')[8], app: 'vmware_keygen.exe', intensityHoursPerWeek: 3, reason: 'VMware crack' },
+    { user: users.filter((u) => u.dept === 'IT podpora')[2], app: 'office_kms.exe', intensityHoursPerWeek: 1, reason: 'KMS aktivator Office' },
+    // 3× ostatní oddělení – uTorrent / KMS / WinRAR
+    { user: findCandidate((u) => u.dept === 'Ekonomika'), app: 'utorrent.exe', intensityHoursPerWeek: 4, reason: 'Stahování filmů v práci' },
+    { user: findCandidate((u) => u.dept === 'Obchod ČR'), app: 'winrar_crack.exe', intensityHoursPerWeek: 1, reason: 'WinRAR crack' },
+    { user: findCandidate((u) => u.dept === 'Personalistika'), app: 'office_kms.exe', intensityHoursPerWeek: 1, reason: 'KMS aktivator Office' },
+  ].filter((p) => p.user) as { user: Person; app: string; intensityHoursPerWeek: number; reason: string }[];
+
+  const today = floorToDay(new Date());
+  const newRows: Prisma.ActivityIntervalCreateManyInput[] = [];
+  let injected = 0;
+  for (const p of piratePlan) {
+    const user = p.user; // non-null po filtru výše
+    if (!user) continue;
+    // Spočítej intervals to inject = hodin/týden × ~4.3 týdnů × 4 intervaly/h
+    const totalIntervals = Math.round(p.intensityHoursPerWeek * 4.3 * 4);
+    const last = user.siteBase.split('.')[1];
+    const clientIp = `${user.siteBase}.${last}.${rnd(254) + 1}`;
+    // Rozsypej intervaly náhodně přes posledních 30 dní (jen workdays)
+    for (let i = 0; i < totalIntervals; i++) {
+      const dayBack = rnd(30);
+      const dayStart = addDays(today, -dayBack);
+      const dow = localDow(dayStart);
+      if (dow === 0 || dow === 6) { i--; continue; }
+      const lp = localParts(dayStart);
+      // Pirátská aktivita typicky pozdě odpoledne nebo přes oběd (kdy nikdo nekouká)
+      const hour = pick([12, 13, 14, 15, 16, 17]);
+      const min = pick([0, 15, 30, 45]);
+      const intervalStart = zonedToUtc(lp.year, lp.month, lp.day, hour, min);
+      newRows.push({
+        userId: user.id, deviceId: user.deviceId,
+        intervalStart, intervalSeconds: 900,
+        activeSeconds: 600 + rnd(250), idleSeconds: 0,
+        foregroundApp: p.app, windowTitle: null,
+        sessionLocked: false, monitorCount: user.monitors, clientIp,
+        keystrokeCount: 200 + rnd(800),
+        mouseEvents: 100 + rnd(400),
+        typingMs: 300_000 + rnd(300_000),
+        typingKeystrokeCount: 200 + rnd(800),
+      });
+      injected++;
+    }
+  }
+  // Insert in batches
+  for (let i = 0; i < newRows.length; i += 500) {
+    await prisma.activityInterval.createMany({ data: newRows.slice(i, i + 500) });
+  }
+  console.log(`Demo piracy: ${piratePlan.length} uživatelů s ${injected} pirátskými intervaly.`);
+}
+
+/**
+ * Seed pozdně-noční aktivita: ~3 % uživatelů má podezřelou aktivitu mezi 22:00-05:00.
+ * Reálně může být:
+ *  - Workaholic dohánějící deadline (legitimní)
+ *  - Útočník stahující data (incident response)
+ *  - Cheater spustil bot a šel domů (jiggler běží i v noci)
+ *
+ * V dashboard heatmapě se to projeví jako anomálie. Alerts to nyní (zatím)
+ * nedetekuje – nechávám pro budoucí "unusual hours" detector.
+ */
+async function seedAfterHoursActivity(users: Person[]): Promise<void> {
+  const existing = await prisma.activityInterval.count({
+    where: { intervalStart: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
+  });
+  // pokud už něco máme, nedoplňujeme znovu (gate na celkové intervaly by ale byl moc agresivní)
+  const sample = await prisma.activityInterval.findFirst({
+    where: { foregroundApp: 'mimikatz.exe' }, // sample marker - když mimikatz existuje, after-hours už proběhl
+  });
+  if (sample) { console.log('Demo after-hours preskocen.'); return; }
+
+  // Vyber ~60 uživatelů (3 %) s pozdně-noční aktivitou.
+  // Cheateři automaticky (boti běží non-stop), zbytek random workaholici / "stahovači"
+  const nightWorkers: Person[] = [];
+  for (const u of users) {
+    if (u.persona.startsWith('cheater')) nightWorkers.push(u);
+    else if (u.persona === 'top' && Math.random() < 0.10) nightWorkers.push(u);
+    else if (u.persona === 'manager_busy' && Math.random() < 0.15) nightWorkers.push(u);
+    else if (u.dept === 'Datacentrum' && Math.random() < 0.30) nightWorkers.push(u);
+    else if (u.dept === 'IT podpora' && Math.random() < 0.20) nightWorkers.push(u);
+    else if (Math.random() < 0.005) nightWorkers.push(u); // 0.5 % random
+  }
+
+  const today = floorToDay(new Date());
+  const rows: Prisma.ActivityIntervalCreateManyInput[] = [];
+  for (const u of nightWorkers) {
+    const last = u.siteBase.split('.')[1];
+    const clientIp = `${u.siteBase}.${last}.${rnd(254) + 1}`;
+    const isCheater = u.persona.startsWith('cheater');
+    // Cheateři: každý den 6 nočních intervalů (22:00-23:30)
+    // Ostatní: jen 2-5 dnů za měsíc, kratší
+    const nightDays = isCheater ? 25 : 2 + rnd(4);
+    for (let dayBack = 1; dayBack <= nightDays; dayBack++) {
+      const dayStart = addDays(today, -dayBack);
+      const lp = localParts(dayStart);
+      // Cheater: 22:00-23:45 = 8 intervalů; Workaholic: 21:00-23:00 = 8 int.
+      const startHour = isCheater ? 22 : 21;
+      const intervalCount = isCheater ? 6 : 4 + rnd(4);
+      for (let i = 0; i < intervalCount; i++) {
+        const hour = startHour + Math.floor(i / 4);
+        const min = (i % 4) * 15;
+        if (hour > 23) break;
+        const intervalStart = zonedToUtc(lp.year, lp.month, lp.day, hour, min);
+        const app = isCheater
+          ? (u.persona === 'cheater_mouse' ? 'chrome.exe' : 'winword.exe')
+          : pick(['outlook.exe', 'excel.exe', 'teams.exe', 'code.exe']);
+        rows.push({
+          userId: u.id, deviceId: u.deviceId,
+          intervalStart, intervalSeconds: 900,
+          activeSeconds: isCheater ? 900 : 500 + rnd(300),
+          idleSeconds: isCheater ? 0 : 100 + rnd(300),
+          foregroundApp: app, windowTitle: isCheater ? 'YouTube' : null,
+          sessionLocked: false, monitorCount: u.monitors, clientIp,
+          keystrokeCount: isCheater && app === 'winword.exe' ? 2700 + rnd(120) : 400 + rnd(800),
+          mouseEvents: isCheater && app === 'chrome.exe' ? 780 + rnd(80) : 100 + rnd(300),
+          typingMs: isCheater ? 900_000 : 200_000 + rnd(400_000),
+          typingKeystrokeCount: isCheater && app === 'winword.exe' ? 2700 + rnd(120) : 400 + rnd(800),
+        });
+      }
+    }
+  }
+  for (let i = 0; i < rows.length; i += 500) {
+    await prisma.activityInterval.createMany({ data: rows.slice(i, i + 500) });
+  }
+  console.log(`Demo after-hours: ${nightWorkers.length} uživatelů s ${rows.length} nočními intervaly.`);
 }
 
 main()

@@ -781,6 +781,8 @@ export const sk: typeof cs = {
     labelKeyboardWeight: 'Predmet na klávesnici / simulátor klávesov',
     labelNoAppSwitch: 'Bez prepínania aplikácií',
     labelRoboticRegularity: 'Roboticky pravidelný vzor',
+    labelPiratedSoftware: 'Pirátsky softvér',
+    labelAfterHours: 'Aktivita mimo pracovný čas',
   },
   calendar: {
     activeTotal: 'Aktívne celkom',
@@ -827,6 +829,8 @@ export const sk: typeof cs = {
     labelKeyboardWeight: 'Predmet na klávesnici / simulátor klávesov',
     labelNoAppSwitch: 'Bez prepínania aplikácií',
     labelRoboticRegularity: 'Roboticky pravidelný vzor',
+    labelPiratedSoftware: 'Pirátsky softvér',
+    labelAfterHours: 'Aktivita mimo pracovný čas',
   },
   emptyState: {
     noData: 'Žiadne dáta',

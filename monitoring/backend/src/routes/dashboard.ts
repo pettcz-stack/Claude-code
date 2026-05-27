@@ -40,7 +40,7 @@ dashboardRouter.get('/heatmap', async (req, res) => {
   const dept = await resolveDept(req, res, department);
   if (dept === null) return;
   if (userId && !(await assertCanSeeUser(req, res, userId))) return;
-  res.json(await heatmap(new Date(from), new Date(to), dept, userId));
+  res.json(await cq.heatmap(from, to, dept, userId));
 });
 
 /** Audit softwaru / licencí (využití aplikací + nevyužité placené licence). */
@@ -138,7 +138,7 @@ dashboardRouter.get('/alerts', async (req, res) => {
   const { from, to, department } = parsed.data;
   const dept = await resolveDept(req, res, department);
   if (dept === null) return;
-  res.json({ alerts: await detectAlerts(new Date(from), new Date(to), dept) });
+  res.json({ alerts: await cq.alerts(from, to, dept) });
 });
 
 /** Denní trend skóre (uživatel nebo firma). */

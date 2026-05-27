@@ -781,6 +781,8 @@ export const de: typeof cs = {
     labelKeyboardWeight: 'Gegenstand auf Tastatur / Tastensimulator',
     labelNoAppSwitch: 'Kein Anwendungswechsel',
     labelRoboticRegularity: 'Roboterhaft regelmäßiges Muster',
+    labelPiratedSoftware: 'Raubkopie / unlizenzierte Software',
+    labelAfterHours: 'Aktivität außerhalb der Arbeitszeit',
   },
   calendar: {
     activeTotal: 'Aktiv insgesamt',
@@ -827,6 +829,8 @@ export const de: typeof cs = {
     labelKeyboardWeight: 'Gegenstand auf Tastatur / Tastensimulator',
     labelNoAppSwitch: 'Kein Anwendungswechsel',
     labelRoboticRegularity: 'Roboterhaft regelmäßiges Muster',
+    labelPiratedSoftware: 'Raubkopie / unlizenzierte Software',
+    labelAfterHours: 'Aktivität außerhalb der Arbeitszeit',
   },
   emptyState: {
     noData: 'Keine Daten',

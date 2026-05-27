@@ -781,6 +781,8 @@ export const pl: typeof cs = {
     labelKeyboardWeight: 'Przedmiot na klawiaturze / symulator klawiszy',
     labelNoAppSwitch: 'Brak przełączania aplikacji',
     labelRoboticRegularity: 'Robotyczny regularny wzorzec',
+    labelPiratedSoftware: 'Pirackie oprogramowanie',
+    labelAfterHours: 'Aktywność po godzinach pracy',
   },
   calendar: {
     activeTotal: 'Łącznie aktywny',
@@ -827,6 +829,8 @@ export const pl: typeof cs = {
     labelKeyboardWeight: 'Przedmiot na klawiaturze / symulator klawiszy',
     labelNoAppSwitch: 'Brak przełączania aplikacji',
     labelRoboticRegularity: 'Robotyczny regularny wzorzec',
+    labelPiratedSoftware: 'Pirackie oprogramowanie',
+    labelAfterHours: 'Aktywność po godzinach pracy',
   },
   emptyState: {
     noData: 'Brak danych',

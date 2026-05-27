@@ -15,6 +15,8 @@ export function IntegrityPanel({ userId, from, to }: { userId: string; from: str
       KEYBOARD_WEIGHT: t('integrity.labelKeyboardWeight'),
       NO_APP_SWITCH: t('integrity.labelNoAppSwitch'),
       ROBOTIC_REGULARITY: t('integrity.labelRoboticRegularity'),
+      PIRATED_SOFTWARE: t('integrity.labelPiratedSoftware'),
+      AFTER_HOURS_ACTIVITY: t('integrity.labelAfterHours'),
     };
     return map[type] ?? type;
   };

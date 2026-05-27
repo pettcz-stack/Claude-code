@@ -55,6 +55,7 @@ async function warmCache(): Promise<void> {
     await Promise.allSettled([
       cq.overview(from, to), cq.scoreboard(from, to), cq.monitors(from, to),
       cq.software(from, to), cq.homeoffice(from, to), cq.trend(from, to), cq.topact(from, to),
+      cq.alerts(from, to), cq.heatmap(from, to),
     ]);
     // eslint-disable-next-line no-console
     console.log('Cache předehřátá (výchozí období).');

@@ -1,6 +1,7 @@
 import { memo } from './cache.js';
-import { overview, monitorsComparison, softwareAudit, costAudit, homeOffice, selfReport, trend, topActivities } from './analytics.js';
+import { overview, monitorsComparison, softwareAudit, costAudit, homeOffice, selfReport, trend, topActivities, heatmap } from './analytics.js';
 import { scoreboardRows } from './scoring.js';
+import { detectAlerts } from './integrity.js';
 import { deptCacheKey } from './accessControl.js';
 
 // Klíče cache se normalizují na DATUM (období je vždy zarovnané na dny), takže
@@ -32,4 +33,8 @@ export const cq = {
     memo(`topact:${d(from)}:${d(to)}:${userId ?? ''}:${k(dept)}`, () => topActivities(new Date(from), new Date(to), userId, dept)),
   selfreport: (userId: string, from: string, to: string) =>
     memo(`selfreport:${userId}:${d(from)}:${d(to)}`, () => selfReport(userId, new Date(from), new Date(to))),
+  alerts: (from: string, to: string, dept?: Dept) =>
+    memo(`alerts:${d(from)}:${d(to)}:${k(dept)}`, () => detectAlerts(new Date(from), new Date(to), dept)),
+  heatmap: (from: string, to: string, dept?: Dept, userId?: string) =>
+    memo(`heatmap:${d(from)}:${d(to)}:${k(dept)}:${userId ?? ''}`, () => heatmap(new Date(from), new Date(to), dept, userId)),
 };

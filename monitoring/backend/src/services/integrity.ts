@@ -3,7 +3,8 @@ import { demoUserWhere } from './demoFilter.js';
 import { deptWhere } from './accessControl.js';
 
 export type IntegrityFlag = {
-  type: 'MOUSE_JIGGLER' | 'KEYBOARD_WEIGHT' | 'NO_APP_SWITCH' | 'ROBOTIC_REGULARITY';
+  type: 'MOUSE_JIGGLER' | 'KEYBOARD_WEIGHT' | 'NO_APP_SWITCH' | 'ROBOTIC_REGULARITY'
+      | 'PIRATED_SOFTWARE' | 'AFTER_HOURS_ACTIVITY';
   severity: 'high' | 'medium';
   detail: string;
   affectedMinutes: number;
@@ -119,12 +120,9 @@ export async function detectAlerts(from: Date, to: Date, department?: string | s
   });
   if (users.length === 0) return [];
 
-  // Optimalizace: místo 1991 sekvenčních findMany volání (= 1991 SQLite roundtripů)
-  // načteme všechny intervaly za období jedním dotazem a v JS rozdělíme per-user.
-  // Pro 1991 uživatelů × 72 h × ~32 intervalů/h ~ 4.5M intervalů — moc pro paměť.
-  // Filtrujeme přímo v SQL na active >= 30 (matchuje filtr v computeIntegrity)
-  // a ořeže to na ~10-20% intervalů.
   const userIdSet = new Set(users.map((u) => u.id));
+
+  // 1) Bulk-load všech aktivních intervalů (pro mouse jiggler / keyboard bot / app switching)
   const intervals = await prisma.activityInterval.findMany({
     where: {
       userId: { in: users.map((u) => u.id) },
@@ -143,10 +141,84 @@ export async function detectAlerts(from: Date, to: Date, department?: string | s
     arr.push(r);
   }
 
+  // 2) Bulk-load pirátského SW použití (per-user součet active minutes na "Pirátský software")
+  const piratedApps = await prisma.appCategory.findMany({
+    where: { category: 'Pirátský software' },
+    select: { appName: true },
+  });
+  const piratedSet = new Set(piratedApps.map((a) => a.appName));
+  const piratedByUser = new Map<string, { minutes: number; apps: Set<string> }>();
+  if (piratedSet.size > 0) {
+    const piratedIntervals = await prisma.activityInterval.findMany({
+      where: {
+        userId: { in: users.map((u) => u.id) },
+        intervalStart: { gte: from, lt: to },
+        foregroundApp: { in: [...piratedSet] },
+      },
+      select: { userId: true, activeSeconds: true, foregroundApp: true },
+    });
+    for (const r of piratedIntervals) {
+      if (!r.foregroundApp) continue;
+      let info = piratedByUser.get(r.userId);
+      if (!info) { info = { minutes: 0, apps: new Set() }; piratedByUser.set(r.userId, info); }
+      info.minutes += r.activeSeconds / 60;
+      info.apps.add(r.foregroundApp);
+    }
+  }
+
+  // 3) Bulk-load after-hours aktivity (22:00 - 05:00 místního času) – přibližně přes UTC hodinu.
+  // Europe/Prague je UTC+1/+2, tj. 22:00 lokálně = ~20:00-21:00 UTC. Pro detekci stačí hrubě.
+  const afterHoursByUser = new Map<string, { minutes: number; nights: Set<string> }>();
+  const afterHoursIntervals = await prisma.activityInterval.findMany({
+    where: {
+      userId: { in: users.map((u) => u.id) },
+      intervalStart: { gte: from, lt: to },
+      activeSeconds: { gte: 30 },
+    },
+    select: { userId: true, activeSeconds: true, intervalStart: true },
+  });
+  for (const r of afterHoursIntervals) {
+    const localHour = (r.intervalStart.getUTCHours() + 2) % 24; // CET/CEST hrubý odhad
+    if (localHour >= 21 || localHour < 5) {
+      let info = afterHoursByUser.get(r.userId);
+      if (!info) { info = { minutes: 0, nights: new Set() }; afterHoursByUser.set(r.userId, info); }
+      info.minutes += r.activeSeconds / 60;
+      info.nights.add(r.intervalStart.toISOString().slice(0, 10));
+    }
+  }
+
   const alerts = [];
   for (const u of users) {
     const active = byUser.get(u.id) ?? [];
     const r = computeIntegrityFromIntervals(u.id, active);
+
+    // PIRATED_SOFTWARE flag — > 30 min nelicencovaného SW = high
+    const pir = piratedByUser.get(u.id);
+    if (pir && pir.minutes >= 30) {
+      const sev: 'high' | 'medium' = pir.minutes >= 120 ? 'high' : 'medium';
+      const apps = [...pir.apps].slice(0, 4).join(', ');
+      r.flags.push({
+        type: 'PIRATED_SOFTWARE',
+        severity: sev,
+        detail: `Použití nelicencovaného / pirátského software (${Math.round(pir.minutes)} min): ${apps}${pir.apps.size > 4 ? ' …' : ''}. Bezpečnostní a právní riziko – malware, audit licencí, GDPR.`,
+        affectedMinutes: Math.round(pir.minutes),
+      });
+      r.riskScore = Math.min(100, r.riskScore + (sev === 'high' ? 70 : 35));
+      if (sev === 'high') r.suspicious = true;
+    }
+
+    // AFTER_HOURS_ACTIVITY — > 4 noci za období s aktivitou po 21:00 = medium
+    const ah = afterHoursByUser.get(u.id);
+    if (ah && ah.nights.size >= 4 && ah.minutes >= 60) {
+      r.flags.push({
+        type: 'AFTER_HOURS_ACTIVITY',
+        severity: 'medium',
+        detail: `Aktivita mimo pracovní dobu: ${ah.nights.size} nocí, celkem ${Math.round(ah.minutes)} min po 21:00. Může jít o workaholic, ale i o data exfil nebo bota běžícího po směně.`,
+        affectedMinutes: Math.round(ah.minutes),
+      });
+      r.riskScore = Math.min(100, r.riskScore + 20);
+    }
+
     if (r.flags.length > 0) {
       alerts.push({ userId: u.id, displayName: u.displayName, department: u.department, riskScore: r.riskScore, suspicious: r.suspicious, flags: r.flags });
     }

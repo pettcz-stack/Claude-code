@@ -254,6 +254,12 @@ export async function aggregateAllFast(): Promise<{ users: number; hours: number
   const sites = await getSites();
   const deptRules = await getDeptRules();
 
+  // Set pirátských app pro flag suspicious=true při výskytu (audit důležitost).
+  const piratedApps = new Set(
+    (await prisma.appCategory.findMany({ where: { category: 'Pirátský software' }, select: { appName: true } }))
+      .map((a) => a.appName),
+  );
+
   // Wipe staré agregáty (full rebuild).
   await prisma.activityHourly.deleteMany({});
   await prisma.dailyStat.deleteMany({});
@@ -394,11 +400,16 @@ export async function aggregateAllFast(): Promise<{ users: number; hours: number
       let site: string | null = null, sb = -1; for (const [c, m] of d.locMin) if (m > sb) { sb = m; site = c || null; }
       const dayActive = dayActiveMap.get(d.day.getTime()) ?? [];
       const integ = computeIntegrityFromIntervals(u.id, dayActive);
+      // Pirátské použití per den (≥ 30 min) také značí suspicious – ať se ukáže v overview "podezření" countu.
+      const piratedMinThisDay = dayActive
+        .filter((it) => it.foregroundApp && piratedApps.has(it.foregroundApp))
+        .reduce((s, it) => s + it.activeSeconds / 60, 0);
+      const suspicious = integ.suspicious || piratedMinThisDay >= 30;
       dailyRows.push({
         userId: u.id, date: d.day,
         workMin: d.work, nonWorkMin: d.nonwork, idleMin: d.idle, unknownMin: d.unknown,
         keystroke: d.keystroke, typingMs: d.typingMs, typingKeystrokeCount: d.typingKs,
-        monitorTop, multiMonitorMin: d.multiMon, domWorkCat, site, suspicious: integ.suspicious,
+        monitorTop, multiMonitorMin: d.multiMon, domWorkCat, site, suspicious,
       });
       for (const [label, a] of d.appAgg) dailyAppRows.push({ userId: u.id, date: d.day, kind: 'APP', label, category: a.category, type: a.type, activeMin: a.min });
       for (const [label, a] of d.siteAgg) dailyAppRows.push({ userId: u.id, date: d.day, kind: 'SITE', label, category: a.category, type: a.type, activeMin: a.min });

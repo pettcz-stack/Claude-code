@@ -15,6 +15,8 @@ export function AlertsView({ from, to, department, onOpenUser }: { from: string;
       KEYBOARD_WEIGHT: t('alerts.labelKeyboardWeight'),
       NO_APP_SWITCH: t('alerts.labelNoAppSwitch'),
       ROBOTIC_REGULARITY: t('alerts.labelRoboticRegularity'),
+      PIRATED_SOFTWARE: t('alerts.labelPiratedSoftware'),
+      AFTER_HOURS_ACTIVITY: t('alerts.labelAfterHours'),
     };
     return map[type] ?? type;
   };
