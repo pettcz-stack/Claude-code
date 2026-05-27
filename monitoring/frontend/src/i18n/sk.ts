@@ -987,6 +987,8 @@ export const sk: typeof cs = {
   categoryAdmin: {
     clickToReclassify: 'Klikni pre zmenu typu (Práca / Zábava / Neutrálne / Nezaradené)',
     saved: '„{name}" → {type}',
+    browserByWeb: 'podľa webu',
+    browserTypeTooltip: 'Prehliadač sa klasifikuje podľa navštívených webov (záložka Weby nižšie), nie ako jedna aplikácia.',
     batchLabel: 'Dávková klasifikácia:',
     exportBtn: 'Export nezaradených',
     importBtn: 'Import zaradenia',

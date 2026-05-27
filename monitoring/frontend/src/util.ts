@@ -95,6 +95,22 @@ export function shortDay(isoDate: string): string {
   return `${d.getDate()}.${d.getMonth() + 1}.`;
 }
 
+/**
+ * Detekce prohlížeče (Windows .exe i macOS jména). Klasifikace prohlížečů je
+ * dána pravidly pro weby (záložka „Weby"), ne podle aplikace samotné, takže
+ * UI pro tyhle položky skrývá / blokuje výběr typu.
+ */
+const BROWSER_APPS = new Set([
+  // Windows
+  'chrome.exe', 'msedge.exe', 'firefox.exe', 'iexplore.exe', 'opera.exe', 'brave.exe', 'vivaldi.exe',
+  // macOS (NSWorkspace.localizedName)
+  'google chrome', 'chrome', 'safari', 'firefox', 'microsoft edge', 'arc',
+  'brave browser', 'opera', 'vivaldi', 'chromium',
+]);
+export function isBrowser(app: string | null | undefined): boolean {
+  return !!app && BROWSER_APPS.has(app.toLowerCase());
+}
+
 /** Zkratka dne v týdnu (Po–Ne) z YYYY-MM-DD (UTC). */
 export function dowShort(isoDate: string): string {
   const d = new Date(isoDate + 'T00:00:00Z');

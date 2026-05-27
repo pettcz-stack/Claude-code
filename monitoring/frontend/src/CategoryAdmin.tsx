@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, Download, Upload } from 'lucide-react';
+import { Plus, Trash2, Download, Upload, Globe } from 'lucide-react';
 import { api, type AppCategoryRow, type WebRuleRow, type DeptRuleRow } from './api.js';
-import { typeLabel } from './util.js';
+import { typeLabel, isBrowser } from './util.js';
 import { useToast } from './Toast.js';
 import { useT } from './i18n/index.js';
 import { TypePicker } from './TypePicker.js';
@@ -84,15 +84,28 @@ export function CategoryAdmin({ canEdit, from, to }: { canEdit: boolean; from: s
                   <td className="td font-mono text-xs">{c.appName}</td>
                   <td className="td">{c.category}</td>
                   <td className="td">
-                    <TypePicker
-                      value={c.type}
-                      canEdit={canEdit}
-                      onSave={async (newType) => {
-                        await api.saveCategory({ appName: c.appName, category: c.category, type: newType });
-                        toast(t('categoryAdmin.saved', { name: c.appName, type: typeLabel(newType) }));
-                        load();
-                      }}
-                    />
+                    {isBrowser(c.appName) ? (
+                      <span
+                        title={t('categoryAdmin.browserTypeTooltip')}
+                        className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-xs muted dark:bg-sky-500/10"
+                      >
+                        <Globe size={11} /> {t('categoryAdmin.browserByWeb')}
+                      </span>
+                    ) : (
+                      <TypePicker
+                        value={c.type}
+                        canEdit={canEdit}
+                        onSave={async (newType) => {
+                          try {
+                            await api.saveCategory({ appName: c.appName, category: c.category || 'Ostatní', type: newType });
+                            toast(t('categoryAdmin.saved', { name: c.appName, type: typeLabel(newType) }));
+                          } catch (err) {
+                            toast(`${t('common.error')}: ${err instanceof Error ? err.message : ''}`, 'error');
+                          }
+                          load();
+                        }}
+                      />
+                    )}
                   </td>
                   {canEdit && <td className="td text-right"><button onClick={async () => { await api.deleteCategory(c.appName); load(); }} className="muted-2 hover:text-red-500"><Trash2 size={15} /></button></td>}
                 </tr>
@@ -134,8 +147,12 @@ export function CategoryAdmin({ canEdit, from, to }: { canEdit: boolean; from: s
                       value={r.type}
                       canEdit={canEdit}
                       onSave={async (newType) => {
-                        await api.saveWebRule({ keyword: r.keyword, category: r.category, type: newType });
-                        toast(t('categoryAdmin.saved', { name: r.keyword, type: typeLabel(newType) }));
+                        try {
+                          await api.saveWebRule({ keyword: r.keyword, category: r.category || 'Ostatní', type: newType });
+                          toast(t('categoryAdmin.saved', { name: r.keyword, type: typeLabel(newType) }));
+                        } catch (err) {
+                          toast(`${t('common.error')}: ${err instanceof Error ? err.message : ''}`, 'error');
+                        }
                         load();
                       }}
                     />
@@ -181,8 +198,12 @@ export function CategoryAdmin({ canEdit, from, to }: { canEdit: boolean; from: s
                       value={r.type}
                       canEdit={canEdit}
                       onSave={async (newType) => {
-                        await api.saveDeptRule({ department: r.department, category: r.category, type: newType });
-                        toast(t('categoryAdmin.saved', { name: r.department, type: typeLabel(newType) }));
+                        try {
+                          await api.saveDeptRule({ department: r.department, category: r.category || 'Ostatní', type: newType });
+                          toast(t('categoryAdmin.saved', { name: r.department, type: typeLabel(newType) }));
+                        } catch (err) {
+                          toast(`${t('common.error')}: ${err instanceof Error ? err.message : ''}`, 'error');
+                        }
                         load();
                       }}
                     />

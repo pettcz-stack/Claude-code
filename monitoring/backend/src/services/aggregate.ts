@@ -5,6 +5,7 @@ import { computeIntegrity } from './integrity.js';
 import { getSites, resolveSite } from './sites.js';
 import { getDeptRules } from './deptrules.js';
 import { floorToDay as tzFloorToDay, floorToHour as tzFloorToHour, addDays } from './tz.js';
+import { isBrowser, extractSiteLabel } from './domain.js';
 
 /** Zarovná čas na začátek hodiny (místní čas, Europe/Prague). */
 export function floorToHour(d: Date): Date {
@@ -57,7 +58,9 @@ export async function aggregateDays(pairs: { userId: string; day: Date }[]): Pro
     type AppAgg = { category: string; type: string; min: number };
     const appAgg = new Map<string, AppAgg>();
     const siteAgg = new Map<string, AppAgg>();
-    const BROWSERS = new Set(['chrome.exe', 'msedge.exe', 'firefox.exe']);
+    // Browser detekce a "site label" extrahce viz services/domain.ts –
+    // pokrývá Windows .exe i macOS jména ("Google Chrome", "Safari"), label
+    // se snaží redukovat na doménu, jinak fallback na titulek (zkrácený).
     for (const it of intervals) {
       const aMin = it.activeSeconds / 60;
       idle += it.idleSeconds / 60;
@@ -77,9 +80,12 @@ export async function aggregateDays(pairs: { userId: string; day: Date }[]): Pro
       if (it.foregroundApp) {
         const a = appAgg.get(it.foregroundApp) ?? { category: info.category, type: info.type, min: 0 };
         a.min += aMin; appAgg.set(it.foregroundApp, a);
-        if (BROWSERS.has(it.foregroundApp) && it.windowTitle) {
-          const s = siteAgg.get(it.windowTitle) ?? { category: info.category, type: info.type, min: 0 };
-          s.min += aMin; siteAgg.set(it.windowTitle, s);
+        if (isBrowser(it.foregroundApp)) {
+          const label = extractSiteLabel(it.foregroundApp, it.windowTitle);
+          if (label) {
+            const s = siteAgg.get(label) ?? { category: info.category, type: info.type, min: 0 };
+            s.min += aMin; siteAgg.set(label, s);
+          }
         }
       }
     }

@@ -987,6 +987,8 @@ export const en: typeof cs = {
   categoryAdmin: {
     clickToReclassify: 'Click to change type (Work / Fun / Neutral / Unclassified)',
     saved: '"{name}" → {type}',
+    browserByWeb: 'by site',
+    browserTypeTooltip: 'Browsers are classified by visited sites (Web rules below), not as one app.',
     batchLabel: 'Batch classification:',
     exportBtn: 'Export unclassified',
     importBtn: 'Import classification',

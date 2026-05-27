@@ -373,18 +373,18 @@ export default function App() {
           {tab === 'overview' && <OverviewView from={from} to={to} department={department || undefined} dark={dark} onOpenUser={(id) => { setUserId(id); setTab('detail'); }} />}
           {tab === 'homeoffice' && <HomeOfficeView from={from} to={to} department={department || undefined} onOpenUser={(id) => { setUserId(id); setTab('detail'); }} />}
           {tab === 'selfreport' && selectedUser && <SelfReportView user={selectedUser} from={from} to={to} />}
-          {tab === 'detail' && selectedUser && <DetailView user={selectedUser} from={from} to={to} dark={dark} canEdit={me.role === 'ADMIN'} />}
+          {tab === 'detail' && selectedUser && <DetailView user={selectedUser} from={from} to={to} dark={dark} />}
           {tab === 'scoreboard' && <Scoreboard from={from} to={to} department={department || undefined} />}
           {tab === 'alerts' && <AlertsView from={from} to={to} department={department || undefined} onOpenUser={(id) => { setUserId(id); setTab('detail'); }} />}
           {tab === 'trends' && (
             <div className="space-y-4">
               <TrendChart from={from} to={to} department={department || undefined} dark={dark} />
-              <TopActivities from={from} to={to} department={department || undefined} canEdit={me.role === 'ADMIN'} />
+              <TopActivities from={from} to={to} department={department || undefined} />
             </div>
           )}
           {tab === 'apps' && (
             <div className="space-y-4">
-              <TopActivities from={from} to={to} department={department || undefined} canEdit={me.role === 'ADMIN'} />
+              <TopActivities from={from} to={to} department={department || undefined} />
               <CategoryAdmin canEdit={me.role === 'ADMIN'} from={from} to={to} />
             </div>
           )}

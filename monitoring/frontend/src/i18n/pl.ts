@@ -987,6 +987,8 @@ export const pl: typeof cs = {
   categoryAdmin: {
     clickToReclassify: 'Kliknij, aby zmienić typ (Praca / Rozrywka / Neutralne / Niesklasyfikowane)',
     saved: '„{name}" → {type}',
+    browserByWeb: 'wg strony',
+    browserTypeTooltip: 'Przeglądarki są klasyfikowane wg odwiedzonych stron (zakładka Strony poniżej), nie jako jedna aplikacja.',
     batchLabel: 'Klasyfikacja zbiorcza:',
     exportBtn: 'Eksportuj niesklasyfikowane',
     importBtn: 'Importuj klasyfikację',

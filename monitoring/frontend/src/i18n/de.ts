@@ -987,6 +987,8 @@ export const de: typeof cs = {
   categoryAdmin: {
     clickToReclassify: 'Klick zum Typ ändern (Arbeit / Freizeit / Neutral / Nicht klassifiziert)',
     saved: '„{name}" → {type}',
+    browserByWeb: 'nach Website',
+    browserTypeTooltip: 'Browser werden nach besuchten Seiten klassifiziert (Tab Webseiten unten), nicht als einzelne App.',
     batchLabel: 'Stapel-Klassifizierung:',
     exportBtn: 'Nicht klassifizierte exportieren',
     importBtn: 'Klassifizierung importieren',

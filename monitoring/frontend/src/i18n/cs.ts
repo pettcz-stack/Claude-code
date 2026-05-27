@@ -993,6 +993,8 @@ export const cs = {
   categoryAdmin: {
     clickToReclassify: 'Klikni pro změnu typu (Práce / Zábava / Neutrální / Nezařazeno)',
     saved: '„{name}" → {type}',
+    browserByWeb: 'podle webu',
+    browserTypeTooltip: 'Prohlížeč se klasifikuje podle navštívených webů (záložka Weby níže), ne jako jedna aplikace.',
     batchLabel: 'Dávková klasifikace:',
     exportBtn: 'Export nezařazených',
     importBtn: 'Import zařazení',
