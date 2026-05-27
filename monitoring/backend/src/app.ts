@@ -13,6 +13,7 @@ import { dashboardRouter } from './routes/dashboard.js';
 import { exportRouter } from './routes/export.js';
 import { adminRouter } from './routes/admin.js';
 import { pushEvent } from './services/eventLog.js';
+import { httpRequests, httpErrors, observeResponseTime, renderMetrics } from './services/metrics.js';
 import { selfRouter } from './routes/self.js';
 import { requireAuth, login, destroySession, readSessionToken, SESSION_COOKIE } from './auth.js';
 
@@ -53,10 +54,13 @@ export function createApp() {
   // HTTP access log – píše do stdout (`docker logs`) a chyby (4xx/5xx) navíc
   // do in-memory event logu pro „Diagnostický log" v Nastavení.
   app.use((req, res, next) => {
-    if (req.path === '/api/v1/health') return next();
+    if (req.path === '/api/v1/health' || req.path === '/api/v1/metrics') return next();
     const t0 = Date.now();
     res.on('finish', () => {
       const ms = Date.now() - t0;
+      observeResponseTime(ms);
+      httpRequests.inc();
+      if (res.statusCode >= 400) httpErrors.inc();
       const dev = (req.body && req.body.device && req.body.device.machineId) || '-';
       const line = `${req.method} ${req.path} ${res.statusCode} ${ms}ms dev=${dev}`;
       // eslint-disable-next-line no-console
@@ -77,6 +81,18 @@ export function createApp() {
       res.json({ status: 'ok', db: 'up' });
     } catch {
       res.status(503).json({ status: 'degraded', db: 'down' });
+    }
+  });
+
+  // Prometheus-style metrics. Žádná auth – záměrně (scrape by Prom server),
+  // ALE musí být v privátní síti / blokované na reverse proxy pro externí
+  // přístup. Doporučená caddy konfigurace v DEPLOY.md.
+  app.get('/api/v1/metrics', async (_req, res) => {
+    try {
+      res.setHeader('Content-Type', 'text/plain; version=0.0.4');
+      res.send(await renderMetrics());
+    } catch {
+      res.status(500).send('# metrics_unavailable\n');
     }
   });
 
