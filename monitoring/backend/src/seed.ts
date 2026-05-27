@@ -24,6 +24,7 @@ import { saveSettings } from './services/settings.js';
 import { ensureDemoDeviceHealth } from './services/healthDemo.js';
 import { hashPassword } from './auth.js';
 import { floorToDay, addDays, localParts, localDow, zonedToUtc } from './services/tz.js';
+import { isCzHoliday } from './services/workcal.js';
 
 // ─── Firma: 1991 zaměstnanců ────────────────────────────────────────────────
 //
@@ -200,14 +201,35 @@ type Persona =
   | 'slacker' | 'ghost' | 'absent_frequent' | 'sales_road' | 'manager_busy'
   | 'cheater_mouse' | 'cheater_keyboard' | 'cheater_subtle';
 
+/**
+ * Pokles efektivity při home office, kalibrovaný dle reálných výzkumů:
+ *  - Stanford Bloom (2015): +13 % u call centra
+ *  - McKinsey (2020): −20 % brzy po pandemii, postupně narovnal
+ *  - ActivTrak benchmark (2023): průměr −8 % active time u hybrid pracovníků
+ *  - Microsoft WTI (2023): coordination work down, focus work neutral
+ *
+ * Reálná čísla závisí silně na typu zaměstnance. Některé persony doma vykvetou
+ * (focus), jiné selhávají kvůli distrakcím (Netflix/PS5/lednice).
+ *
+ * Průměr napříč firmou cca −15-20 %, což odpovídá konsenzu z výzkumu.
+ */
 function hoDipFor(p: Persona): number {
-  if (p === 'slacker' || p === 'streamer' || p === 'gamer') return 0.25;
-  if (p === 'social_media') return 0.15;
-  if (p.startsWith('cheater')) return 0;
-  if (p === 'top') return 0.03;
-  if (p === 'sales_road') return 0.20;
-  if (p === 'manager_busy') return 0.10;
-  return 0.08;
+  switch (p) {
+    case 'top':             return 0.08;  // workaholic, doma stejně válí
+    case 'normal':          return 0.18;  // průměrný dip dle ActivTrak/McKinsey
+    case 'chatty':          return 0.22;  // doma málo Teams meetingů = focus, ale i méně práce
+    case 'social_media':    return 0.30;  // doma víc distrakcí (FB/Insta na telefonu)
+    case 'streamer':        return 0.42;  // doma Netflix na velký TV
+    case 'slacker':         return 0.45;  // doma si dovolí ještě víc
+    case 'gamer':           return 0.55;  // PS5/Xbox přímo vedle
+    case 'ghost':           return 0.05;  // skoro nepoužívá PC tak jako tak
+    case 'absent_frequent': return 0.22;
+    case 'sales_road':      return 0.10;  // pořád telefonuje, prostředí jedno
+    case 'manager_busy':    return 0.15;  // meetingy probíhají stejně
+    case 'cheater_mouse':
+    case 'cheater_keyboard':
+    case 'cheater_subtle':  return 0;     // strojový vzor je nepřerušitelný
+  }
 }
 
 /**
@@ -630,42 +652,75 @@ async function main() {
     const absenceMap = new Map<number, 'NEMOC' | 'DOVOLENA' | 'HOME_OFFICE'>();
     for (const a of planAbsences(c)) absenceMap.set(a.day, a.type);
 
+    // Víkendová aktivita: persony která reálně pracují o víkendu (call duty,
+    // sales follow-up, IT incidenty, workaholici). Cca 6 % pracovní síly typicky.
+    // Saturday = 4× častěji než Sunday (Sunday je opravdu málokdo).
+    const weekendWorker = (() => {
+      // Definuj kdo má víkendovou aktivitu
+      if (c.persona === 'cheater_mouse' || c.persona === 'cheater_keyboard') return true; // boti jedou pořád
+      if (c.dept === 'Zákaznický servis' && rng() < 0.20) return true;  // 20 % zákaznického servisu
+      if (c.dept === 'IT podpora' && rng() < 0.30) return true;          // 30 % IT supportu (on-call)
+      if (c.dept === 'Datacentrum' && rng() < 0.40) return true;
+      if (c.dept.startsWith('Obchod') && rng() < 0.10) return true;     // 10 % obchodníků
+      if (c.persona === 'top' && rng() < 0.15) return true;              // 15 % top performerů (workaholic)
+      if (c.persona === 'manager_busy' && rng() < 0.25) return true;     // 25 % manažerů občas dohání
+      return false;
+    })();
+
     for (let dayBack = 0; dayBack < 30; dayBack++) {
       const dayStart = addDays(today, -dayBack);
       const lp = localParts(dayStart);
       const dow = localDow(dayStart);
-      if (dow === 0 || dow === 6) continue; // víkend – bez intervalů
       const date = dayStart;
+
+      // Státní svátek (Po-Pá) → bez aktivity, žádný Absence record (svátky řeší isCzHoliday v scoring)
+      if (dow >= 1 && dow <= 5 && isCzHoliday(dayStart)) continue;
+
+      const isWeekend = dow === 0 || dow === 6;
+      if (isWeekend) {
+        if (!weekendWorker) continue;
+        // Sunday: jen 25 % šance i pro weekendWorkery (rodina, klid)
+        if (dow === 0 && Math.random() > 0.25) continue;
+        // Saturday: 60 % šance
+        if (dow === 6 && Math.random() > 0.60) continue;
+      }
 
       const plannedAbs = absenceMap.get(dayBack);
       if (plannedAbs === 'NEMOC' || plannedAbs === 'DOVOLENA') {
+        if (isWeekend) continue; // víkendovou nemoc/dovču neřešíme
         absences.push({ userId: c.id, date, type: plannedAbs, source: 'OKBASE' });
         continue;
       }
-      const isHO = plannedAbs === 'HOME_OFFICE';
+      const isHO = !isWeekend && plannedAbs === 'HOME_OFFICE';
       if (isHO) absences.push({ userId: c.id, date, type: 'HOME_OFFICE', source: 'OKBASE' });
 
-      // Per-day variance: každý člověk má dobré/špatné dny (hash userId+den)
+      // Per-day variance
       const dayMul = dayQualityHash(c.id, dayStart.getTime(), c.consistency);
-      // Friday dip (per-person)
-      const dowMul = dow === 5 ? c.fridayMul : dow === 1 ? 0.92 : 1.0;
-      // Cheater_subtle: cheatuje jen v pondělí a středu, jinak normální
+      // Den v týdnu multiplikátor:
+      //   víkend = velmi krátká aktivita (40 % škála, jen pár hodin)
+      //   pátek = fridayMul, pondělí lehký warmup
+      const dowMul = isWeekend ? 0.40 : dow === 5 ? c.fridayMul : dow === 1 ? 0.92 : 1.0;
+      // Cheater_subtle: cheatuje jen Po a St
       const cheatToday = c.persona === 'cheater_subtle' && (dow === 1 || dow === 3);
       const effectivePersona: Persona = c.persona === 'cheater_subtle' && !cheatToday ? 'normal' : c.persona;
 
-      // Pracovní okno per-person: 7-15, 8-16 nebo 9-17
-      const startH = c.startHour;
-      const endH = startH + 8;
-      // Lunch slot: 12:00 ± lunchOffset (15min granularita)
+      // Pracovní okno – o víkendu kratší (2-4 h místo 8 h)
+      let startH = c.startHour;
+      let endH = startH + 8;
+      if (isWeekend) {
+        // Víkendová aktivita: typicky 9-12 nebo 14-17 (3 hodiny, ne 8)
+        startH = Math.random() < 0.5 ? 9 : 14;
+        endH = startH + 3;
+      }
+      // Lunch slot
       const lunchStartHour = 12;
-      const lunchStartMin = c.lunchOffset; // -30, -15, 0, 15, 30
+      const lunchStartMin = c.lunchOffset;
       const lunchEndMin = lunchStartMin + 30;
 
       for (let hour = startH; hour < endH; hour++) {
         for (let min = 0; min < 60; min += 15) {
           const intervalStart = zonedToUtc(lp.year, lp.month, lp.day, hour, min);
-          // Lunch break: 30 min locked uprostřed dne
-          const isLunch = hour === lunchStartHour && min >= lunchStartMin && min < lunchEndMin;
+          const isLunch = !isWeekend && hour === lunchStartHour && min >= lunchStartMin && min < lunchEndMin;
           const row = makeRow(c, intervalStart, isHO, hour, min, dayMul * dowMul, effectivePersona, isLunch);
           if (row) batch.push(row);
           if (batch.length >= FLUSH_AT) {
