@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Mail, Save, MessageSquareWarning } from 'lucide-react';
+import { Mail, Save, MessageSquareWarning, Download, UserX } from 'lucide-react';
 import { api, type AdminUserRow, type AuditRow, type ClaimRow, type Device } from './api.js';
 
 export function AdminView({ role }: { role: string }) {
@@ -34,6 +34,23 @@ export function AdminView({ role }: { role: string }) {
   async function toggleDevice(d: Device) { await api.patchDevice(d.id, !d.active).catch((e) => setError(String(e))); loadAll(); }
   async function saveUser(u: AdminUserRow) { await api.patchUser(u.id, { displayName: u.displayName ?? '', department: u.department ?? '', active: u.active, hourlyRate: u.hourlyRate }).catch((e) => setError(String(e))); loadAll(); }
   function patchLocalUser(id: string, patch: Partial<AdminUserRow>) { setUsers((list) => list.map((u) => (u.id === id ? { ...u, ...patch } : u))); }
+  async function exportUser(u: AdminUserRow) {
+    try { await api.exportUser(u.id); } catch (e) { setError(String(e)); }
+  }
+  async function eraseUser(u: AdminUserRow) {
+    const confirmation = window.prompt(
+      `GDPR výmaz zaměstnance „${u.displayName ?? u.id}".\n\n` +
+      `Nevratně se smažou všechny intervaly, agregáty, absence a kalendář.\n` +
+      `Profil bude pseudonymizován. Audit přístupů zůstane (forenzní záznam).\n\n` +
+      `Pokud opravdu chceš výmaz provést, napiš slovo SMAZAT:`,
+    );
+    if (confirmation !== 'SMAZAT') return;
+    try {
+      const r = await api.eraseUser(u.id);
+      alert(`Hotovo. Smazáno: ${Object.entries(r.deleted).map(([k, v]) => `${k}=${v}`).join(', ')}`);
+      loadAll();
+    } catch (e) { setError(String(e)); }
+  }
 
   return (
     <div className="space-y-4">
@@ -84,7 +101,13 @@ export function AdminView({ role }: { role: string }) {
                   <td className="td"><input list="dept-list" value={u.department ?? ''} placeholder="vyber nebo napiš…" onChange={(e) => patchLocalUser(u.id, { department: e.target.value })} className="field w-full" /></td>
                   <td className="td"><input type="number" value={u.hourlyRate ?? ''} onChange={(e) => patchLocalUser(u.id, { hourlyRate: e.target.value ? Number(e.target.value) : null })} className="field w-24 text-right" /></td>
                   <td className="td"><input type="checkbox" checked={u.active} onChange={(e) => patchLocalUser(u.id, { active: e.target.checked })} /></td>
-                  <td className="td text-right"><button onClick={() => saveUser(u)} className="btn-ghost"><Save size={14} /> Uložit</button></td>
+                  <td className="td text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => saveUser(u)} className="btn-ghost" title="Uložit změny"><Save size={14} /> Uložit</button>
+                      <button onClick={() => exportUser(u)} className="btn-ghost" title="GDPR čl. 20 – stáhnout všechna data o zaměstnanci jako JSON"><Download size={14} /></button>
+                      <button onClick={() => eraseUser(u)} className="btn-ghost text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" title="GDPR čl. 17 – nevratně smazat všechna data zaměstnance"><UserX size={14} /></button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

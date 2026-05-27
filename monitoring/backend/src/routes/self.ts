@@ -7,6 +7,7 @@ import { requireIngestToken } from '../middleware/auth.js';
 import { getSettings } from '../services/settings.js';
 import { selfReport } from '../services/analytics.js';
 import { getTips } from '../services/tips.js';
+import { exportUserData } from '../services/userPrivacy.js';
 
 export const selfRouter = Router();
 
@@ -95,4 +96,22 @@ selfRouter.get('/audit', async (req, res) => {
     select: { id: true, adminIdentity: true, action: true, detail: true, createdAt: true },
   });
   res.json({ enabled: true, rows });
+});
+
+/**
+ * GDPR čl. 20 – self-service stažení všech mých dat.
+ * Token v Authorization: Bearer (stejně jako /report).
+ * Nevyžaduje povolení selfAuditEnabled – právo na přenositelnost je nezadatelné.
+ */
+selfRouter.get('/export', async (req, res) => {
+  const { employeeReportEnabled } = await getSettings();
+  if (!employeeReportEnabled) return void res.status(403).json({ error: 'disabled' });
+  const p = verify(extractSelfToken(req));
+  if (!p) return void res.status(401).json({ error: 'invalid_token' });
+  const user = await prisma.monitoredUser.findUnique({ where: { sid: p.sid }, select: { id: true } });
+  if (!user) return void res.status(404).json({ error: 'not_found' });
+  const data = await exportUserData(user.id);
+  if (!data) return void res.status(404).json({ error: 'not_found' });
+  res.setHeader('Content-Disposition', `attachment; filename="moje-data-focus.json"`);
+  res.json(data);
 });

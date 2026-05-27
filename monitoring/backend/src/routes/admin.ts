@@ -12,6 +12,8 @@ import { demoUserWhere, demoDeviceWhere } from '../services/demoFilter.js';
 import { listDeviceHealth, getDeviceHealthDetail } from '../services/health.js';
 import { recentEvents, clearEvents } from '../services/eventLog.js';
 import { getAgentLog } from '../services/agentLogStore.js';
+import { exportUserData, eraseUser } from '../services/userPrivacy.js';
+import { logAccess } from '../auth.js';
 
 /** Provozovny / pobočky – číselník pro určení pracoviště podle lokální sítě. */
 const siteSchema = z.object({
@@ -150,6 +152,39 @@ adminRouter.patch('/users/:id', requireRole('ADMIN'), async (req, res) => {
   }
   const user = await prisma.monitoredUser.update({ where: { id: req.params.id }, data: parsed.data });
   res.json({ user: { id: user.id, displayName: user.displayName, department: user.department, active: user.active, hourlyRate: user.hourlyRate } });
+});
+
+/**
+ * GDPR čl. 20 – právo na přenositelnost. Stáhne JSON dump VŠECH dat
+ * vedených o zaměstnanci (intervaly, agregáty, absence, kdo se na něj díval).
+ * Každý export se zapisuje do auditu přístupů.
+ */
+adminRouter.get('/users/:id/export', requireRole('ADMIN'), async (req, res) => {
+  const data = await exportUserData(req.params.id);
+  if (!data) return void res.status(404).json({ error: 'not_found' });
+  await logAccess(req.admin?.username ?? 'unknown', 'EXPORT', `admin export uživatele ${req.params.id}`, req.params.id);
+  res.setHeader('Content-Disposition', `attachment; filename="focus-user-${req.params.id}.json"`);
+  res.json(data);
+});
+
+/**
+ * GDPR čl. 17 – právo na výmaz. Smaže veškerá identifikovatelná data
+ * o zaměstnanci a pseudonymizuje jeho profil. Operaci nelze vrátit zpět.
+ * Audit přístupů zůstává (forenzní záznam).
+ *
+ * Klient musí poslat `?confirm=DELETE` jako bezpečnostní pojistku.
+ */
+adminRouter.delete('/users/:id', requireRole('ADMIN'), async (req, res) => {
+  if (req.query.confirm !== 'DELETE') return void res.status(400).json({ error: 'missing_confirm', hint: 'add ?confirm=DELETE' });
+  const result = await eraseUser(req.params.id);
+  if (!result) return void res.status(404).json({ error: 'not_found' });
+  await logAccess(
+    req.admin?.username ?? 'unknown',
+    'DELETE',
+    `GDPR výmaz uživatele ${req.params.id}: ${JSON.stringify(result.deleted)}`,
+    req.params.id,
+  );
+  res.json({ ok: true, ...result });
 });
 
 const importSchema = z.object({

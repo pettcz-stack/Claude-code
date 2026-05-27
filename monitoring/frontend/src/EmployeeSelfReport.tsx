@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Eye } from 'lucide-react';
+import { Eye, Download } from 'lucide-react';
 import { api, type SelfReportData, type TipsData } from './api.js';
 import { SelfReportView } from './SelfReportView.js';
 
@@ -54,6 +54,16 @@ export function EmployeeSelfReport({ token }: { token: string }) {
   return (
     <div className="min-h-screen bg-gray-50 py-6 dark:bg-slate-900">
       <SelfReportView from={from} to={to} preloaded={data} />
+      {/* GDPR čl. 20 – stažení všech vlastních dat. Tlačítko vidí každý zaměstnanec, který má přístup k self-reportu. */}
+      <div className="mx-auto mt-4 max-w-5xl px-4">
+        <button
+          onClick={() => api.selfExport(token).catch((e) => alert(`Stažení selhalo: ${e}`))}
+          className="btn-ghost text-xs"
+          title="Stáhne JSON se všemi tvými daty – intervaly, agregáty, absence, kdo se na tebe díval. GDPR čl. 20."
+        >
+          <Download size={14} /> Stáhnout všechna moje data (JSON)
+        </button>
+      </div>
       {audit?.enabled && (
         <div className="mx-auto mt-6 max-w-5xl px-4">
           <div className="card p-5">

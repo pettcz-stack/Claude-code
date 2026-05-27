@@ -413,6 +413,44 @@ export const api = {
     }).then((r) => {
       if (!r.ok) throw new Error(`${r.status}`);
     }),
+  // GDPR čl. 20 – stáhne JSON se všemi daty zaměstnance (admin export)
+  exportUser: async (id: string): Promise<void> => {
+    const r = await fetch(`/api/v1/admin/users/${id}/export`, { headers: authHeader() });
+    if (!r.ok) throw new Error(`${r.status}`);
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `focus-user-${id}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
+  // GDPR čl. 17 – nevratně smaže veškerá data zaměstnance a pseudonymizuje profil.
+  // Vyžaduje confirm=DELETE jako pojistku proti omylu na backendu.
+  eraseUser: (id: string): Promise<{ deleted: Record<string, number> }> =>
+    fetch(`/api/v1/admin/users/${id}?confirm=DELETE`, {
+      method: 'DELETE',
+      headers: authHeader(),
+    }).then(async (r) => {
+      if (!r.ok) throw new Error(`${r.status}`);
+      return r.json();
+    }),
+  // GDPR čl. 20 – self-service export. Token v Authorization Bearer headeru.
+  selfExport: async (token: string): Promise<void> => {
+    const r = await fetch('/api/v1/self/export', { headers: { Authorization: `Bearer ${token}` } });
+    if (!r.ok) throw new Error(`${r.status}`);
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'moje-data-focus.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
   sendReport: async (): Promise<{ ok?: boolean; error?: string; rows?: number; recipients?: number }> => {
     const res = await fetch('/api/v1/admin/report/send', { method: 'POST', headers: authHeader() });
     return res.json();
