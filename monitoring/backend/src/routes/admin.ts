@@ -270,6 +270,32 @@ adminRouter.patch('/devices/:id', requireRole('ADMIN'), async (req, res) => {
   res.json({ device: { id: device.id, active: device.active } });
 });
 
+/**
+ * Smazání zařízení (jen ADMIN). Použít na fantomová zařízení z testů nebo
+ * fyzicky vyřazené stroje. Prisma kaskáduje smazání ActivityInterval, PrintJob,
+ * UsbFileEvent a DeviceHealth – ActivityHourly zůstávají (jsou per-user, ne
+ * per-device, takže historie uživatele se nezpřetrhá ani po výměně PC).
+ */
+adminRouter.delete('/devices/:id', requireRole('ADMIN'), async (req, res) => {
+  const device = await prisma.device.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, machineId: true, hostname: true },
+  });
+  if (!device) {
+    res.status(404).json({ error: 'device_not_found' });
+    return;
+  }
+  await prisma.device.delete({ where: { id: device.id } });
+  await logAccess({
+    adminId: req.admin?.id,
+    adminIdentity: req.admin?.username ?? 'unknown',
+    action: 'DELETE_DEVICE',
+    detail: `device ${device.hostname ?? device.machineId} (${device.machineId})`,
+  });
+  clearCache();
+  res.json({ ok: true });
+});
+
 /** Výpis sledovaných uživatelů (obsahuje mzdy → CITLIVÉ, jen ADMIN). */
 adminRouter.get('/users', requireRole('ADMIN'), async (_req, res) => {
   const users = await prisma.monitoredUser.findMany({

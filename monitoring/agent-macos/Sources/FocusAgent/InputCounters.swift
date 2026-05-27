@@ -1,5 +1,6 @@
 import Foundation
 import CoreGraphics
+import IOKit.hid
 
 /// Počítadlo kláves a kliků myši. **POUZE COUNT, nikdy obsah** – zákon §316 ZP
 /// (zákaz keyloggeru) i GDPR (minimalizace).
@@ -16,6 +17,24 @@ final class InputCounters {
     private let lock = NSLock()
 
     func install() {
+        // Nejdřív ověř, jestli máme Input Monitoring povolený. Bez něj
+        // CGEvent.tapCreate vrátí non-nil tap, ale ten je "neaktivní" a nikdy
+        // nedostane události – výsledek byl 0 úhozů a uživatel netušil proč.
+        let access = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent)
+        switch access {
+        case kIOHIDAccessTypeGranted:
+            AgentLog.write("InputCounters: Input Monitoring je povolen, instaluji tap.")
+        case kIOHIDAccessTypeDenied:
+            AgentLog.write("PERMS: Input Monitoring je ODMÍTNUT v System Settings → Privacy & Security → Input Monitoring. Bez něj nebudou počty kláves ani kliků.")
+            return
+        case kIOHIDAccessTypeUnknown:
+            AgentLog.write("PERMS: Input Monitoring není ještě rozhodnut – vyvolávám systémový dialog. Po schválení agenta restartuj (launchctl kickstart).")
+            _ = IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
+            return
+        default:
+            AgentLog.write("PERMS: IOHIDCheckAccess vrátil neznámý stav (\(access.rawValue)).")
+        }
+
         let mask: CGEventMask = (1 << CGEventType.keyDown.rawValue)
                               | (1 << CGEventType.leftMouseDown.rawValue)
                               | (1 << CGEventType.rightMouseDown.rawValue)

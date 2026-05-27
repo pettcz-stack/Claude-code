@@ -494,6 +494,7 @@ export const pl: typeof cs = {
     chartSubtitlePart3: 'Czarny',
     chartSubtitlePart3Desc: ' w godzinach pracy (pon–pt 8–16) = PC milczy (być może HO bez pracy lub PC wyłączony).',
     cellNoActivityWork: 'brak aktywności w godzinach pracy (PC wyłączony lub poza)',
+    cellUnmeasurable: 'niemierzalne (przyszłość lub urządzenie nie było wówczas wdrożone)',
     cellNoActivity: 'brak aktywności',
     cellMinActive: 'min aktywnie',
     cellWorkUnit: 'praca',

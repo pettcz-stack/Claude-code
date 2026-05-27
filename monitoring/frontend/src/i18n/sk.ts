@@ -494,6 +494,7 @@ export const sk: typeof cs = {
     chartSubtitlePart3: 'Čierna',
     chartSubtitlePart3Desc: ' v pracovnej dobe (Po–Pi 8–16) = PC mlčí (možno HO bez práce alebo vypnuté PC).',
     cellNoActivityWork: 'bez aktivity v pracovnej dobe (PC vypnuté alebo mimo)',
+    cellUnmeasurable: 'nemerateľné (budúcnosť alebo zariadenie v tom čase nebolo nasadené)',
     cellNoActivity: 'bez aktivity',
     cellMinActive: 'min aktívne',
     cellWorkUnit: 'práca',

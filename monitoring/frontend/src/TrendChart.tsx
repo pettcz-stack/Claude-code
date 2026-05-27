@@ -38,14 +38,29 @@ export function TrendChart({ from, to, userId, department, dark }: {
     HOME_OFFICE: { short: t('trendChart.absHoShort'), full: t('trendChart.absHoFull'), color: '#6366f1' },
   }), [t]);
 
+  // Konec dneška – cokoli za tímto bodem je budoucnost a nemá se vizualizovat
+  // jako "0 % skóre" (působilo by to jako "nedělal nic", ale my prostě nevíme).
+  const todayKey = new Date().toISOString().slice(0, 10);
   const data = points.map((p) => {
     const hol = czHoliday(p.date);
     const abs = p.absence ? ABS_TAG[p.absence] : undefined;
-    // priorita: státní svátek > absence (dovolená/nemoc/HO)
     const tag = hol ? t('trendChart.absHoliday') : abs?.short ?? null;
     const tagFull = hol ?? abs?.full ?? null;
     const tagColor = hol ? '#d97706' : abs?.color ?? '';
-    return { ...p, label: shortDay(p.date), dow: dowShort(p.date), weekend: isWeekend(p.date), tag, tagFull, tagColor };
+    const isFuture = p.date.slice(0, 10) > todayKey;
+    return {
+      ...p,
+      // Skóre pro budoucí dny zahazujeme úplně (recharts vykreslí gap, ne 0).
+      score: isFuture ? null : p.score,
+      workMinutes: isFuture ? null : p.workMinutes,
+      nonWorkMinutes: isFuture ? null : p.nonWorkMinutes,
+      idleMinutes: isFuture ? null : p.idleMinutes,
+      isFuture,
+      label: shortDay(p.date),
+      dow: dowShort(p.date),
+      weekend: isWeekend(p.date),
+      tag, tagFull, tagColor,
+    };
   });
   const byLabel = new Map(data.map((d) => [d.label, d]));
 
@@ -56,8 +71,8 @@ export function TrendChart({ from, to, userId, department, dark }: {
     if (!e) return null;
     return (
       <g transform={`translate(${x},${y})`}>
-        <text x={0} y={0} dy={11} textAnchor="middle" fontSize={10} fill={axis}>{e.label}</text>
-        <text x={0} y={0} dy={23} textAnchor="middle" fontSize={10} fontWeight={600} fill={e.weekend ? '#94a3b8' : axis}>{e.dow}</text>
+        <text x={0} y={0} dy={11} textAnchor="middle" fontSize={10} fill={e.isFuture ? '#cbd5e1' : axis} opacity={e.isFuture ? 0.55 : 1}>{e.label}</text>
+        <text x={0} y={0} dy={23} textAnchor="middle" fontSize={10} fontWeight={600} fill={e.isFuture ? '#cbd5e1' : (e.weekend ? '#94a3b8' : axis)} opacity={e.isFuture ? 0.55 : 1}>{e.dow}</text>
         {e.tag && <text x={0} y={0} dy={34} textAnchor="middle" fontSize={8.5} fill={e.tagColor}>{e.tag}</text>}
       </g>
     );

@@ -494,6 +494,7 @@ export const de: typeof cs = {
     chartSubtitlePart3: 'Schwarz',
     chartSubtitlePart3Desc: ' während der Arbeitszeit (Mo–Fr 8–16) = PC schweigt (möglicherweise HO ohne Arbeit oder PC aus).',
     cellNoActivityWork: 'keine Aktivität in der Arbeitszeit (PC aus oder abwesend)',
+    cellUnmeasurable: 'nicht messbar (Zukunft oder Gerät war zu der Zeit nicht eingesetzt)',
     cellNoActivity: 'keine Aktivität',
     cellMinActive: 'Min. aktiv',
     cellWorkUnit: 'Arbeit',

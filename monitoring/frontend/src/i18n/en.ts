@@ -494,6 +494,7 @@ export const en: typeof cs = {
     chartSubtitlePart3: 'Black',
     chartSubtitlePart3Desc: ' during working hours (Mon–Fri 8–16) = PC silent (possibly HO without work or PC off).',
     cellNoActivityWork: 'no activity during working hours (PC off or away)',
+    cellUnmeasurable: 'unmeasurable (future or device not deployed at that time)',
     cellNoActivity: 'no activity',
     cellMinActive: 'min active',
     cellWorkUnit: 'work',

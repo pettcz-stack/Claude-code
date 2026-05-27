@@ -496,6 +496,7 @@ export const cs = {
     chartSubtitlePart3: 'Černá',
     chartSubtitlePart3Desc: ' v pracovní době (Po–Pá 8–16) = PC mlčí (možná HO bez práce nebo vypnuté PC).',
     cellNoActivityWork: 'bez aktivity v pracovní době (PC vypnuté nebo mimo)',
+    cellUnmeasurable: 'neměřitelné (budoucnost nebo zařízení v té době nebylo nasazené)',
     cellNoActivity: 'bez aktivity',
     cellMinActive: 'min aktivně',
     cellWorkUnit: 'práce',

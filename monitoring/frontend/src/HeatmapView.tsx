@@ -9,6 +9,21 @@ export function HeatmapView({ from, to, department, userId }: { from: string; to
   if (!data) return null;
   const max = Math.max(data.max, 1);
 
+  // Pro každý den-v-týdnu zjisti, jestli v období vůbec máme nějakou aktivitu.
+  // Pokud ne (např. zařízení ještě nebylo nasazené nebo dovolená), nevykreslíme
+  // černou "PC mlčí" – nemá smysl naznačovat "měl pracovat ale ne", když fyzicky
+  // nemůžeme vědět. Pro dnešní DOW zase nepočítáme budoucí hodiny jako "PC mlčí".
+  const rowHasData: Record<number, boolean> = {};
+  for (let i = 0; i < 7; i++) {
+    rowHasData[i] = (data.matrix[i] ?? []).some((v) => (v ?? 0) > 0);
+  }
+  const now = new Date();
+  const todayDow = now.getDay(); // 0 = neděle
+  const nowHour = now.getHours();
+  // Konec období je v budoucnosti? Pak hodiny dnes po `now` jsou neměřitelné.
+  const toDate = new Date(to);
+  const rangeEndsTodayOrLater = toDate.getTime() >= now.getTime();
+
   const DAYS = [
     { idx: 1, label: t('heatmap.monday') },
     { idx: 2, label: t('heatmap.tuesday') },
@@ -56,19 +71,28 @@ export function HeatmapView({ from, to, department, userId }: { from: string; to
                   // Měl by pracovat? Po–Pá v 8–16 (klasické jádro pracovní doby).
                   const isWorkHour = d.idx >= 1 && d.idx <= 5 && h >= 8 && h < 17;
                   const noActivity = total === 0;
-                  const bg = noActivity
-                    ? (isWorkHour
-                      ? '#111827'                  // černá = měl pracovat, ale PC mlčí (HO bez práce / vypnuté PC)
-                      : 'rgba(148,163,184,0.18)')  // jiný čas = běžně mimo PC (večer, víkend)
-                    : `hsl(${hue}, 80%, ${lightness}%)`;
-                  const tip = noActivity
-                    ? (isWorkHour
-                      ? `${d.label} ${h}:00 – ${t('heatmap.cellNoActivityWork')}`
-                      : `${d.label} ${h}:00 – ${t('heatmap.cellNoActivity')}`)
-                    : `${d.label} ${h}:00 – ${total} ${t('heatmap.cellMinActive')}\n  ${t('heatmap.cellWorkUnit')}: ${work} min\n  ${t('heatmap.cellFunUnit')}: ${nonwork} min`;
+                  // "Neměřitelné" = buď budoucí hodina (dnes po `now`, nebo `to` v budoucnu
+                  // a tento DOW v tomto týdnu ještě nepřišel), nebo žádná data pro celý DOW
+                  // (typicky před nasazením zařízení / dovolená přes celé období).
+                  const isFutureToday = rangeEndsTodayOrLater && d.idx === todayDow && h > nowHour;
+                  const unmeasurable = isFutureToday || !rowHasData[d.idx];
+                  const bg = unmeasurable
+                    ? 'transparent'                  // budoucnost / před nasazením – nic neoznačovat
+                    : noActivity
+                      ? (isWorkHour
+                        ? '#111827'                  // černá = měl pracovat, ale PC mlčí
+                        : 'rgba(148,163,184,0.18)')  // jiný čas = běžně mimo PC (večer, víkend)
+                      : `hsl(${hue}, 80%, ${lightness}%)`;
+                  const tip = unmeasurable
+                    ? `${d.label} ${h}:00 – ${t('heatmap.cellUnmeasurable')}`
+                    : noActivity
+                      ? (isWorkHour
+                        ? `${d.label} ${h}:00 – ${t('heatmap.cellNoActivityWork')}`
+                        : `${d.label} ${h}:00 – ${t('heatmap.cellNoActivity')}`)
+                      : `${d.label} ${h}:00 – ${total} ${t('heatmap.cellMinActive')}\n  ${t('heatmap.cellWorkUnit')}: ${work} min\n  ${t('heatmap.cellFunUnit')}: ${nonwork} min`;
                   return (
                     <td key={h} title={tip}
-                      style={{ width: 20, height: 18, borderRadius: 3, background: bg }} />
+                      style={{ width: 20, height: 18, borderRadius: 3, background: bg, border: unmeasurable ? '1px dashed rgba(148,163,184,0.25)' : 'none' }} />
                   );
                 })}
               </tr>
