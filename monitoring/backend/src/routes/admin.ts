@@ -34,6 +34,45 @@ adminRouter.param('id', validateCuidParam);
 adminRouter.param('deviceId', validateCuidParam);
 
 /**
+ * Aktivní admin sessions přihlášeného uživatele (pro samosprávu –
+ * "kde jsem všude přihlášený, odhlásit ostatní"). Vrací bez tokenHash.
+ */
+adminRouter.get('/sessions', async (req, res) => {
+  if (!req.admin) return void res.status(401).json({ error: 'unauthorized' });
+  const sessions = await prisma.adminSession.findMany({
+    where: { adminId: req.admin.id, expiresAt: { gt: new Date() } },
+    orderBy: { lastUsedAt: 'desc' },
+    select: { id: true, createdAt: true, expiresAt: true, lastUsedAt: true, tokenHash: true },
+  });
+  const currentHash = hashSessionToken(readSessionToken(req));
+  res.json({
+    sessions: sessions.map((s) => ({
+      id: s.id,
+      createdAt: s.createdAt,
+      expiresAt: s.expiresAt,
+      lastUsedAt: s.lastUsedAt,
+      isCurrent: s.tokenHash === currentHash,
+    })),
+  });
+});
+
+/** Revokace konkrétní session (např. "ztracený notebook"). */
+adminRouter.delete('/sessions/:id', async (req, res) => {
+  if (!req.admin) return void res.status(401).json({ error: 'unauthorized' });
+  const r = await prisma.adminSession.deleteMany({
+    where: { id: req.params.id, adminId: req.admin.id },
+  });
+  if (r.count === 0) return void res.status(404).json({ error: 'not_found' });
+  await logAccess({
+    adminId: req.admin.id,
+    adminIdentity: req.admin.username,
+    action: 'SESSION_REVOKE',
+    detail: `revokována session ${req.params.id}`,
+  });
+  res.json({ ok: true });
+});
+
+/**
  * Self-audit bezpečnostního stavu instalace. Admin v UI vidí, co je
  * v pořádku a co dotáhnout. Nepřináší nové secrets – jen čte vlastní stav.
  */

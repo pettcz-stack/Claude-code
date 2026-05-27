@@ -403,6 +403,12 @@ export const api = {
       throw new Error(j.detail || j.error || `${r.status}`);
     }
   },
+  mySessions: () =>
+    getJson<{ sessions: { id: string; createdAt: string; expiresAt: string; lastUsedAt: string; isCurrent: boolean }[] }>('/api/v1/admin/sessions'),
+  revokeSession: (id: string) =>
+    fetch(`/api/v1/admin/sessions/${id}`, { method: 'DELETE' }).then((r) => {
+      if (!r.ok) throw new Error(`${r.status}`);
+    }),
   hourly: (userId: string, from: string, to: string) =>
     getJson<{ rows: HourlyRow[] }>(
       `/api/v1/dashboard/hourly?userId=${encodeURIComponent(userId)}&from=${from}&to=${to}`,

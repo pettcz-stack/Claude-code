@@ -1,0 +1,60 @@
+version: 2
+
+# Automatické security + version PR pro FOCUS. Bezpečnostní updates jsou
+# urgentní (CVE), takže žádný delay; minor/patch každý týden v pondělí ráno;
+# major se hlásí jako PR, ale nemerguje automaticky.
+
+updates:
+  # ----- Backend (Node.js) -----
+  - package-ecosystem: npm
+    directory: /monitoring/backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Prague
+    open-pull-requests-limit: 5
+    labels: [dependencies, backend]
+    commit-message:
+      prefix: deps(backend)
+      include: scope
+    groups:
+      backend-minor:
+        applies-to: version-updates
+        update-types: [minor, patch]
+
+  # ----- Frontend (React/Vite) -----
+  - package-ecosystem: npm
+    directory: /monitoring/frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Prague
+    open-pull-requests-limit: 5
+    labels: [dependencies, frontend]
+    commit-message:
+      prefix: deps(frontend)
+      include: scope
+    groups:
+      frontend-minor:
+        applies-to: version-updates
+        update-types: [minor, patch]
+
+  # ----- .NET agent -----
+  - package-ecosystem: nuget
+    directory: /monitoring/agent/WorkView.Agent
+    schedule:
+      interval: monthly
+    labels: [dependencies, agent]
+    commit-message:
+      prefix: deps(agent)
+
+  # ----- GitHub Actions (samotné workflows) -----
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: [dependencies, ci]
+    commit-message:
+      prefix: deps(ci)

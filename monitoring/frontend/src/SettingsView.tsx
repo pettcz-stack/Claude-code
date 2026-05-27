@@ -6,6 +6,7 @@ import { SitesAdmin } from './SitesAdmin.js';
 import { DiagnosticLog } from './DiagnosticLog.js';
 import { SecurityCheckPanel } from './SecurityCheckPanel.js';
 import { PasswordChangePanel } from './PasswordChangePanel.js';
+import { SessionsPanel } from './SessionsPanel.js';
 
 export function SettingsView({ canEdit }: { canEdit: boolean }) {
   const [enabled, setEnabled] = useState(true);
@@ -260,6 +261,8 @@ export function SettingsView({ canEdit }: { canEdit: boolean }) {
       <SecurityCheckPanel canEdit={canEdit} />
 
       <PasswordChangePanel />
+
+      <SessionsPanel />
 
       <DiagnosticLog canEdit={canEdit} />
     </div>
