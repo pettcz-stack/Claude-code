@@ -27,15 +27,19 @@ echo "→ swift build (universal arm64 + x86_64)"
 swift build -c release --arch arm64 --arch x86_64
 
 # 2) Stage payload
-rm -rf "$BUILD_DIR" && mkdir -p "$PAYLOAD_DIR/Library/Application Support/FOCUS"
+rm -rf "$BUILD_DIR"
+APP_DIR="$PAYLOAD_DIR/Library/Application Support/FOCUS/FocusAgent.app"
+mkdir -p "$APP_DIR/Contents/MacOS"
 mkdir -p "$PAYLOAD_DIR/Library/LaunchAgents"
 
-cp .build/apple/Products/Release/focus-agent "$PAYLOAD_DIR/Library/Application Support/FOCUS/focus-agent"
-chmod 755 "$PAYLOAD_DIR/Library/Application Support/FOCUS/focus-agent"
-# Ad-hoc codesign už při buildu – konzistentní identita kterou si TCC pamatuje
-# (bez toho každý rebuild = nový CDHash = TCC reset na denied).
-codesign --sign - --force --preserve-metadata=entitlements,requirements,flags \
-    "$PAYLOAD_DIR/Library/Application Support/FOCUS/focus-agent" || true
+# .app bundle struktura – stabilní CFBundleIdentifier pro TCC, viz CI workflow.
+cp .build/apple/Products/Release/focus-agent "$APP_DIR/Contents/MacOS/focus-agent"
+cp Resources/Info.plist "$APP_DIR/Contents/Info.plist"
+chmod 755 "$APP_DIR/Contents/MacOS/focus-agent"
+
+# Ad-hoc codesign celého bundlu – identifikátor pak = CFBundleIdentifier.
+codesign --sign - --force --deep --identifier com.sinsu.focusagent "$APP_DIR" || true
+
 # Složka musí být user-writable (1777) – agent běží jako user a launchd sem
 # musí umět zapsat stdout/stderr i agent.log. Postinstall to ještě potvrdí.
 chmod 1777 "$PAYLOAD_DIR/Library/Application Support/FOCUS"

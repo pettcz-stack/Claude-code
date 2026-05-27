@@ -16,7 +16,7 @@ RELEASE_URL="https://github.com/pettcz-stack/claude-code/releases/download/agent
 PKG_PATH="/tmp/focus-agent-macos.pkg"
 FOCUS_DIR="/Library/Application Support/FOCUS"
 PLIST="/Library/LaunchAgents/com.sinsu.focusagent.plist"
-BIN="$FOCUS_DIR/focus-agent"
+BIN="$FOCUS_DIR/FocusAgent.app/Contents/MacOS/focus-agent"
 LOG="$FOCUS_DIR/agent.log"
 UID_REAL=$(id -u)
 

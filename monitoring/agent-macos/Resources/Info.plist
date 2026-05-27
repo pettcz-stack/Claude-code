@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  FOCUS Agent .app bundle Info.plist.
+
+  Důvod existence bundle: macOS Sequoia (26+) striktně rozlišuje aplikace
+  podle CFBundleIdentifier. Pro nepodepsané binárky bez bundle se TCC
+  permissions resetují při každém rebuildu (jiný CDHash = "jiná aplikace").
+
+  S bundle + ad-hoc codesignem dostane focus-agent stabilní identitu
+  (com.sinsu.focusagent), kterou si TCC pamatuje napříč rebuildy.
+
+  LSUIElement=true → background služba, žádná ikona v Docku.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.sinsu.focusagent</string>
+    <key>CFBundleName</key>
+    <string>FocusAgent</string>
+    <key>CFBundleDisplayName</key>
+    <string>FOCUS Agent</string>
+    <key>CFBundleExecutable</key>
+    <string>focus-agent</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleVersion</key>
+    <string>0.9.1</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.9.1</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>11.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>LSBackgroundOnly</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>© 2026 Sinsu Platform s.r.o.</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>FOCUS Agent potřebuje přístup pro čtení titulků aktivního okna (pro klasifikaci aktivity).</string>
+</dict>
+</plist>

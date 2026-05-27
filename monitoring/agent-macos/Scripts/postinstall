@@ -57,23 +57,28 @@ EOF
   echo "FOCUS postinstall: config.plist vytvořen"
 fi
 
-# Binárka musí být spustitelná
-chmod 755 "$FOCUS_DIR/focus-agent" || true
-
-# Ad-hoc codesign: bez tohoto macOS každý rebuild považuje za jinou aplikaci
-# (jiný CDHash). TCC pak rezetuje permissions na "denied" - i když uživatel
-# v UI vidí toggle ON. Ad-hoc signing dá konzistentní podpis, který přežije
-# obsahové změny mezi verzemi. Pro produkci je lepší Developer ID Application
-# certifikát ($99/rok), ale ad-hoc je dost dobré pro internal/pilot.
-if /usr/bin/codesign -dv "$FOCUS_DIR/focus-agent" >/dev/null 2>&1; then
-    echo "FOCUS postinstall: binárka už podepsaná, přeznačit pro jistotu..."
+# Smazání staré flat binárky z předchozích instalací (před přechodem na .app
+# bundle byla na /Library/Application Support/FOCUS/focus-agent). Pokud
+# zůstane, launchd ji nepouužívá (plist míří do bundle), ale uklízíme.
+if [ -f "$FOCUS_DIR/focus-agent" ] && [ ! -L "$FOCUS_DIR/focus-agent" ]; then
+    rm -f "$FOCUS_DIR/focus-agent"
+    echo "FOCUS postinstall: smazána stará flat binárka, používáme .app bundle."
 fi
-/usr/bin/codesign --sign - --force --preserve-metadata=entitlements,requirements,flags \
-    "$FOCUS_DIR/focus-agent" 2>/dev/null && \
-    echo "FOCUS postinstall: ad-hoc codesign OK" || \
-    echo "FOCUS postinstall: codesign selhal, pokračujeme dál (TCC permissions můžou zlobit)"
 
-# TCC vyžaduje, aby se TCC daemon refreshnul - jinak držuje starou cache CDHash
+# Bundle binárka musí být spustitelná
+APP_BIN="$FOCUS_DIR/FocusAgent.app/Contents/MacOS/focus-agent"
+chmod 755 "$APP_BIN" 2>/dev/null || true
+
+# Re-codesign celého .app bundlu – pkgbuild/installer nezachovává všechny xattr,
+# tak pro jistotu signature obnovíme. Identifikátor = CFBundleIdentifier
+# (com.sinsu.focusagent), který je stabilní napříč rebuildy – TCC ho pamatuje
+# i když se mění CDHash binárky.
+/usr/bin/codesign --sign - --force --deep --identifier com.sinsu.focusagent \
+    "$FOCUS_DIR/FocusAgent.app" 2>/dev/null && \
+    echo "FOCUS postinstall: ad-hoc codesign .app bundle OK" || \
+    echo "FOCUS postinstall: codesign selhal, pokračujeme dál"
+
+# TCC vyžaduje, aby se TCC daemon refreshnul - jinak držuje starou cache.
 /usr/bin/killall -HUP tccd 2>/dev/null || true
 
 # Pre-create launchd log soubory s user-write povoleními. launchd je nezvládne

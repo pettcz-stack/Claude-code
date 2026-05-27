@@ -20,7 +20,7 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/Library/Application Support/FOCUS/focus-agent</string>
+        <string>/Library/Application Support/FOCUS/FocusAgent.app/Contents/MacOS/focus-agent</string>
     </array>
 
     <key>RunAtLoad</key>

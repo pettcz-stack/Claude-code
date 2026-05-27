@@ -36,15 +36,23 @@ jobs:
 
       - name: Stage .pkg payload
         run: |
-          mkdir -p build/payload/Library/Application\ Support/FOCUS
+          # Cílová struktura:
+          #   /Library/Application Support/FOCUS/FocusAgent.app/Contents/
+          #       ├── Info.plist            (CFBundleIdentifier=com.sinsu.focusagent)
+          #       └── MacOS/focus-agent     (universal binary)
+          # Bundle s Info.plist je nutný, aby macOS TCC měl stabilní identifikátor
+          # napříč rebuildy – bez toho každá nová binárka = "jiná aplikace"
+          # a permissions se resetují.
+          APP_DIR="build/payload/Library/Application Support/FOCUS/FocusAgent.app"
+          mkdir -p "$APP_DIR/Contents/MacOS"
           mkdir -p build/payload/Library/LaunchAgents
-          cp .build/apple/Products/Release/focus-agent "build/payload/Library/Application Support/FOCUS/focus-agent"
-          chmod 755 "build/payload/Library/Application Support/FOCUS/focus-agent"
-          # Ad-hoc codesign – TCC potřebuje konzistentní podpis, jinak každý
-          # rebuild = nový CDHash a permissions se resetnou na denied.
-          codesign --sign - --force --preserve-metadata=entitlements,requirements,flags \
-            "build/payload/Library/Application Support/FOCUS/focus-agent"
-          codesign -dv "build/payload/Library/Application Support/FOCUS/focus-agent" 2>&1 || true
+          cp .build/apple/Products/Release/focus-agent "$APP_DIR/Contents/MacOS/focus-agent"
+          cp Resources/Info.plist "$APP_DIR/Contents/Info.plist"
+          chmod 755 "$APP_DIR/Contents/MacOS/focus-agent"
+          # Ad-hoc codesign celého bundlu – identifikátor pak = CFBundleIdentifier
+          # (com.sinsu.focusagent), což TCC pamatuje napříč rebuildy.
+          codesign --sign - --force --deep --identifier com.sinsu.focusagent "$APP_DIR"
+          codesign -dv "$APP_DIR" 2>&1 || true
           # Složka musí být user-writable (1777) – agent běží jako user, launchd
           # musí umět zapsat stdout/stderr logy. Bez toho `launchctl bootstrap`
           # selže s "Input/output error".
