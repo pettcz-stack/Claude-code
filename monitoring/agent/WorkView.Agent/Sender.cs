@@ -25,8 +25,11 @@ namespace WorkView.Agent
         public Sender(AgentConfig cfg)
         {
             _cfg = cfg;
-            // TLS 1.2 i na starších .NET Framework / Windows.
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            // TLS 1.2/1.3 i na starších .NET Framework / Windows.
+            // ServerCertificateValidationCallback záměrně NEPŘEPISUJEME – ponecháváme
+            // výchozí validaci proti systémovému trust store. Bez tohohle komentáře by
+            // některý security audit (oprávněně) ohlásil "chybí explicitní TLS check".
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
             BuildHttpClient();
 
             _devicePart = "\"device\":{" +

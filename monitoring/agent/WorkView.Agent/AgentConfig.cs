@@ -62,6 +62,21 @@ namespace WorkView.Agent
                 throw new InvalidOperationException("Chybí IngestToken.");
 
             backend = backend.TrimEnd('/');
+
+            // HTTPS je povinné kromě explicitního opt-outu pro lokální vývoj.
+            // Bez šifrování by ingest token i obsah datu šly volně po síti.
+            string allowInsecureRaw = ReadRegistry("AllowInsecureHttp") ?? Environment.GetEnvironmentVariable("WORKVIEW_ALLOW_INSECURE_HTTP");
+            bool allowInsecure = allowInsecureRaw == "1" || string.Equals(allowInsecureRaw, "true", StringComparison.OrdinalIgnoreCase);
+            if (!allowInsecure)
+            {
+                Uri parsed;
+                if (!Uri.TryCreate(backend, UriKind.Absolute, out parsed))
+                    throw new InvalidOperationException("BackendUrl není platná absolutní URL: " + backend);
+                bool isLocalhost = parsed.IsLoopback || string.Equals(parsed.Host, "localhost", StringComparison.OrdinalIgnoreCase);
+                if (!string.Equals(parsed.Scheme, "https", StringComparison.OrdinalIgnoreCase) && !isLocalhost)
+                    throw new InvalidOperationException("BackendUrl musí používat https:// (pro vývoj nastav AllowInsecureHttp=1 v HKLM\\SOFTWARE\\WorkView).");
+            }
+
             if (string.IsNullOrWhiteSpace(probeHost)) probeHost = HostFromUrl(backend);
 
             return new AgentConfig

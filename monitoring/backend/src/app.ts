@@ -124,7 +124,16 @@ export function createApp() {
   app.use('/api/v1/ingest', ingestLimiter, ingestRouter);
 
   // Zaměstnanecký self-service report (token vázaný na SID, ne dashboard login).
-  app.use('/api/v1/self', selfRouter);
+  // Rate limit chrání před brute-force tokenu i před hromadným scrapingem.
+  const selfLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: () => isTest,
+    message: { error: 'too_many_requests' },
+  });
+  app.use('/api/v1/self', selfLimiter, selfRouter);
 
   // --- Čtení dat a správa (session token, role uvnitř routerů) ---
   app.use('/api/v1/dashboard', requireAuth, dashboardRouter);
