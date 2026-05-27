@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
-import { House, Building2, ArrowDown, ArrowUp } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { House, Building2, ArrowDown, ArrowUp, Search } from 'lucide-react';
 import { api, type HomeOffice } from './api.js';
 import { ScoreScaleLegend } from './Legend.js';
 import { scoreColor } from './util.js';
 import { useT } from './i18n/index.js';
+import { useSort, SortHeader } from './tableSort.js';
 
 function BigScore({ icon, label, score, sub }: { icon: React.ReactNode; label: string; score: number; sub: string }) {
   return (
@@ -21,7 +22,19 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
   const { t } = useT();
   const [d, setD] = useState<HomeOffice | null>(null);
   const [unit, setUnit] = useState<'hours' | 'days'>('hours');
+  const [search, setSearch] = useState('');
   useEffect(() => { api.homeOffice(from, to, department).then(setD).catch(() => setD(null)); }, [from, to, department]);
+  // Sort + filter MUSI byt definovany pred early returnem - jinak React poradi
+  // hooks porusi konzistenci pri prepnuti dat.
+  const allPerUser = useMemo(() => d?.perUser ?? [], [d]);
+  const filteredPerUser = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return allPerUser;
+    return allPerUser.filter((u) =>
+      (u.displayName ?? '').toLowerCase().includes(q) ||
+      (u.department ?? '').toLowerCase().includes(q));
+  }, [allPerUser, search]);
+  const { sorted: sortedPerUser, key, dir, setSort } = useSort(filteredPerUser, 'diff', 'asc');
   if (!d) return <p className="muted-2">{t('common.loading')}</p>;
 
   const diff = d.company.hoScore - d.company.officeScore;
@@ -92,19 +105,26 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
 
       {/* Per-user: největší propad na HO */}
       <div className="card p-5">
-        <h3 className="mb-1 text-sm font-semibold">{t('homeoffice.perUserTitle')}</h3>
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold">{t('homeoffice.perUserTitle')}</h3>
+          <div className="flex items-center gap-2">
+            <Search size={14} className="muted-2" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('common.searchPlaceholder')} className="field w-56" />
+            <span className="text-xs muted-2">{t('common.shownOfTotal', { shown: sortedPerUser.length, total: allPerUser.length })}</span>
+          </div>
+        </div>
         <p className="mb-3 text-xs muted-2">{t('homeoffice.perUserHint')}</p>
         <table className="w-full">
           <thead><tr>
-            <th className="th">{t('homeoffice.perUserColUser')}</th>
-            <th className="th">{t('homeoffice.perUserColDept')}</th>
-            <th className="th text-right">{t('homeoffice.perUserColHoDays', { unit: unit === 'hours' ? t('homeoffice.unitHoursShort') : t('homeoffice.unitDaysShort') })}</th>
-            <th className="th text-right">{t('homeoffice.perUserColHoScore')}</th>
-            <th className="th text-right">{t('homeoffice.perUserColOfficeScore')}</th>
-            <th className="th text-right">{t('homeoffice.perUserColDiff')}</th>
+            <SortHeader sortKey="displayName" current={key} dir={dir} onChange={setSort}>{t('homeoffice.perUserColUser')}</SortHeader>
+            <SortHeader sortKey="department" current={key} dir={dir} onChange={setSort}>{t('homeoffice.perUserColDept')}</SortHeader>
+            <SortHeader sortKey="hoDays" current={key} dir={dir} onChange={setSort} align="right">{t('homeoffice.perUserColHoDays', { unit: unit === 'hours' ? t('homeoffice.unitHoursShort') : t('homeoffice.unitDaysShort') })}</SortHeader>
+            <SortHeader sortKey="hoScore" current={key} dir={dir} onChange={setSort} align="right">{t('homeoffice.perUserColHoScore')}</SortHeader>
+            <SortHeader sortKey="officeScore" current={key} dir={dir} onChange={setSort} align="right">{t('homeoffice.perUserColOfficeScore')}</SortHeader>
+            <SortHeader sortKey="diff" current={key} dir={dir} onChange={setSort} align="right">{t('homeoffice.perUserColDiff')}</SortHeader>
           </tr></thead>
           <tbody>
-            {d.perUser.map((u) => (
+            {sortedPerUser.map((u) => (
               <tr key={u.userId} className="divide-row">
                 <td className="td"><button onClick={() => onOpenUser(u.userId)} className="font-medium hover:underline">{u.displayName}</button></td>
                 <td className="td muted">{u.department}</td>
@@ -114,6 +134,7 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
                 <td className={`td text-right tabular-nums font-semibold ${u.diff < 0 ? 'text-red-500' : 'text-emerald-500'}`}>{u.diff > 0 ? '+' : ''}{u.diff}</td>
               </tr>
             ))}
+            {sortedPerUser.length === 0 && <tr><td colSpan={6} className="td py-6 text-center muted-2">{search ? t('common.noData') : t('homeoffice.noHoDays')}</td></tr>}
           </tbody>
         </table>
       </div>

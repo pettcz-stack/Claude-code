@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Printer, Usb, ChevronLeft, FileText, AlertTriangle } from 'lucide-react';
+import { Printer, Usb, ChevronLeft, FileText, AlertTriangle, Search } from 'lucide-react';
 import { api, type PrintSummaryRow, type PrintJobRow, type UsbSummaryRow, type UsbEventRow, type AppSettings } from './api.js';
 import { useT, type Locale } from './i18n/index.js';
+import { useSort, SortHeader } from './tableSort.js';
 
 const LOCALE_TO_BCP47: Record<Locale, string> = {
   cs: 'cs-CZ', sk: 'sk-SK', en: 'en-GB', pl: 'pl-PL', de: 'de-DE',
@@ -92,82 +93,124 @@ export function PrintUsbView({ from, to }: { from: string; to: string }) {
       )}
 
       {tab === 'print' && printRows && (
-        <div className="card p-5">
-          <h3 className="mb-1 text-sm font-semibold">{t('printUsb.printSectionTitle')}</h3>
-          <p className="mb-3 text-xs muted-2">{t('printUsb.printSectionHint')}</p>
-          {printRows.length === 0 ? (
-            <p className="text-sm muted-2">{t('printUsb.emptyJobs')}</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead><tr>
-                  <th className="th">{t('printUsb.colUser')}</th>
-                  <th className="th">{t('printUsb.colDept')}</th>
-                  <th className="th text-right">{t('printUsb.colJobs')}</th>
-                  <th className="th text-right">{t('printUsb.colPages')}</th>
-                  <th className="th text-right">{t('printUsb.colA4')}</th>
-                  <th className="th text-right">{t('printUsb.colA3')}</th>
-                  <th className="th text-right">{t('printUsb.colColor')}</th>
-                  <th className="th text-right">{t('printUsb.colDuplex')}</th>
-                </tr></thead>
-                <tbody>
-                  {printRows.map((r) => (
-                    <tr key={r.userId ?? r.displayName} className="divide-row cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50"
-                        onClick={() => r.userId && setDrilldown({ kind: 'print', userId: r.userId, name: r.displayName })}>
-                      <td className="td font-medium">{r.displayName}</td>
-                      <td className="td muted">{r.department ?? '—'}</td>
-                      <td className="td text-right tabular-nums">{r.jobs}</td>
-                      <td className="td text-right tabular-nums font-semibold">{r.pages}</td>
-                      <td className="td text-right tabular-nums muted">{r.a4Pages}</td>
-                      <td className="td text-right tabular-nums muted">{r.a3Pages}</td>
-                      <td className="td text-right tabular-nums muted">{r.colorPages}</td>
-                      <td className="td text-right tabular-nums muted">{r.duplexPages}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <PrintSummaryTable rows={printRows} onDrill={(r) => r.userId && setDrilldown({ kind: 'print', userId: r.userId, name: r.displayName })} />
       )}
 
       {tab === 'usb' && usbRows && (
-        <div className="card p-5">
-          <h3 className="mb-1 text-sm font-semibold">{t('printUsb.usbSectionTitle')}</h3>
-          <p className="mb-3 text-xs muted-2">{t('printUsb.usbSectionHint')}</p>
-          {usbRows.length === 0 ? (
-            <p className="text-sm muted-2">{t('printUsb.emptyEvents')}</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead><tr>
-                  <th className="th">{t('printUsb.colUser')}</th>
-                  <th className="th">{t('printUsb.colDept')}</th>
-                  <th className="th text-right">{t('printUsb.colEvents')}</th>
-                  <th className="th text-right">{t('printUsb.colWriteEvents')}</th>
-                  <th className="th text-right">{t('printUsb.colReadEvents')}</th>
-                  <th className="th text-right">{t('printUsb.colDeleteEvents')}</th>
-                  <th className="th text-right">{t('printUsb.colWriteSize')}</th>
-                  <th className="th text-right">{t('printUsb.colTotalSize')}</th>
-                </tr></thead>
-                <tbody>
-                  {usbRows.map((r) => (
-                    <tr key={r.userId ?? r.displayName} className="divide-row cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50"
-                        onClick={() => r.userId && setDrilldown({ kind: 'usb', userId: r.userId, name: r.displayName })}>
-                      <td className="td font-medium">{r.displayName}</td>
-                      <td className="td muted">{r.department ?? '—'}</td>
-                      <td className="td text-right tabular-nums">{r.events}</td>
-                      <td className="td text-right tabular-nums muted">{r.writeEvents}</td>
-                      <td className="td text-right tabular-nums muted">{r.readEvents}</td>
-                      <td className="td text-right tabular-nums muted">{r.deleteEvents}</td>
-                      <td className="td text-right tabular-nums font-semibold">{formatBytes(r.writeBytes, bcp47)}</td>
-                      <td className="td text-right tabular-nums muted">{formatBytes(r.totalBytes, bcp47)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+        <UsbSummaryTable rows={usbRows} bcp47={bcp47} onDrill={(r) => r.userId && setDrilldown({ kind: 'usb', userId: r.userId, name: r.displayName })} />
+      )}
+    </div>
+  );
+}
+
+function PrintSummaryTable({ rows, onDrill }: { rows: PrintSummaryRow[]; onDrill: (r: PrintSummaryRow) => void }) {
+  const { t } = useT();
+  const [search, setSearch] = useState('');
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) =>
+      (r.displayName ?? '').toLowerCase().includes(q) ||
+      (r.department ?? '').toLowerCase().includes(q));
+  }, [rows, search]);
+  const { sorted, key, dir, setSort } = useSort(filtered, 'pages', 'desc');
+  return (
+    <div className="card p-5">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">{t('printUsb.printSectionTitle')}</h3>
+        <div className="flex items-center gap-2">
+          <Search size={14} className="muted-2" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('common.searchPlaceholder')} className="field w-56" />
+          <span className="text-xs muted-2">{t('common.shownOfTotal', { shown: sorted.length, total: rows.length })}</span>
+        </div>
+      </div>
+      <p className="mb-3 text-xs muted-2">{t('printUsb.printSectionHint')}</p>
+      {rows.length === 0 ? <p className="text-sm muted-2">{t('printUsb.emptyJobs')}</p> : (
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead><tr>
+              <SortHeader sortKey="displayName" current={key} dir={dir} onChange={setSort}>{t('printUsb.colUser')}</SortHeader>
+              <SortHeader sortKey="department" current={key} dir={dir} onChange={setSort}>{t('printUsb.colDept')}</SortHeader>
+              <SortHeader sortKey="jobs" current={key} dir={dir} onChange={setSort} align="right">{t('printUsb.colJobs')}</SortHeader>
+              <SortHeader sortKey="pages" current={key} dir={dir} onChange={setSort} align="right">{t('printUsb.colPages')}</SortHeader>
+              <SortHeader sortKey="a4Pages" current={key} dir={dir} onChange={setSort} align="right">{t('printUsb.colA4')}</SortHeader>
+              <SortHeader sortKey="a3Pages" current={key} dir={dir} onChange={setSort} align="right">{t('printUsb.colA3')}</SortHeader>
+              <SortHeader sortKey="colorPages" current={key} dir={dir} onChange={setSort} align="right">{t('printUsb.colColor')}</SortHeader>
+              <SortHeader sortKey="duplexPages" current={key} dir={dir} onChange={setSort} align="right">{t('printUsb.colDuplex')}</SortHeader>
+            </tr></thead>
+            <tbody>
+              {sorted.map((r) => (
+                <tr key={r.userId ?? r.displayName} className="divide-row cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50" onClick={() => onDrill(r)}>
+                  <td className="td font-medium">{r.displayName}</td>
+                  <td className="td muted">{r.department ?? '—'}</td>
+                  <td className="td text-right tabular-nums">{r.jobs}</td>
+                  <td className="td text-right tabular-nums font-semibold">{r.pages}</td>
+                  <td className="td text-right tabular-nums muted">{r.a4Pages}</td>
+                  <td className="td text-right tabular-nums muted">{r.a3Pages}</td>
+                  <td className="td text-right tabular-nums muted">{r.colorPages}</td>
+                  <td className="td text-right tabular-nums muted">{r.duplexPages}</td>
+                </tr>
+              ))}
+              {sorted.length === 0 && <tr><td colSpan={8} className="td py-6 text-center muted-2">{t('common.noData')}</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UsbSummaryTable({ rows, bcp47, onDrill }: { rows: UsbSummaryRow[]; bcp47: string; onDrill: (r: UsbSummaryRow) => void }) {
+  const { t } = useT();
+  const [search, setSearch] = useState('');
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) =>
+      (r.displayName ?? '').toLowerCase().includes(q) ||
+      (r.department ?? '').toLowerCase().includes(q));
+  }, [rows, search]);
+  const { sorted, key, dir, setSort } = useSort(filtered, 'events', 'desc');
+  return (
+    <div className="card p-5">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">{t('printUsb.usbSectionTitle')}</h3>
+        <div className="flex items-center gap-2">
+          <Search size={14} className="muted-2" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('common.searchPlaceholder')} className="field w-56" />
+          <span className="text-xs muted-2">{t('common.shownOfTotal', { shown: sorted.length, total: rows.length })}</span>
+        </div>
+      </div>
+      <p className="mb-3 text-xs muted-2">{t('printUsb.usbSectionHint')}</p>
+      {rows.length === 0 ? <p className="text-sm muted-2">{t('printUsb.emptyEvents')}</p> : (
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead><tr>
+              <SortHeader sortKey="displayName" current={key} dir={dir} onChange={setSort}>{t('printUsb.colUser')}</SortHeader>
+              <SortHeader sortKey="department" current={key} dir={dir} onChange={setSort}>{t('printUsb.colDept')}</SortHeader>
+              <SortHeader sortKey="events" current={key} dir={dir} onChange={setSort} align="right">{t('printUsb.colEvents')}</SortHeader>
+              <SortHeader sortKey="writeEvents" current={key} dir={dir} onChange={setSort} align="right">{t('printUsb.colWriteEvents')}</SortHeader>
+              <SortHeader sortKey="readEvents" current={key} dir={dir} onChange={setSort} align="right">{t('printUsb.colReadEvents')}</SortHeader>
+              <SortHeader sortKey="deleteEvents" current={key} dir={dir} onChange={setSort} align="right">{t('printUsb.colDeleteEvents')}</SortHeader>
+              <SortHeader sortKey="writeBytes" current={key} dir={dir} onChange={setSort} align="right">{t('printUsb.colWriteSize')}</SortHeader>
+              <SortHeader sortKey="totalBytes" current={key} dir={dir} onChange={setSort} align="right">{t('printUsb.colTotalSize')}</SortHeader>
+            </tr></thead>
+            <tbody>
+              {sorted.map((r) => (
+                <tr key={r.userId ?? r.displayName} className="divide-row cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50" onClick={() => onDrill(r)}>
+                  <td className="td font-medium">{r.displayName}</td>
+                  <td className="td muted">{r.department ?? '—'}</td>
+                  <td className="td text-right tabular-nums">{r.events}</td>
+                  <td className="td text-right tabular-nums muted">{r.writeEvents}</td>
+                  <td className="td text-right tabular-nums muted">{r.readEvents}</td>
+                  <td className="td text-right tabular-nums muted">{r.deleteEvents}</td>
+                  <td className="td text-right tabular-nums font-semibold">{formatBytes(r.writeBytes, bcp47)}</td>
+                  <td className="td text-right tabular-nums muted">{formatBytes(r.totalBytes, bcp47)}</td>
+                </tr>
+              ))}
+              {sorted.length === 0 && <tr><td colSpan={8} className="td py-6 text-center muted-2">{t('common.noData')}</td></tr>}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
