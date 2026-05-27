@@ -36,7 +36,11 @@
     <Property Id="INGESTTOKEN" Secure="yes" Hidden="yes" />
     <Property Id="INTERVALSECONDS" Value="60" Secure="yes" />
     <Property Id="SENDINTERVALSECONDS" Value="120" Secure="yes" />
-    <Property Id="CAPTURETITLE" Value="0" Secure="yes" />
+    <!-- Titulek aktivního okna defaultně ZAPNUTÝ – jemnější klasifikace
+         (rozlišení produktivních vs. mimopracovních web tabů, Office souborů).
+         Vypnutí přes msiexec /i ... CAPTURETITLE=0 nebo přes GPO MST transform.
+         Zaměstnanec MUSÍ být o sběru titulků poučen dle §316/3 ZP. -->
+    <Property Id="CAPTURETITLE" Value="1" Secure="yes" />
     <Property Id="IDLESECONDS" Value="300" Secure="yes" />
     <Property Id="COMPANYNETWORKONLY" Value="0" Secure="yes" />
     <Property Id="COMPANYPROBEHOST" Secure="yes" />

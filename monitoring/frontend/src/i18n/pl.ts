@@ -222,7 +222,7 @@ export const pl: typeof cs = {
       title: 'Co zbiera FOCUS – przeczytaj przed wdrożeniem',
       collected: [
         'Czas aktywny/bezczynny, nazwa aktywnej aplikacji, liczba uderzeń klawiszy i kliknięć (NIGDY treść).',
-        'Tytuł aktywnego okna tylko jeśli przy instalacji MSI ustawiono CAPTURETITLE=1. Domyślnie WYŁĄCZONE.',
+        'Tytuł aktywnego okna (domyślnie WŁĄCZONY). Można wyłączyć przez CAPTURETITLE=0 przy MSI lub przez GPO.',
         'Telemetria HW dla IT (CPU, RAM, bateria, dyski, BIOS, antywirus).',
         'Nazwa hosta, MAC, lokalne IP, SID Windows i nazwa zalogowanego użytkownika.',
       ].join('\n'),
@@ -249,7 +249,7 @@ export const pl: typeof cs = {
     retention1825: '~5 lat (trzyma szczegóły na zawsze)',
     retentionLong: '≈ 5 lat lub więcej – maksimum, trzyma szczegóły na zawsze',
     retentionMed: '≈ rok lub więcej – standard CZ',
-    retentionShort: '< rok – privacy-first (DE)',
+    retentionShort: '< rok – privacy-first',
     showDemoLabel: 'Pokazuj przykładowe urządzenia / dane',
     showDemoDesc: 'Wyłączenie ukryje urządzenia DEMO-PC-* i fikcyjne wpisy. W produkcji zalecane wyłączyć.',
     enableSelfReport: 'Zezwól pracownikom na ich własny raport',

@@ -226,7 +226,7 @@ export const de: typeof cs = {
         'HW-Telemetrie für die IT (CPU, RAM, Akku, Festplatten, BIOS, Antivirus).',
         'Hostname, MAC, lokale IP, Windows-SID und Name des angemeldeten Benutzers.',
       ].join('\n'),
-      legalNotice: 'Vor dem Einsatz müssen Sie die Mitarbeiter schriftlich gemäß BetrVG § 87 Abs. 1 Nr. 6 (DE) bzw. § 316 Abs. 3 ArbG (CZ) und DSGVO Art. 13 belehren. Musterbelehrungen und weitere rechtliche Vorlagen finden Sie im Repository: ',
+      legalNotice: 'Vor dem Einsatz müssen Sie die Mitarbeiter schriftlich gemäß § 316 Abs. 3 ArbG und DSGVO Art. 13 belehren. Musterbelehrungen und weitere rechtliche Vorlagen finden Sie im Repository: ',
     },
     smtpMissing: 'Der SMTP-Server ist noch nicht eingerichtet (Variablen SMTP_HOST etc. auf dem Server). Ohne ihn werden keine E-Mails versendet.',
     sendAlertsLabel: 'Benachrichtigungen senden (Erkennung von Manipulationsversuchen + Agent-Ausfall)',

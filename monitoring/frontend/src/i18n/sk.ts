@@ -222,7 +222,7 @@ export const sk: typeof cs = {
       title: 'Čo FOCUS zbiera – prečítaj pred nasadením',
       collected: [
         'Aktívny/nečinný čas, názov aktívnej aplikácie, počet úderov a klikov (NIKDY nie obsah).',
-        'Titulok aktívneho okna len ak bolo CAPTURETITLE=1 pri inštalácii MSI. Default je VYPNUTÉ.',
+        'Titulok aktívneho okna (default ZAPNUTÝ). Možno vypnúť cez CAPTURETITLE=0 pri MSI alebo cez GPO smernicu.',
         'HW telemetria pre IT (CPU, RAM, batéria, disky, BIOS, antivírus).',
         'Hostname, MAC, lokálna IP, Windows SID a meno prihláseného používateľa.',
       ].join('\n'),
@@ -249,7 +249,7 @@ export const sk: typeof cs = {
     retention1825: '~5 rokov (drží detail navždy)',
     retentionLong: '≈ 5 rokov i viac – maximum, drží detail navždy',
     retentionMed: '≈ rok i viac – CZ štandard',
-    retentionShort: '< rok – privacy-first (DE)',
+    retentionShort: '< rok – privacy-first',
     showDemoLabel: 'Zobrazovať ukážkové zariadenia / dáta',
     showDemoDesc: 'Vypnutie skryje DEMO-PC-* zariadenia a fiktívne záznamy. V produkcii odporúčané mať vypnuté.',
     enableSelfReport: 'Povoliť zamestnancom ich vlastný report',

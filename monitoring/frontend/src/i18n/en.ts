@@ -222,7 +222,7 @@ export const en: typeof cs = {
       title: 'What FOCUS collects – read before deployment',
       collected: [
         'Active/idle time, the name of the active application, the number of keystrokes and clicks (NEVER the content).',
-        'The title of the active window only if CAPTURETITLE=1 was set during MSI installation. Default is OFF.',
+        'Title of the active window (default ON). Can be disabled by CAPTURETITLE=0 at MSI install or via GPO.',
         'HW telemetry for IT (CPU, RAM, battery, disks, BIOS, antivirus).',
         'Hostname, MAC, local IP, Windows SID and the name of the logged-in user.',
       ].join('\n'),
@@ -249,7 +249,7 @@ export const en: typeof cs = {
     retention1825: '~5 years (keeps detail forever)',
     retentionLong: '≈ 5 years or more – maximum, keeps detail forever',
     retentionMed: '≈ a year or more – CZ standard',
-    retentionShort: '< a year – privacy-first (DE)',
+    retentionShort: '< a year – privacy-first',
     showDemoLabel: 'Show sample devices / data',
     showDemoDesc: 'Switching off hides DEMO-PC-* devices and fictitious records. In production it is recommended to keep this off.',
     enableSelfReport: 'Allow employees to view their own report',
