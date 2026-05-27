@@ -95,7 +95,26 @@ export default function App() {
   const [cmdOpen, setCmdOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [warmed, setWarmed] = useState(false);
-  const selfToken = useMemo(() => new URLSearchParams(window.location.search).get('selfToken'), []);
+  // Self-service token preferujeme z URL fragmentu (#selfToken=…) – ten se NEPOSÍLÁ
+  // na server ani do refereru, takže neleakuje do access-logů. Po načtení ho přesuneme
+  // do sessionStorage (umírá se zavřením záložky) a vyčistíme URL.
+  // Legacy fallback: query parametr ?selfToken=… pro staré agenty před v0.3.
+  const selfToken = useMemo(() => {
+    const stored = sessionStorage.getItem('focus_self_token');
+    if (stored) return stored;
+    let token: string | null = null;
+    if (window.location.hash.includes('selfToken=')) {
+      const h = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      token = h.get('selfToken');
+    }
+    if (!token) token = new URLSearchParams(window.location.search).get('selfToken');
+    if (token) {
+      sessionStorage.setItem('focus_self_token', token);
+      // odstraní token z URL i z historie prohlížeče
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    return token;
+  }, []);
 
   useEffect(() => {
     if (auth.isLoggedIn()) auth.me().then(setMe).catch(() => auth.logout()).finally(() => setAuthChecked(true));

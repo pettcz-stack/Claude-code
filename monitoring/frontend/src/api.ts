@@ -284,8 +284,12 @@ export const api = {
   selfReport: (userId: string, from: string, to: string) =>
     getJson<{ report: SelfReportData }>(`/api/v1/dashboard/selfreport?userId=${encodeURIComponent(userId)}&from=${from}&to=${to}`).then((d) => d.report),
   tips: () => getJson<TipsData>('/api/v1/dashboard/tips'),
+  // Self-service token posíláme v Authorization: Bearer headeru,
+  // aby se neobjevil v access-logu / refereru / browser historii.
   selfReportPublic: (token: string, from: string, to: string) =>
-    fetch(`/api/v1/self/report?token=${encodeURIComponent(token)}&from=${from}&to=${to}`).then(async (r) => {
+    fetch(`/api/v1/self/report?from=${from}&to=${to}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(async (r) => {
       if (!r.ok) {
         let code: string | undefined;
         try { const j = await r.json(); code = typeof j?.error === 'string' ? j.error : undefined; } catch { /* nepodstatné */ }
@@ -294,7 +298,9 @@ export const api = {
       return r.json() as Promise<{ report: SelfReportData; tips: TipsData; modes: { funMode: boolean; healthMode: boolean; growthMode: boolean } }>;
     }),
   selfAudit: (token: string) =>
-    fetch(`/api/v1/self/audit?token=${encodeURIComponent(token)}`).then((r) => {
+    fetch(`/api/v1/self/audit`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((r) => {
       if (!r.ok) throw new Error(`${r.status}`);
       return r.json() as Promise<{ enabled: boolean; rows: { id: string; adminIdentity: string; action: string; detail: string | null; createdAt: string }[] }>;
     }),

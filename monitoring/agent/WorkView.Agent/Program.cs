@@ -176,7 +176,11 @@ namespace WorkView.Agent
             {
                 string token = await _sender.RequestSelfTokenAsync();
                 if (string.IsNullOrEmpty(token)) return;
-                string url = _cfg.BackendUrl + "/?selfToken=" + Uri.EscapeDataString(token);
+                // Fragment (#) místo query (?) – token se NEPOSÍLÁ na server, neukáže
+                // se v access-logu, refereru ani v back-end logu reverzní proxy.
+                // Frontend ho čte z URL hashe, uloží do sessionStorage a hash okamžitě
+                // odstraní (history.replaceState), takže nezůstává v historii prohlížeče.
+                string url = _cfg.BackendUrl + "/#selfToken=" + Uri.EscapeDataString(token);
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
             }
             catch { /* nepodstatné */ }

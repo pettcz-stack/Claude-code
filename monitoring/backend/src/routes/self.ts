@@ -33,6 +33,25 @@ function verify(token: unknown): { sid: string; exp: number } | null {
   }
 }
 
+/**
+ * Vytáhne self-service token primárně z `Authorization: Bearer …` hlavičky.
+ * Pokud chybí, zkusí query parametr `?token=…` (legacy režim, který naleakuje
+ * token do access-logů / refereru / historie prohlížeče – proto loguje varování).
+ * Klient by měl token posílat výhradně v hlavičce; query je dočasná podpora,
+ * dokud staré agenty / odkazy s `?selfToken=` doběhnou.
+ */
+function extractSelfToken(req: import('express').Request): string | null {
+  const h = req.header('authorization');
+  if (h && /^bearer\s+/i.test(h)) return h.replace(/^bearer\s+/i, '').trim();
+  const q = req.query.token;
+  if (typeof q === 'string' && q.length > 0) {
+    // eslint-disable-next-line no-console
+    console.warn('[self] token přijat v query stringu – klient by měl použít Authorization: Bearer');
+    return q;
+  }
+  return null;
+}
+
 /** Agent si vyžádá odkaz pro zaměstnance (autentizace ingest tokenem). */
 selfRouter.post('/token', requireIngestToken, async (req, res) => {
   const sid = z.string().min(1).max(128).safeParse(req.body?.sid);
@@ -46,7 +65,7 @@ selfRouter.post('/token', requireIngestToken, async (req, res) => {
 selfRouter.get('/report', async (req, res) => {
   const { employeeReportEnabled, funMode, healthMode, growthMode } = await getSettings();
   if (!employeeReportEnabled) return void res.status(403).json({ error: 'disabled' });
-  const p = verify(req.query.token);
+  const p = verify(extractSelfToken(req));
   if (!p) return void res.status(401).json({ error: 'invalid_token' });
   const user = await prisma.monitoredUser.findUnique({ where: { sid: p.sid }, select: { id: true } });
   if (!user) return void res.status(404).json({ error: 'not_found' });
@@ -64,7 +83,7 @@ selfRouter.get('/report', async (req, res) => {
 selfRouter.get('/audit', async (req, res) => {
   const { employeeReportEnabled, selfAuditEnabled } = await getSettings();
   if (!employeeReportEnabled) return void res.status(403).json({ error: 'disabled' });
-  const p = verify(req.query.token);
+  const p = verify(extractSelfToken(req));
   if (!p) return void res.status(401).json({ error: 'invalid_token' });
   if (!selfAuditEnabled) return void res.json({ enabled: false, rows: [] });
   const user = await prisma.monitoredUser.findUnique({ where: { sid: p.sid }, select: { id: true } });
