@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { api, type ScoreboardRow } from './api.js';
 import { ScoreScaleLegend, ActivityLegend } from './Legend.js';
 import { TYPE_COLORS, scoreColor } from './util.js';
+import { useT } from './i18n/index.js';
 
 export function Scoreboard({ from, to, department }: { from: string; to: string; department?: string }) {
+  const { t } = useT();
   const [rows, setRows] = useState<ScoreboardRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -13,10 +15,10 @@ export function Scoreboard({ from, to, department }: { from: string; to: string;
 
   return (
     <div className="card p-5">
-      <h3 className="mb-1 text-sm font-semibold">Žebříček efektivity</h3>
-      <p className="mb-3 text-xs muted-2">Skóre = podíl odpracovaného času z očekávaného fondu. Barva pruhu ukazuje, čím byl čas vyplněn.</p>
+      <h3 className="mb-1 text-sm font-semibold">{t('nav.summary')}</h3>
+      <p className="mb-3 text-xs muted-2">{t('overview.deptRankingHint')}</p>
       <ScoreScaleLegend className="mb-4" />
-      {error && <p className="text-sm text-red-500">Chyba: {error}</p>}
+      {error && <p className="text-sm text-red-500">{t('common.error')}: {error}</p>}
       <div className="space-y-3">
         {rows.map((r, i) => (
           <div key={r.userId} className="flex items-center gap-3">
@@ -34,7 +36,7 @@ export function Scoreboard({ from, to, department }: { from: string; to: string;
             <div className="w-14 shrink-0 text-right text-lg font-bold tabular-nums" style={{ color: scoreColor(r.score) }}>{r.score}%</div>
           </div>
         ))}
-        {rows.length === 0 && !error && <p className="text-sm muted-2">Žádná data.</p>}
+        {rows.length === 0 && !error && <p className="text-sm muted-2">{t('common.noData')}</p>}
       </div>
       <ActivityLegend className="mt-4" />
     </div>
