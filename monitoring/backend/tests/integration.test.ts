@@ -151,3 +151,93 @@ describe('analytika (smoke)', () => {
     expect(res.body.settings.healthMode).toBe(true);
   });
 });
+
+describe('MANAGER department scope (RBAC)', () => {
+  let managerBearer = '';
+  let managerUserId = '';
+  const range = 'from=2026-05-01T00:00:00.000Z&to=2026-06-01T00:00:00.000Z';
+
+  beforeAll(async () => {
+    // Manager s přiřazením jen na oddělení "Marketing" – ten naše seed nemá,
+    // takže manager neuvidí žádné uživatele.
+    const m = await prisma.adminUser.upsert({
+      where: { username: 'mgr-marketing' },
+      update: {},
+      create: { username: 'mgr-marketing', passwordHash: hashPassword('mgr-pass'), role: 'MANAGER' },
+    });
+    managerUserId = m.id;
+    await prisma.adminUserDepartment.deleteMany({ where: { adminId: m.id } });
+    await prisma.adminUserDepartment.create({ data: { adminId: m.id, department: 'Marketing' } });
+    const login = await request(app).post('/api/v1/login').send({ username: 'mgr-marketing', password: 'mgr-pass' });
+    managerBearer = 'Bearer ' + login.body.token;
+  });
+
+  it('MANAGER s ?department=Vývoj (nesvoje) dostane 403', async () => {
+    const res = await request(app)
+      .get(`/api/v1/dashboard/scoreboard?${range}&department=V%C3%BDvoj`)
+      .set('authorization', managerBearer);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('department_not_allowed');
+  });
+
+  it('MANAGER bez ?department vidí pouze své oddělení (zde prázdné)', async () => {
+    const res = await request(app)
+      .get(`/api/v1/dashboard/scoreboard?${range}`)
+      .set('authorization', managerBearer);
+    expect(res.status).toBe(200);
+    expect(res.body.rows.length).toBe(0); // Marketing nemá žádné usery v seedu
+  });
+
+  it('MANAGER nesmí číst score/integrity uživatele mimo své oddělení (403)', async () => {
+    const u = await prisma.monitoredUser.findUnique({ where: { sid: 'S-1-5-21-IT-1' } });
+    expect(u).toBeTruthy();
+    for (const ep of ['score', 'integrity', 'selfreport', 'hourly']) {
+      const res = await request(app)
+        .get(`/api/v1/dashboard/${ep}?${range}&userId=${u!.id}`)
+        .set('authorization', managerBearer);
+      expect(res.status, ep).toBe(403);
+      expect(res.body.error, ep).toBe('user_not_in_allowed_departments');
+    }
+  });
+
+  it('MANAGER s ?department=Marketing (svoje) dostane 200 i prázdné výsledky', async () => {
+    for (const ep of ['overview', 'scoreboard', 'trend', 'top-activities', 'monitors', 'homeoffice', 'software', 'alerts']) {
+      const res = await request(app)
+        .get(`/api/v1/dashboard/${ep}?${range}&department=Marketing`)
+        .set('authorization', managerBearer);
+      expect(res.status, ep).toBe(200);
+    }
+  });
+
+  it('MANAGER bez přiřazených oddělení dostane 403', async () => {
+    await prisma.adminUserDepartment.deleteMany({ where: { adminId: managerUserId } });
+    const res = await request(app)
+      .get(`/api/v1/dashboard/overview?${range}`)
+      .set('authorization', managerBearer);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('no_departments_assigned');
+    // Cleanup
+    await prisma.adminUserDepartment.create({ data: { adminId: managerUserId, department: 'Marketing' } });
+  });
+
+  it('MANAGER vidí v /dashboard/users jen své oddělení', async () => {
+    // Přidej do seedu Marketing usera, ať není seznam vždy prázdný.
+    await prisma.monitoredUser.upsert({
+      where: { sid: 'S-1-5-21-MKT-1' },
+      update: { department: 'Marketing', active: true },
+      create: { sid: 'S-1-5-21-MKT-1', displayName: 'Markéta Marketing', department: 'Marketing', active: true },
+    });
+    const res = await request(app).get('/api/v1/dashboard/users').set('authorization', managerBearer);
+    expect(res.status).toBe(200);
+    const depts = new Set((res.body.users as Array<{ department: string | null }>).map((u) => u.department));
+    expect(depts.size).toBeLessThanOrEqual(1);
+    if (depts.size === 1) expect([...depts][0]).toBe('Marketing');
+  });
+
+  it('ADMIN vidí všechna oddělení v /dashboard/users', async () => {
+    const res = await request(app).get('/api/v1/dashboard/users').set('authorization', bearer);
+    expect(res.status).toBe(200);
+    const depts = new Set((res.body.users as Array<{ department: string | null }>).map((u) => u.department));
+    expect(depts.size).toBeGreaterThanOrEqual(1);
+  });
+});

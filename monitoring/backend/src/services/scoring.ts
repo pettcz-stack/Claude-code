@@ -4,6 +4,7 @@ import { getCategoryMap, type CatType } from './categories.js';
 import { classifyActivity, getWebRules } from './classify.js';
 import { getDeptRules } from './deptrules.js';
 import { demoUserWhere } from './demoFilter.js';
+import { deptWhere } from './accessControl.js';
 import { getSettings } from './settings.js';
 import { holidayWeekdaySet, absenceByUser, effectiveWorkdays } from './workcal.js';
 
@@ -104,9 +105,9 @@ export type ScoreboardRow = {
 };
 
 /** Žebříček skóre všech aktivních uživatelů – čte z denních souhrnů (rychlé nad roky dat). */
-export async function scoreboardRows(from: Date, to: Date, department?: string): Promise<ScoreboardRow[]> {
+export async function scoreboardRows(from: Date, to: Date, department?: string | string[]): Promise<ScoreboardRow[]> {
   const users = await prisma.monitoredUser.findMany({
-    where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
+    where: { active: true, ...deptWhere(department), ...(await demoUserWhere()) },
     select: { id: true, displayName: true, department: true },
   });
   const ids = users.map((u) => u.id);

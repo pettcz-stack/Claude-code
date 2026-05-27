@@ -90,3 +90,99 @@ export function requireOneOfRoles(...roles: Role[]) {
 export function capabilities(role: string) {
   return ROLE_CAPABILITIES[(role as Role)] ?? ROLE_CAPABILITIES.VIEWER;
 }
+
+/**
+ * Rozsah oddělení, která daný admin smí vidět.
+ *  - `unrestricted` = ADMIN/IT/VIEWER, vidí všechna oddělení.
+ *  - `allowed` = MANAGER, vidí pouze tato (může být prázdné = nic nevidí).
+ */
+export type DeptScope =
+  | { unrestricted: true }
+  | { unrestricted: false; allowed: string[] };
+
+/** Vrátí rozsah oddělení pro req.admin. Cache neukládá – levné. */
+export async function getDeptScope(req: Request): Promise<DeptScope> {
+  const role = (req.admin?.role ?? 'VIEWER') as Role;
+  if (role !== 'MANAGER') return { unrestricted: true };
+  const allowed = (await allowedDepartments(req.admin!.id, role)) ?? [];
+  return { unrestricted: false, allowed };
+}
+
+/**
+ * Vyhodnotí query parametr `?department=` proti scope přihlášeného uživatele.
+ *
+ *  - ADMIN/IT/VIEWER: vrátí přesně to, co přišlo (nebo undefined).
+ *  - MANAGER bez přiřazených oddělení: 403, vrátí null.
+ *  - MANAGER s `?department=X`: pokud X není v allowed → 403, vrátí null.
+ *  - MANAGER bez `?department`: vrátí array všech allowed (multi-dept agregace).
+ *
+ * Volající MUSÍ zkontrolovat `=== null` a v takovém případě skončit – response
+ * už je odeslaná. Jinak filter předá do cq.* / analytics.*.
+ */
+export async function resolveDept(
+  req: Request,
+  res: Response,
+  requested?: string,
+): Promise<string | string[] | undefined | null> {
+  const scope = await getDeptScope(req);
+  if (scope.unrestricted) return requested;
+  if (scope.allowed.length === 0) {
+    res.status(403).json({ error: 'no_departments_assigned' });
+    return null;
+  }
+  if (requested) {
+    if (!scope.allowed.includes(requested)) {
+      res.status(403).json({ error: 'department_not_allowed', requested });
+      return null;
+    }
+    return requested;
+  }
+  // Manager má více oddělení a žádné konkrétní nepožádal → agregovat přes všechna.
+  return scope.allowed.length === 1 ? scope.allowed[0] : scope.allowed;
+}
+
+/**
+ * Ověří, že přihlášený admin smí vidět daného MonitoredUser.
+ *  - ADMIN/IT/VIEWER: vždy true.
+ *  - MANAGER: true pouze pokud user.department ∈ allowed.
+ *
+ * Pokud false, odešle 403 a vrátí false – volající skončí.
+ */
+export async function assertCanSeeUser(
+  req: Request,
+  res: Response,
+  userId: string,
+): Promise<boolean> {
+  const scope = await getDeptScope(req);
+  if (scope.unrestricted) return true;
+  const u = await prisma.monitoredUser.findUnique({
+    where: { id: userId },
+    select: { department: true },
+  });
+  if (!u || !u.department || !scope.allowed.includes(u.department)) {
+    res.status(403).json({ error: 'user_not_in_allowed_departments' });
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Vrátí Prisma `where` fragment pro filtraci podle oddělení.
+ *  - undefined / null → {} (žádný filter)
+ *  - string → { department: 'Sales' }
+ *  - string[] → { department: { in: [...] } } (Prisma vrátí prázdno pro [])
+ */
+export function deptWhere(
+  dept?: string | string[] | null,
+): { department?: string | { in: string[] } } {
+  if (dept === undefined || dept === null) return {};
+  if (Array.isArray(dept)) return { department: { in: dept } };
+  return { department: dept };
+}
+
+/** Stabilní string klíč pro cache (sjednotí pořadí array). */
+export function deptCacheKey(dept?: string | string[] | null): string {
+  if (!dept) return '';
+  if (Array.isArray(dept)) return dept.slice().sort().join('|');
+  return dept;
+}

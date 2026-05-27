@@ -1,6 +1,7 @@
 import { prisma } from '../db.js';
 import { config } from '../config.js';
 import { demoUserWhere, demoDeviceWhere } from './demoFilter.js';
+import { deptWhere } from './accessControl.js';
 import { getCategoryMap, type CatType } from './categories.js';
 import { classifyActivity, getWebRules } from './classify.js';
 import { getDeptRules } from './deptrules.js';
@@ -91,14 +92,14 @@ async function computeWeekTrend(userId: string, anchor: Date): Promise<{ last: n
 export type TrendPoint = { date: string; score: number; workMinutes: number; nonWorkMinutes: number; idleMinutes: number; absence?: string | null };
 
 /** Denní trend skóre pro uživatele (nebo průměr firmy, když userId chybí). */
-export async function trend(from: Date, to: Date, userId?: string, department?: string): Promise<TrendPoint[]> {
+export async function trend(from: Date, to: Date, userId?: string, department?: string | string[]): Promise<TrendPoint[]> {
   const expectedPerDay = config.expectedWorkHoursPerDay * 60;
 
   const userIds = userId
     ? [userId]
     : (
         await prisma.monitoredUser.findMany({
-          where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
+          where: { active: true, ...deptWhere(department), ...(await demoUserWhere()) },
           select: { id: true },
         })
       ).map((u) => u.id);
@@ -166,13 +167,13 @@ export async function topActivities(
   from: Date,
   to: Date,
   userId?: string,
-  department?: string,
+  department?: string | string[],
 ): Promise<{ apps: ActivityItem[]; sites: ActivityItem[] }> {
   const userIds = userId
     ? [userId]
     : (
         await prisma.monitoredUser.findMany({
-          where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
+          where: { active: true, ...deptWhere(department), ...(await demoUserWhere()) },
           select: { id: true },
         })
       ).map((u) => u.id);
@@ -306,9 +307,9 @@ export type OverviewResult = {
   locations: { site: string; users: number }[]; // kde se pracuje (počet lidí dle převažující provozovny)
 };
 
-export async function overview(from: Date, to: Date, department?: string): Promise<OverviewResult> {
+export async function overview(from: Date, to: Date, department?: string | string[]): Promise<OverviewResult> {
   const users = await prisma.monitoredUser.findMany({
-    where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
+    where: { active: true, ...deptWhere(department), ...(await demoUserWhere()) },
     select: { id: true, displayName: true, department: true },
   });
   const ids = users.map((u) => u.id);
@@ -442,12 +443,12 @@ export type HeatmapResult = {
  * Průměrné aktivní minuty + rozpad práce/zábava podle dne v týdnu (0=Ne) × hodina (0–23).
  * Frontend pak barvy odvodí: hue z poměru work/(work+nonwork), alpha z intenzity.
  */
-export async function heatmap(from: Date, to: Date, department?: string, userId?: string): Promise<HeatmapResult> {
+export async function heatmap(from: Date, to: Date, department?: string | string[], userId?: string): Promise<HeatmapResult> {
   const userIds = userId
     ? [userId]
     : (
         await prisma.monitoredUser.findMany({
-          where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
+          where: { active: true, ...deptWhere(department), ...(await demoUserWhere()) },
           select: { id: true },
         })
       ).map((u) => u.id);
@@ -512,9 +513,9 @@ export type HomeOfficeResult = {
   perUser: { userId: string; displayName: string | null; department: string | null; hoDays: number; hoScore: number; officeScore: number; diff: number }[];
 };
 
-export async function homeOffice(from: Date, to: Date, department?: string): Promise<HomeOfficeResult> {
+export async function homeOffice(from: Date, to: Date, department?: string | string[]): Promise<HomeOfficeResult> {
   const users = await prisma.monitoredUser.findMany({
-    where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
+    where: { active: true, ...deptWhere(department), ...(await demoUserWhere()) },
     select: { id: true, displayName: true, department: true },
   });
   const ids = users.map((u) => u.id);
@@ -722,9 +723,9 @@ export type MonitorsResult = {
   advice: { upliftLowPct: number; upliftHighPct: number; candidates: MonitorAdvice[] };
 };
 
-export async function monitorsComparison(from: Date, to: Date, department?: string): Promise<MonitorsResult> {
+export async function monitorsComparison(from: Date, to: Date, department?: string | string[]): Promise<MonitorsResult> {
   const users = await prisma.monitoredUser.findMany({
-    where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
+    where: { active: true, ...deptWhere(department), ...(await demoUserWhere()) },
     select: { id: true, displayName: true, department: true },
   });
   const ids = users.map((u) => u.id);
@@ -829,9 +830,9 @@ export type SoftwareAudit = {
   items: SoftwareItem[];
 };
 
-export async function softwareAudit(from: Date, to: Date, department?: string): Promise<SoftwareAudit> {
+export async function softwareAudit(from: Date, to: Date, department?: string | string[]): Promise<SoftwareAudit> {
   const users = await prisma.monitoredUser.findMany({
-    where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
+    where: { active: true, ...deptWhere(department), ...(await demoUserWhere()) },
     select: { id: true },
   });
   const ids = users.map((u) => u.id);
@@ -913,9 +914,9 @@ export type CostResult = {
   }[];
 };
 
-export async function costAudit(from: Date, to: Date, department?: string): Promise<CostResult> {
+export async function costAudit(from: Date, to: Date, department?: string | string[]): Promise<CostResult> {
   const users = await prisma.monitoredUser.findMany({
-    where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
+    where: { active: true, ...deptWhere(department), ...(await demoUserWhere()) },
     select: { id: true, displayName: true, department: true, hourlyRate: true },
   });
   const ids = users.map((u) => u.id);

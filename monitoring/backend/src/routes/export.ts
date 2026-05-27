@@ -4,6 +4,7 @@ import ExcelJS from 'exceljs';
 import { prisma } from '../db.js';
 import { logAccess } from '../auth.js';
 import { demoUserWhere } from '../services/demoFilter.js';
+import { resolveDept, assertCanSeeUser, deptWhere, getDeptScope } from '../services/accessControl.js';
 
 export const exportRouter = Router();
 
@@ -22,9 +23,12 @@ exportRouter.get('/hourly.xlsx', async (req, res) => {
     return;
   }
   const { from, to, userId, department } = parsed.data;
+  const dept = await resolveDept(req, res, department);
+  if (dept === null) return;
+  if (userId && !(await assertCanSeeUser(req, res, userId))) return;
 
   const users = await prisma.monitoredUser.findMany({
-    where: { ...(department ? { department } : {}), ...(userId ? { id: userId } : {}), ...(await demoUserWhere()) },
+    where: { ...deptWhere(dept), ...(userId ? { id: userId } : {}), ...(await demoUserWhere()) },
     select: { id: true, displayName: true, department: true },
   });
   const userMap = new Map(users.map((u) => [u.id, u]));
@@ -85,9 +89,15 @@ exportRouter.get('/intervals.xlsx', async (req, res) => {
     return;
   }
   const { from, to, userId } = parsed.data;
+  if (userId && !(await assertCanSeeUser(req, res, userId))) return;
+  // Pro MANAGER bez userId omez výběr intervalů přes user.department in allowed.
+  const scope = await getDeptScope(req);
+  const scopeUserFilter = scope.unrestricted
+    ? {}
+    : { user: { department: { in: scope.allowed } } };
 
   const rows = await prisma.activityInterval.findMany({
-    where: { ...(userId ? { userId } : {}), intervalStart: { gte: new Date(from), lt: new Date(to) } },
+    where: { ...(userId ? { userId } : {}), ...scopeUserFilter, intervalStart: { gte: new Date(from), lt: new Date(to) } },
     orderBy: { intervalStart: 'asc' },
     take: 100000,
     include: { user: { select: { displayName: true, department: true } } },

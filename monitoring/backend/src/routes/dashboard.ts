@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db.js';
 import { logAccess, requireRole } from '../auth.js';
+import { resolveDept, assertCanSeeUser, getDeptScope, deptWhere } from '../services/accessControl.js';
 import { getCategoryMap } from '../services/categories.js';
 import { classifyActivity, getWebRules } from '../services/classify.js';
 import { computeUserScore } from '../services/scoring.js';
@@ -26,7 +27,9 @@ dashboardRouter.get('/overview', async (req, res) => {
   const parsed = rangeSchema.safeParse(req.query);
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
   const { from, to, department } = parsed.data;
-  res.json(await cq.overview(from, to, department));
+  const dept = await resolveDept(req, res, department);
+  if (dept === null) return;
+  res.json(await cq.overview(from, to, dept));
 });
 
 /** Heatmapa využití: den v týdnu × hodina. */
@@ -34,7 +37,10 @@ dashboardRouter.get('/heatmap', async (req, res) => {
   const parsed = rangeSchema.safeParse(req.query);
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
   const { from, to, department, userId } = parsed.data;
-  res.json(await heatmap(new Date(from), new Date(to), department, userId));
+  const dept = await resolveDept(req, res, department);
+  if (dept === null) return;
+  if (userId && !(await assertCanSeeUser(req, res, userId))) return;
+  res.json(await heatmap(new Date(from), new Date(to), dept, userId));
 });
 
 /** Audit softwaru / licencí (využití aplikací + nevyužité placené licence). */
@@ -42,7 +48,9 @@ dashboardRouter.get('/software', async (req, res) => {
   const parsed = rangeSchema.safeParse(req.query);
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
   const { from, to, department } = parsed.data;
-  res.json(await cq.software(from, to, department));
+  const dept = await resolveDept(req, res, department);
+  if (dept === null) return;
+  res.json(await cq.software(from, to, dept));
 });
 
 /** Náklady neproduktivního času (mzda × …). CITLIVÉ – jen ADMIN (šéf). */
@@ -50,7 +58,10 @@ dashboardRouter.get('/cost', requireRole('ADMIN'), async (req, res) => {
   const parsed = rangeSchema.safeParse(req.query);
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
   const { from, to, department } = parsed.data;
-  res.json(await cq.cost(from, to, department));
+  // ADMIN-only endpoint, ale prošlém resolveDept pro konzistenci (vrátí beze změny).
+  const dept = await resolveDept(req, res, department);
+  if (dept === null) return;
+  res.json(await cq.cost(from, to, dept));
 });
 
 /** Export položek k zařazení (dávková klasifikace). */
@@ -84,7 +95,9 @@ dashboardRouter.get('/monitors', async (req, res) => {
   const parsed = rangeSchema.safeParse(req.query);
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
   const { from, to, department } = parsed.data;
-  res.json(await cq.monitors(from, to, department));
+  const dept = await resolveDept(req, res, department);
+  if (dept === null) return;
+  res.json(await cq.monitors(from, to, dept));
 });
 
 /** Home Office vyhodnocení (efektivita HO vs. kancelář). */
@@ -92,7 +105,9 @@ dashboardRouter.get('/homeoffice', async (req, res) => {
   const parsed = rangeSchema.safeParse(req.query);
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
   const { from, to, department } = parsed.data;
-  res.json(await cq.homeoffice(from, to, department));
+  const dept = await resolveDept(req, res, department);
+  if (dept === null) return;
+  res.json(await cq.homeoffice(from, to, dept));
 });
 
 /** Self-report pro zaměstnance (anonymizované srovnání). */
@@ -101,6 +116,7 @@ dashboardRouter.get('/selfreport', async (req, res) => {
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
   const { from, to, userId } = parsed.data;
   if (!userId) return void res.status(400).json({ error: 'userId_required' });
+  if (!(await assertCanSeeUser(req, res, userId))) return;
   await logAccess(req.admin?.username ?? 'unknown', 'VIEW', `selfreport ${from}..${to}`, userId);
   res.json({ report: await cq.selfreport(userId, from, to) });
 });
@@ -111,6 +127,7 @@ dashboardRouter.get('/integrity', async (req, res) => {
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
   const { from, to, userId } = parsed.data;
   if (!userId) return void res.status(400).json({ error: 'userId_required' });
+  if (!(await assertCanSeeUser(req, res, userId))) return;
   res.json({ integrity: await computeIntegrity(userId, new Date(from), new Date(to)) });
 });
 
@@ -119,7 +136,9 @@ dashboardRouter.get('/alerts', async (req, res) => {
   const parsed = rangeSchema.safeParse(req.query);
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
   const { from, to, department } = parsed.data;
-  res.json({ alerts: await detectAlerts(new Date(from), new Date(to), department) });
+  const dept = await resolveDept(req, res, department);
+  if (dept === null) return;
+  res.json({ alerts: await detectAlerts(new Date(from), new Date(to), dept) });
 });
 
 /** Denní trend skóre (uživatel nebo firma). */
@@ -130,7 +149,10 @@ dashboardRouter.get('/trend', async (req, res) => {
     return;
   }
   const { from, to, userId, department } = parsed.data;
-  const points = await cq.trend(from, to, userId, department);
+  const dept = await resolveDept(req, res, department);
+  if (dept === null) return;
+  if (userId && !(await assertCanSeeUser(req, res, userId))) return;
+  const points = await cq.trend(from, to, userId, dept);
   res.json({ points });
 });
 
@@ -142,7 +164,10 @@ dashboardRouter.get('/top-activities', async (req, res) => {
     return;
   }
   const { from, to, userId, department } = parsed.data;
-  const result = await cq.topact(from, to, userId, department);
+  const dept = await resolveDept(req, res, department);
+  if (dept === null) return;
+  if (userId && !(await assertCanSeeUser(req, res, userId))) return;
+  const result = await cq.topact(from, to, userId, dept);
   res.json(result);
 });
 
@@ -163,6 +188,7 @@ dashboardRouter.get('/score', async (req, res) => {
     res.status(400).json({ error: 'userId_required' });
     return;
   }
+  if (!(await assertCanSeeUser(req, res, userId))) return;
   const { interpretMonitors } = await getSettings();
   const score = await computeUserScore(userId, new Date(from), new Date(to), { interpretMonitors });
   await logAccess(req.admin?.username ?? 'unknown', 'VIEW', `score ${from}..${to}`, userId);
@@ -177,7 +203,9 @@ dashboardRouter.get('/scoreboard', async (req, res) => {
     return;
   }
   const { from, to, department } = parsed.data;
-  const rows = await cq.scoreboard(from, to, department);
+  const dept = await resolveDept(req, res, department);
+  if (dept === null) return;
+  const rows = await cq.scoreboard(from, to, dept);
   res.json({ rows });
 });
 
@@ -188,10 +216,13 @@ const rangeSchema = z.object({
   department: z.string().optional(),
 });
 
-/** Seznam sledovaných uživatelů (pro filtry a výběr v dashboardu). */
-dashboardRouter.get('/users', async (_req, res) => {
+/** Seznam sledovaných uživatelů (pro filtry a výběr v dashboardu).
+ *  Pro MANAGER ořízneme seznam pouze na jeho přiřazená oddělení. */
+dashboardRouter.get('/users', async (req, res) => {
+  const scope = await getDeptScope(req);
+  const scopeFilter = scope.unrestricted ? {} : deptWhere(scope.allowed);
   const users = await prisma.monitoredUser.findMany({
-    where: { active: true, ...(await demoUserWhere()) },
+    where: { active: true, ...scopeFilter, ...(await demoUserWhere()) },
     orderBy: [{ department: 'asc' }, { displayName: 'asc' }],
     select: { id: true, displayName: true, department: true, sid: true },
   });
@@ -210,6 +241,7 @@ dashboardRouter.get('/hourly', async (req, res) => {
     res.status(400).json({ error: 'userId_required' });
     return;
   }
+  if (!(await assertCanSeeUser(req, res, userId))) return;
   const rows = await prisma.activityHourly.findMany({
     where: { userId, hourStart: { gte: new Date(from), lt: new Date(to) } },
     orderBy: { hourStart: 'asc' },
@@ -224,6 +256,7 @@ dashboardRouter.get('/hourly-apps', async (req, res) => {
   if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
   const { from, to, userId } = parsed.data;
   if (!userId) return void res.status(400).json({ error: 'userId_required' });
+  if (!(await assertCanSeeUser(req, res, userId))) return;
   const [catMap, webRules, deptRules, mu] = await Promise.all([
     getCategoryMap(), getWebRules(), getDeptRules(),
     prisma.monitoredUser.findUnique({ where: { id: userId }, select: { department: true } }),
@@ -270,9 +303,11 @@ dashboardRouter.get('/summary', async (req, res) => {
     return;
   }
   const { from, to, department } = parsed.data;
+  const dept = await resolveDept(req, res, department);
+  if (dept === null) return;
 
   const users = await prisma.monitoredUser.findMany({
-    where: { active: true, ...(department ? { department } : {}), ...(await demoUserWhere()) },
+    where: { active: true, ...deptWhere(dept), ...(await demoUserWhere()) },
     select: { id: true, displayName: true, department: true },
   });
   const userIds = users.map((u) => u.id);
