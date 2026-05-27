@@ -501,6 +501,13 @@ export const api = {
     }).then((r) => {
       if (!r.ok) throw new Error(`${r.status}`);
     }),
+  deleteDevice: (id: string) =>
+    fetch(`/api/v1/admin/devices/${id}`, {
+      method: 'DELETE',
+      headers: { ...authHeader() },
+    }).then((r) => {
+      if (!r.ok) throw new Error(`${r.status}`);
+    }),
   patchUser: (id: string, data: { displayName?: string; department?: string; active?: boolean; hourlyRate?: number | null }) =>
     fetch(`/api/v1/admin/users/${id}`, {
       method: 'PATCH',

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { HeartPulse, AlertTriangle, AlertOctagon, CheckCircle2, BatteryLow, HardDrive, Cpu, ShieldOff, RefreshCw, X } from 'lucide-react';
+import { HeartPulse, AlertTriangle, AlertOctagon, CheckCircle2, BatteryLow, HardDrive, Cpu, ShieldOff, RefreshCw, X, Trash2 } from 'lucide-react';
 import { api, type DeviceHealthRow, type DeviceHealthDetail, type HealthStatus } from './api.js';
 import { useT, type Locale } from './i18n/index.js';
 
@@ -96,6 +96,7 @@ export function HardwareHealthView() {
               <th className="th">{t('health.columnState')}</th><th className="th">{t('health.columnHostUser')}</th><th className="th">{t('health.columnModel')}</th>
               <th className="th">{t('health.battery')}</th><th className="th">{t('health.columnDisk')}</th><th className="th">{t('health.ram')}</th>
               <th className="th">{t('health.columnUpdates')}</th><th className="th">{t('health.columnAntivirus')}</th><th className="th">{t('health.columnMessages')}</th>
+              <th className="th w-10"></th>
             </tr></thead>
             <tbody>
               {filtered.map((r) => (
@@ -112,9 +113,26 @@ export function HardwareHealthView() {
                   <td className="td text-xs tabular-nums">{r.pendingUpdates ?? '—'}</td>
                   <td className="td">{r.antivirusEnabled === false ? <span className="inline-flex items-center gap-1 text-red-500"><ShieldOff size={13} /> {t('health.avOff')}</span> : r.antivirusEnabled === true ? <span className="text-emerald-600">{t('health.avOn')}</span> : <span className="muted-2">—</span>}</td>
                   <td className="td text-xs muted-2">{r.issues.length > 0 ? r.issues.slice(0, 2).join('; ') + (r.issues.length > 2 ? ` (+${r.issues.length - 2})` : '') : '—'}</td>
+                  <td className="td" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      title={t('health.deleteTooltip')}
+                      onClick={async () => {
+                        if (!confirm(t('health.deleteConfirm', { hostname: r.hostname }))) return;
+                        try {
+                          await api.deleteDevice(r.deviceId);
+                          setRows((prev) => prev.filter((x) => x.deviceId !== r.deviceId));
+                        } catch (err) {
+                          alert(t('health.deleteFailed') + ' ' + (err instanceof Error ? err.message : ''));
+                        }
+                      }}
+                      className="rounded p-1 muted-2 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </td>
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td className="td muted-2" colSpan={9}>{loading ? t('common.loading') : t('health.noMatch')}</td></tr>}
+              {filtered.length === 0 && <tr><td className="td muted-2" colSpan={10}>{loading ? t('common.loading') : t('health.noMatch')}</td></tr>}
             </tbody>
           </table>
         </div>
