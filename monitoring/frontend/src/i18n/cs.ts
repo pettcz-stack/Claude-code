@@ -3,6 +3,9 @@
  * odvozeny z této struktury. Doplňuj zde nové klíče JAKO PRVNÍ.
  */
 export const cs = {
+  app: {
+    tagline: 'monitoring firemních PC',
+  },
   common: {
     save: 'Uložit',
     cancel: 'Zrušit',

@@ -1,6 +1,9 @@
 import type { cs } from './cs.js';
 
 export const de: typeof cs = {
+  app: {
+    tagline: 'Überwachung von Firmen-PCs',
+  },
   common: {
     save: 'Speichern',
     cancel: 'Abbrechen',

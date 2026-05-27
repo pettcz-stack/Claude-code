@@ -1,6 +1,9 @@
 import type { cs } from './cs.js';
 
 export const sk: typeof cs = {
+  app: {
+    tagline: 'monitoring firemných PC',
+  },
   common: {
     save: 'Uložiť',
     cancel: 'Zrušiť',

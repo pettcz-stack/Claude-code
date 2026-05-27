@@ -1,4 +1,4 @@
-// Demo data pro vývoj. ALBIXON-styl oddělení, vymyšlená jména, více lidí,
+// Demo data pro vývoj. Sinsu Platform-styl oddělení, vymyšlená jména, více lidí,
 // včetně dvou s nepovolenými praktikami (simulátor myši, předmět na klávesnici).
 // Vše jsou agregované metriky – žádný obsah.
 
@@ -22,7 +22,7 @@ function siteBaseFor(dept: string): string {
 
 type Behavior = 'normal' | 'slacker' | 'cheater_mouse' | 'cheater_keyboard';
 
-// 100 zaměstnanců – realistické rozložení po útvarech výrobní firmy (ALBIXON-styl).
+// 100 zaměstnanců – realistické rozložení po útvarech výrobní firmy (Sinsu Platform-styl).
 const DEPT_PLAN: [string, number][] = [
   ['Výroba', 28], ['Montáže a servis', 16], ['Konstrukce', 10],
   ['Obchod ČR', 8], ['Obchod Export', 7], ['Logistika', 7],
@@ -72,27 +72,27 @@ function rateFor(dept: string): number {
   return map[dept] ?? 360;
 }
 
-// Reálné aplikace ALBIXON podle útvaru. [proces, titulek okna|null].
+// Reálné aplikace Sinsu Platform podle útvaru. [proces, titulek okna|null].
 type Pick = [string, string | null];
 const T = (app: string, title: string | null = null): Pick => [app, title];
-const POOL_COMMON: Pick[] = [T('outlook.exe'), T('teams.exe'), T('excel.exe'), T('chrome.exe', 'Intranet ALBIXON'), T('chrome.exe', 'OKbase – docházka')];
+const POOL_COMMON: Pick[] = [T('outlook.exe'), T('teams.exe'), T('excel.exe'), T('chrome.exe', 'Intranet Sinsu'), T('chrome.exe', 'OKbase – docházka')];
 const POOLS: Record<string, Pick[]> = {
   'Vedení': [T('navision.exe'), T('excel.exe'), T('powerpnt.exe'), T('outlook.exe'), T('teams.exe'), T('chrome.exe', 'Power BI – reporty')],
   'Obchod ČR': [T('crm.exe'), T('crm.exe'), T('navision.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe'), T('chrome.exe', 'Microsoft Dynamics CRM')],
   'Obchod Export': [T('crm.exe'), T('crm.exe'), T('navision.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe')],
   'Marketing': [T('powerpnt.exe'), T('crm.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe'), T('chrome.exe', 'SharePoint – dokumenty')],
   'Konstrukce': [T('sldworks.exe'), T('sldworks.exe'), T('sldworks.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe'), T('acrobat.exe')],
-  'Výroba': [T('navision.exe'), T('navision.exe'), T('excel.exe'), T('teams.exe'), T('chrome.exe', 'Intranet ALBIXON')],
+  'Výroba': [T('navision.exe'), T('navision.exe'), T('excel.exe'), T('teams.exe'), T('chrome.exe', 'Intranet Sinsu')],
   'Logistika': [T('navision.exe'), T('navision.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe')],
-  'Montáže a servis': [T('crm.exe'), T('outlook.exe'), T('teams.exe'), T('chrome.exe', 'Intranet ALBIXON')],
+  'Montáže a servis': [T('crm.exe'), T('outlook.exe'), T('teams.exe'), T('chrome.exe', 'Intranet Sinsu')],
   'Ekonomika': [T('econ.exe'), T('econ.exe'), T('navision.exe'), T('excel.exe'), T('outlook.exe'), T('teams.exe')],
   'Personalistika': [T('okbase.exe'), T('okbase.exe'), T('excel.exe'), T('winword.exe'), T('outlook.exe'), T('teams.exe')],
-  'IT': [T('code.exe'), T('code.exe'), T('teams.exe'), T('outlook.exe'), T('navision.exe'), T('chrome.exe', 'Intranet ALBIXON')],
+  'IT': [T('code.exe'), T('code.exe'), T('teams.exe'), T('outlook.exe'), T('navision.exe'), T('chrome.exe', 'Intranet Sinsu')],
 };
 function buildPool(dept: string): Pick[] {
   return [...(POOLS[dept] ?? []), ...POOL_COMMON];
 }
-const BROWSER_WORK_TITLES = ['Intranet ALBIXON', 'OKbase – docházka', 'SharePoint – dokumenty', 'Microsoft Dynamics CRM', 'Power BI – reporty'];
+const BROWSER_WORK_TITLES = ['Intranet Sinsu', 'OKbase – docházka', 'SharePoint – dokumenty', 'Microsoft Dynamics CRM', 'Power BI – reporty'];
 const BROWSER_NONWORK_TITLES = ['YouTube', 'Facebook', 'Instagram', 'Novinky.cz', 'Seznam.cz - Email', 'Alza.cz'];
 
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
@@ -134,7 +134,7 @@ async function main() {
     const user = await prisma.monitoredUser.upsert({
       where: { sid },
       update: { displayName: p.name, department: p.dept, hourlyRate: rateFor(p.dept) },
-      create: { sid, displayName: p.name, department: p.dept, email: `${i}@albixon-demo.cz`, hourlyRate: rateFor(p.dept) },
+      create: { sid, displayName: p.name, department: p.dept, email: `${i}@sinsu-demo.cz`, hourlyRate: rateFor(p.dept) },
     });
     const machineId = `DEMO-PC-${i + 1}`;
     const device = await prisma.device.upsert({
@@ -195,7 +195,7 @@ async function main() {
   }
   if (absences.length) await prisma.absence.createMany({ data: absences });
 
-  // Demo licence: reálné placené aplikace ALBIXON + seaty/cena (CZK/měsíc/licence).
+  // Demo licence: reálné placené aplikace Sinsu Platform + seaty/cena (CZK/měsíc/licence).
   // Část je dobře využitá (zelená), část leží ladem (červená = úspora).
   // projectpro.exe nikdo nepoužívá → 100% plýtvání pro ukázku.
   // Počty licencí naladěné pro ~100 lidí: část je předplacená „do foroty"

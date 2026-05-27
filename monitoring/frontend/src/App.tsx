@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Gauge, LayoutDashboard, User as UserIcon, Trophy, TrendingUp, AppWindow, CalendarDays, Table2, Shield,
-  ShieldAlert, SlidersHorizontal, House, BadgeCheck, KeyRound, Sun, Moon, LogOut, ChevronLeft, ChevronRight,
+  ShieldAlert, SlidersHorizontal, House, BadgeCheck, KeyRound, Sun, Moon, ChevronLeft, ChevronRight,
   Menu, Search, HeartPulse, Printer,
 } from 'lucide-react';
 import { api, auth, type Me, type User } from './api.js';
@@ -28,6 +28,7 @@ import { Login } from './Login.js';
 import { useTheme } from './theme.js';
 import { useT } from './i18n/index.js';
 import { LanguageSwitcher } from './LanguageSwitcher.js';
+import { UserMenu } from './UserMenu.js';
 import { isoDate, startOfLocalDay } from './util.js';
 
 type Tab = 'overview' | 'homeoffice' | 'detail' | 'selfreport' | 'scoreboard' | 'alerts' | 'trends' | 'apps' | 'software' | 'calendar' | 'summary' | 'admin' | 'access' | 'settings' | 'health' | 'printusb';
@@ -239,36 +240,36 @@ export default function App() {
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} commands={commands} />
       {/* Overlay pro mobilní sidebar */}
       {sidebarOpen && <div className="fixed inset-0 z-20 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
-      {/* Sidebar */}
+      {/* Sidebar – čistě navigace, vlevo. Bez patičky (theme/jazyk/logout
+          jsou v hlavičce vpravo nahoře, kde uživatel naprosto očekává). */}
       <aside
         onClick={() => setSidebarOpen(false)}
         className={`fixed inset-y-0 left-0 z-30 flex w-60 shrink-0 flex-col border-r border-gray-200 bg-white transition-transform dark:border-slate-700/70 dark:bg-slate-800/40 lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
-        <div className="flex items-center gap-2.5 px-5 py-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white"><Gauge size={20} /></div>
+        <div className="flex items-center gap-2.5 border-b border-gray-200 px-5 py-4 dark:border-slate-700/70">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm"><Gauge size={20} /></div>
           <div className="leading-tight">
             <div className="text-sm font-semibold">FOCUS</div>
-            <div className="text-[11px] muted-2">monitoring firemních PC</div>
+            <div className="text-[11px] muted-2">{t('app.tagline')}</div>
           </div>
         </div>
-        <nav className="flex-1 space-y-4 overflow-y-auto px-3 py-1">
+        <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
           {NAV_SECTIONS_STATIC.map((section) => {
-            // Filtruj položky dle capabilities (např. MANAGER/IT vidí jen některé taby).
             const caps = me.capabilities;
             const visibleItems = section.items.filter(({ id }) => !caps || caps[id as keyof typeof caps] !== false);
             if (visibleItems.length === 0) return null;
             return (
-              <div key={section.titleKey} className="space-y-1">
-                <div className="px-3 text-[10px] font-semibold uppercase tracking-wider muted-2">{t(section.titleKey)}</div>
+              <div key={section.titleKey} className="space-y-0.5">
+                <div className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider muted-2">{t(section.titleKey)}</div>
                 {visibleItems.map(({ id, labelKey, Icon }) => {
                   const activeItem = tab === id;
                   return (
                     <button key={id} onClick={() => setTab(id)} aria-current={activeItem ? 'page' : undefined}
-                      className={`relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm ${
+                      className={`relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
                         activeItem ? 'bg-emerald-50 font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
                         : 'muted hover:bg-gray-100 dark:hover:bg-slate-700/50'}`}>
                       {activeItem && <span className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r bg-emerald-500" />}
-                      <Icon size={18} /> {t(labelKey)}
+                      <Icon size={17} /> {t(labelKey)}
                     </button>
                   );
                 })}
@@ -276,79 +277,96 @@ export default function App() {
             );
           })}
         </nav>
-        <div className="space-y-2 border-t border-gray-200 p-3 dark:border-slate-700/70">
-          <div className="flex items-center justify-between gap-2">
-            <button onClick={toggleTheme} className="btn-ghost flex-1 justify-start">
-              {dark ? <Sun size={16} /> : <Moon size={16} />}
-              <span className="hidden lg:inline">{dark ? t('common.lightMode') : t('common.darkMode')}</span>
-            </button>
-            <LanguageSwitcher compact />
-          </div>
-          <div className="flex items-center justify-between px-1">
-            <div className="text-xs"><div className="font-medium">{me.username}</div><div className="muted-2">{me.role}</div></div>
-            <button onClick={() => { auth.logout(); setMe(null); }} className="muted-2 hover:text-red-500" title={t('common.logout')}><LogOut size={17} /></button>
-          </div>
+        <div className="border-t border-gray-200 px-5 py-2.5 text-[10px] muted-2 dark:border-slate-700/70">
+          FOCUS v0.9.1 · © Sinsu Platform s.r.o.
         </div>
       </aside>
 
       {/* Obsah */}
       <div className="flex-1 overflow-x-hidden">
-        <header className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-gray-200 bg-gray-50/80 px-4 py-3 backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/80 sm:px-6">
-          <button onClick={() => setSidebarOpen(true)} className="btn-ghost px-2 lg:hidden" title={t('common.menu')}><Menu size={18} /></button>
-          <div>
-            <h1 className="text-lg font-semibold leading-tight">{title}</h1>
-            {(needsPeriod || tab === 'calendar') && <div className="text-xs muted-2">{rangeLabel}</div>}
+        {/* HLAVIČKA – dvouúrovňová.
+            Horní pruh: Title + Search (vlevo) | Theme + Language + UserMenu (vpravo).
+            Spodní pruh: Period/User/Department filtry (jen tam, kde dávají smysl). */}
+        <header className="sticky top-0 z-10 border-b border-gray-200 bg-white/85 backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/85">
+          {/* Horní pruh */}
+          <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
+            <button onClick={() => setSidebarOpen(true)} className="btn-ghost px-2 lg:hidden" title={t('common.menu')}><Menu size={18} /></button>
+            <div className="min-w-0">
+              <h1 className="truncate text-base font-semibold leading-tight sm:text-lg">{title}</h1>
+              {(needsPeriod || tab === 'calendar') && <div className="text-xs muted-2">{rangeLabel}</div>}
+            </div>
+            <button onClick={() => setCmdOpen(true)} className="btn-ghost ml-2 hidden items-center gap-2 sm:flex" title={t('common.search') + ' (Ctrl+K)'}>
+              <Search size={15} /> <span className="muted-2">{t('common.search')}</span>
+              <span className="rounded border border-gray-300 px-1.5 py-0.5 text-[10px] muted-2 dark:border-slate-600">⌘K</span>
+            </button>
+
+            {/* User menu cluster – vpravo nahoře. Standardní pozice pro každý dashboard. */}
+            <div className="ml-auto flex items-center gap-1.5">
+              <button
+                onClick={toggleTheme}
+                className="btn-ghost px-2"
+                title={dark ? t('common.lightMode') : t('common.darkMode')}
+                aria-label={dark ? t('common.lightMode') : t('common.darkMode')}
+              >
+                {dark ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+              <LanguageSwitcher />
+              <div className="ml-1 hidden h-7 w-px bg-gray-200 dark:bg-slate-700 sm:block" />
+              {/* Avatar + jméno + role + logout v dropdown */}
+              <UserMenu username={me.username} role={me.role} onLogout={() => { auth.logout(); setMe(null); }} />
+            </div>
           </div>
-          <button onClick={() => setCmdOpen(true)} className="btn-ghost ml-2 hidden items-center gap-2 sm:flex" title={t('common.search') + ' (Ctrl+K)'}>
-            <Search size={15} /> <span className="muted-2">{t('common.search')}</span>
-            <span className="rounded border border-gray-300 px-1.5 py-0.5 text-[10px] muted-2 dark:border-slate-600">⌘K</span>
-          </button>
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            {needsUser && (
-              <select value={userId} onChange={(e) => setUserId(e.target.value)} className="field">
-                {users.map((u) => <option key={u.id} value={u.id}>{u.displayName} {u.department ? `· ${u.department}` : ''}</option>)}
-              </select>
-            )}
-            {tab === 'calendar' && (
-              <div className="flex items-center gap-1">
-                <button onClick={() => shiftDay(-1)} className="btn-ghost px-2"><ChevronLeft size={16} /></button>
-                <span className="min-w-28 text-center font-mono text-sm">{isoDate(day)}</span>
-                <button onClick={() => shiftDay(1)} className="btn-ghost px-2"><ChevronRight size={16} /></button>
-              </div>
-            )}
-            {needsPeriod && (
-              <>
-                <div className="flex gap-1 rounded-lg bg-gray-100 p-1 text-sm dark:bg-slate-800">
-                  {(['day', 'week', 'month', 'custom'] as PeriodMode[]).map((m) => (
-                    <button key={m} onClick={() => setMode(m)}
-                      className={`rounded px-3 py-1 ${mode === m ? 'bg-white shadow-sm dark:bg-slate-700' : 'muted'}`}>
-                      {t(`common.${m}`)}
-                    </button>
-                  ))}
+
+          {/* Spodní pruh – filtry. Skryje se, když není potřeba žádný filtr.
+              `tab === 'calendar'` je už obsažen v needsUser, proto není v podmínce. */}
+          {(needsPeriod || needsUser || needsDept) && (
+            <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 px-4 py-2 dark:border-slate-800 sm:px-6">
+              {needsUser && (
+                <select value={userId} onChange={(e) => setUserId(e.target.value)} className="field text-sm" aria-label={t('common.user')}>
+                  {users.map((u) => <option key={u.id} value={u.id}>{u.displayName} {u.department ? `· ${u.department}` : ''}</option>)}
+                </select>
+              )}
+              {needsDept && (
+                <select value={department} onChange={(e) => setDepartment(e.target.value)} className="field text-sm" aria-label={t('common.department')}>
+                  <option value="">{t('common.allDepartments')}</option>
+                  {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+              )}
+              {tab === 'calendar' && (
+                <div className="flex items-center gap-1">
+                  <button onClick={() => shiftDay(-1)} className="btn-ghost px-2"><ChevronLeft size={16} /></button>
+                  <span className="min-w-28 text-center font-mono text-sm">{isoDate(day)}</span>
+                  <button onClick={() => shiftDay(1)} className="btn-ghost px-2"><ChevronRight size={16} /></button>
                 </div>
-                {mode === 'day' && (
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => shiftDay(-1)} className="btn-ghost px-2"><ChevronLeft size={16} /></button>
-                    <span className="min-w-28 text-center font-mono text-sm">{isoDate(day)}</span>
-                    <button onClick={() => shiftDay(1)} className="btn-ghost px-2"><ChevronRight size={16} /></button>
+              )}
+              {needsPeriod && (
+                <>
+                  <div className="ml-auto flex gap-1 rounded-lg bg-gray-100 p-1 text-sm dark:bg-slate-800">
+                    {(['day', 'week', 'month', 'custom'] as PeriodMode[]).map((m) => (
+                      <button key={m} onClick={() => setMode(m)}
+                        className={`rounded px-3 py-1 transition-colors ${mode === m ? 'bg-white shadow-sm dark:bg-slate-700' : 'muted hover:bg-white/50 dark:hover:bg-slate-700/50'}`}>
+                        {t(`common.${m}`)}
+                      </button>
+                    ))}
                   </div>
-                )}
-                {mode === 'custom' && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="field" />
-                    <span className="muted-2">–</span>
-                    <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="field" />
-                  </div>
-                )}
-              </>
-            )}
-            {needsDept && (
-              <select value={department} onChange={(e) => setDepartment(e.target.value)} className="field">
-                <option value="">{t('common.allDepartments')}</option>
-                {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
-            )}
-          </div>
+                  {mode === 'day' && (
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => shiftDay(-1)} className="btn-ghost px-2"><ChevronLeft size={16} /></button>
+                      <span className="min-w-28 text-center font-mono text-sm">{isoDate(day)}</span>
+                      <button onClick={() => shiftDay(1)} className="btn-ghost px-2"><ChevronRight size={16} /></button>
+                    </div>
+                  )}
+                  {mode === 'custom' && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="field" />
+                      <span className="muted-2">–</span>
+                      <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="field" />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </header>
 
         <main key={tab} className="fade-in p-6">
