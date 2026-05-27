@@ -327,15 +327,20 @@ model AdminUser {
   updatedAt    DateTime @updatedAt
 }
 
-/// Audit přístupů administrátorů k datům zaměstnanců (požadavek GDPR).
+/// Audit přístupů administrátorů k datům zaměstnanců (požadavek GDPR čl. 32).
+/// Drží jak immutable adminId (cuid AdminUsera v okamžiku akce – nezávislé na
+/// pozdějším přejmenování / smazání), tak snapshot adminIdentity (username
+/// v okamžiku akce). Forenzní záznam je takhle stabilní i po rotacích účtů.
 model AccessAudit {
   id            String   @id @default(cuid())
-  adminIdentity String // kdo přistupoval
+  adminId       String?  // immutable FK do AdminUser.id (nullable kvůli starým záznamům)
+  adminIdentity String // snapshot username v okamžiku akce
   viewedUserId  String? // čí data si prohlížel
-  action        String // VIEW | EXPORT | ...
+  action        String // VIEW | EXPORT | DELETE | LOGIN ...
   detail        String?
   createdAt     DateTime @default(now())
 
   @@index([createdAt])
   @@index([adminIdentity])
+  @@index([adminId])
 }

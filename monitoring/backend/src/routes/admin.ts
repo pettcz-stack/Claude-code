@@ -162,7 +162,13 @@ adminRouter.patch('/users/:id', requireRole('ADMIN'), async (req, res) => {
 adminRouter.get('/users/:id/export', requireRole('ADMIN'), async (req, res) => {
   const data = await exportUserData(req.params.id);
   if (!data) return void res.status(404).json({ error: 'not_found' });
-  await logAccess(req.admin?.username ?? 'unknown', 'EXPORT', `admin export uživatele ${req.params.id}`, req.params.id);
+  await logAccess({
+    adminId: req.admin?.id,
+    adminIdentity: req.admin?.username ?? 'unknown',
+    action: 'EXPORT',
+    detail: `admin export uživatele ${req.params.id}`,
+    viewedUserId: req.params.id,
+  });
   res.setHeader('Content-Disposition', `attachment; filename="focus-user-${req.params.id}.json"`);
   res.json(data);
 });
@@ -178,12 +184,13 @@ adminRouter.delete('/users/:id', requireRole('ADMIN'), async (req, res) => {
   if (req.query.confirm !== 'DELETE') return void res.status(400).json({ error: 'missing_confirm', hint: 'add ?confirm=DELETE' });
   const result = await eraseUser(req.params.id);
   if (!result) return void res.status(404).json({ error: 'not_found' });
-  await logAccess(
-    req.admin?.username ?? 'unknown',
-    'DELETE',
-    `GDPR výmaz uživatele ${req.params.id}: ${JSON.stringify(result.deleted)}`,
-    req.params.id,
-  );
+  await logAccess({
+    adminId: req.admin?.id,
+    adminIdentity: req.admin?.username ?? 'unknown',
+    action: 'DELETE',
+    detail: `GDPR výmaz uživatele ${req.params.id}: ${JSON.stringify(result.deleted)}`,
+    viewedUserId: req.params.id,
+  });
   res.json({ ok: true, ...result });
 });
 

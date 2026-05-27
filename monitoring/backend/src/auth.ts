@@ -3,7 +3,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { prisma } from './db.js';
 import { config } from './config.js';
 
-export type AdminCtx = { username: string; role: string };
+export type AdminCtx = { id: string; username: string; role: string };
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -44,7 +44,7 @@ export async function ensureAdmin(): Promise<void> {
 // Krátkodobé bezpečné tokeny v paměti. Scrypt se počítá jen 1× při přihlášení,
 // ne na každý požadavek (ochrana proti DoS a standardní vzor).
 
-type Session = { username: string; role: string; expires: number };
+type Session = { id: string; username: string; role: string; expires: number };
 const sessions = new Map<string, Session>();
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 h
 
@@ -57,7 +57,7 @@ export async function login(username: string, password: string): Promise<{ token
   const user = await prisma.adminUser.findUnique({ where: { username } });
   if (!user || !user.active || !verifyPassword(password, user.passwordHash)) return null;
   const token = newToken();
-  sessions.set(token, { username: user.username, role: user.role, expires: Date.now() + SESSION_TTL_MS });
+  sessions.set(token, { id: user.id, username: user.username, role: user.role, expires: Date.now() + SESSION_TTL_MS });
   return { token, role: user.role, username: user.username };
 }
 
@@ -97,7 +97,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     res.status(401).json({ error: 'unauthorized' });
     return;
   }
-  req.admin = { username: s.username, role: s.role };
+  req.admin = { id: s.id, username: s.username, role: s.role };
   next();
 }
 
@@ -111,7 +111,34 @@ export function requireRole(role: string) {
   };
 }
 
-/** Zapíše záznam do auditu přístupů (GDPR). */
-export async function logAccess(adminIdentity: string, action: string, detail: string, viewedUserId?: string) {
-  await prisma.accessAudit.create({ data: { adminIdentity, action, detail, viewedUserId } });
+/**
+ * Zapíše záznam do auditu přístupů (GDPR čl. 32).
+ *
+ * Podporuje dvě volání:
+ *   logAccess({ adminId, adminIdentity, action, detail, viewedUserId })  ← preferované
+ *   logAccess(adminIdentity, action, detail, viewedUserId)               ← legacy
+ *
+ * `adminId` je cuid AdminUsera v okamžiku akce – po případném přejmenování
+ * / smazání admina zůstane forenzně dohledatelné. `adminIdentity` (username
+ * snapshot) je pro lidskou čitelnost.
+ */
+export async function logAccess(
+  arg1: string | { adminId?: string; adminIdentity: string; action: string; detail: string; viewedUserId?: string },
+  action?: string,
+  detail?: string,
+  viewedUserId?: string,
+): Promise<void> {
+  if (typeof arg1 === 'string') {
+    await prisma.accessAudit.create({ data: { adminIdentity: arg1, action: action ?? 'UNKNOWN', detail: detail ?? '', viewedUserId } });
+    return;
+  }
+  await prisma.accessAudit.create({
+    data: {
+      adminId: arg1.adminId,
+      adminIdentity: arg1.adminIdentity,
+      action: arg1.action,
+      detail: arg1.detail,
+      viewedUserId: arg1.viewedUserId,
+    },
+  });
 }
