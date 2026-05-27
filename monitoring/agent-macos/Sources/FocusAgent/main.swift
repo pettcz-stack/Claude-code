@@ -29,7 +29,7 @@ let tracker = ActivityTracker(cfg: cfg, buffer: buffer)
 let printMonitor = PrintMonitor(cfg: cfg, sender: sender)
 let usbMonitor = UsbMonitor(cfg: cfg, sender: sender)
 
-AgentLog.write("FOCUS agent macOS \(AgentInfo.version) startup, backend=\(cfg.backendUrl), interval=\(cfg.intervalSeconds)s, send=\(cfg.sendIntervalSeconds)s")
+AgentLog.write("FOCUS agent macOS \(AgentInfo.version) build \(AgentInfo.buildId) startup, backend=\(cfg.backendUrl), interval=\(cfg.intervalSeconds)s, send=\(cfg.sendIntervalSeconds)s")
 
 // Enrollment (per-device token) na pozadí, pokud chybí
 if cfg.deviceToken == nil || cfg.deviceToken!.isEmpty {
