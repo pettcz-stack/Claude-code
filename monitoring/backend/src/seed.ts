@@ -179,12 +179,45 @@ function buildPool(dept: string): Pick[] {
   return [...(POOLS[dept] ?? []), ...POOL_COMMON];
 }
 
-type Behavior = 'normal' | 'slacker' | 'cheater_mouse' | 'cheater_keyboard';
+// Persona – širší škála chování, aby v dashboardu byla viditelná variance.
+// Distribuce mezi 1991 lidmi (přibližně, dle náhody):
+//   normal           ~50%  – stabilní, jen občasné dobré/špatné dny
+//   top              ~12%  – konzistentně vysoké výkony, dlouhé focus bloky
+//   slacker          ~7%   – viditelně nízká aktivita, hodně browsingu
+//   social_media     ~10%  – pracuje, ale často Facebook/Instagram
+//   streamer         ~5%   – YouTube/Netflix běží na pozadí (chrome.exe long titles)
+//   chatty           ~9%   – hodně Teams/Slack, méně klasické "deep work"
+//   gamer            ~3%   – přes oběd 30-45 min hry
+//   cheater_mouse    5 ks  – mouse jiggler, 8h "aktivní" bez kláves
+//   cheater_keyboard 4 ks  – AHK script, rytmické úhozy
+//   cheater_subtle   6 ks  – podvádí jen v Po a St (ostatní dny normální) → hůř detekovatelní
+type Persona =
+  | 'normal' | 'top' | 'slacker' | 'social_media' | 'streamer'
+  | 'chatty' | 'gamer'
+  | 'cheater_mouse' | 'cheater_keyboard' | 'cheater_subtle';
 
-function hoDipFor(b: Behavior): number {
-  if (b === 'slacker') return 0.28; // doma viditelně poleví
-  if (b.startsWith('cheater')) return 0; // podvodníci jedou stejně (vzor je strojový)
-  return 0.07; // běžní lidé jen mírně
+function hoDipFor(p: Persona): number {
+  if (p === 'slacker' || p === 'streamer' || p === 'gamer') return 0.32; // doma viditelně poleví
+  if (p === 'social_media') return 0.18;
+  if (p.startsWith('cheater')) return 0; // podvodníci jedou stejně (vzor je strojový)
+  if (p === 'top') return 0.03; // top performeři doma stejně válí
+  return 0.10; // běžní lidé jen mírně
+}
+
+function baseDiligenceFor(p: Persona): number {
+  // Nižší střed → větší rozdíly. Plus uniform noise z rng() v genPeople.
+  switch (p) {
+    case 'top': return 0.88;
+    case 'normal': return 0.74;
+    case 'chatty': return 0.68;
+    case 'social_media': return 0.60;
+    case 'streamer': return 0.55;
+    case 'slacker': return 0.42;
+    case 'gamer': return 0.58;
+    case 'cheater_mouse':
+    case 'cheater_keyboard':
+    case 'cheater_subtle': return 0.95;
+  }
 }
 
 // Deterministický pseudo-RNG (stejní lidé při každém seedu, ať demo zákazník
@@ -198,10 +231,52 @@ function rngInt(max: number): number { return Math.floor(rng() * max); }
 function rngRange(min: number, max: number): number { return min + Math.floor(rng() * (max - min + 1)); }
 function pickFrom<T>(a: T[]): T { return a[Math.floor(rng() * a.length)]; }
 
-function genPeople(): { name: string; dept: string; behavior: Behavior; diligence: number; rate: number }[] {
+/**
+ * Deterministická "kvalita dne" pro daného člověka. Hash userId+dayKey →
+ * multiplier 0.78 - 1.22. Tj. každý má občas skvělý den (motivace, deadline)
+ * a občas mizerný (nemocný, rozhádaný s manželkou, nuda v práci).
+ *
+ * Bez tohoto by všechny dny vypadaly identicky (flat data).
+ */
+function dayQualityHash(userId: string, dayMs: number): number {
+  let h = 0x12345678;
+  const key = `${userId}#${dayMs}`;
+  for (let i = 0; i < key.length; i++) {
+    h = ((h << 5) - h) + key.charCodeAt(i);
+    h |= 0;
+  }
+  const n = ((h >>> 0) % 10000) / 10000; // 0..1
+  return 0.78 + n * 0.44; // 0.78 .. 1.22
+}
+
+/**
+ * Křivka výkonu během dne (8:00 - 16:00). Vrací multiplier 0..1.2 pro daný interval.
+ * Modeluje:
+ *   08:00-09:00 → 0.65  warmup, e-maily, kafe
+ *   09:00-11:30 → 1.10  dopolední peak (deep work)
+ *   11:30-12:00 → 0.85  pre-lunch wind-down
+ *   12:00-12:30 → 0.15  lunch (většinou idle/locked)
+ *   12:30-13:00 → 0.50  zpět od oběda, pomalu se rozjíždí
+ *   13:00-14:30 → 1.05  odpolední peak
+ *   14:30-15:30 → 0.95  pozdní odpoledne
+ *   15:30-16:00 → 0.55  end-of-day, balení do "tašky"
+ */
+function hourCurve(hour: number, minute: number): number {
+  const t = hour + minute / 60;
+  if (t < 9.0) return 0.65;
+  if (t < 11.5) return 1.10;
+  if (t < 12.0) return 0.85;
+  if (t < 12.5) return 0.15; // oběd
+  if (t < 13.0) return 0.50;
+  if (t < 14.5) return 1.05;
+  if (t < 15.5) return 0.95;
+  return 0.55;
+}
+
+function genPeople(): { name: string; dept: string; persona: Persona; baseDiligence: number; fridayMul: number; startHour: number; lunchOffset: number; rate: number }[] {
   rngState = 987654321; // reset pro deterministické pořadí
   const used = new Set<string>();
-  const people: { name: string; dept: string; behavior: Behavior; diligence: number; rate: number }[] = [];
+  const people: { name: string; dept: string; persona: Persona; baseDiligence: number; fridayMul: number; startHour: number; lunchOffset: number; rate: number }[] = [];
 
   // Plochý seznam oddělení (nafouknutý podle size)
   const depts: string[] = [];
@@ -211,39 +286,73 @@ function genPeople(): { name: string; dept: string; behavior: Behavior; diligenc
 
   for (const dept of depts) {
     let name = '';
+    let unique = false;
     for (let tries = 0; tries < 500; tries++) {
       const male = rng() < 0.55;
       name = male
         ? `${pickFrom(FIRST_M)} ${pickFrom(LAST_M)}`
         : `${pickFrom(FIRST_F)} ${pickFrom(LAST_F)}`;
-      if (!used.has(name)) { used.add(name); break; }
+      if (!used.has(name)) { used.add(name); unique = true; break; }
     }
-    if (used.has(name)) {
-      // Fallback – přidej číslo, ať jsou unikátní (statisticky nepravděpodobné při ~7k variant).
+    if (!unique) {
+      // Statisticky téměř nemožné při ~7k variant a 1991 lidech, ale pro
+      // jistotu fallback s pořadovým číslem.
       name = `${name} ${people.length + 1}`;
       used.add(name);
     }
-    const behavior: Behavior = rng() < 0.06 ? 'slacker' : 'normal';
-    const diligence = behavior === 'slacker' ? 0.40 + rng() * 0.22 : 0.65 + rng() * 0.32;
+    // Persona distribution (rng() je deterministický → seed reseed = stejné osoby)
+    const r = rng();
+    let persona: Persona;
+    if (r < 0.50) persona = 'normal';
+    else if (r < 0.62) persona = 'top';
+    else if (r < 0.72) persona = 'social_media';
+    else if (r < 0.81) persona = 'chatty';
+    else if (r < 0.88) persona = 'slacker';
+    else if (r < 0.93) persona = 'streamer';
+    else persona = 'gamer';
+
+    const baseDiligence = baseDiligenceFor(persona) + (rng() - 0.5) * 0.18; // ±9% noise
+    // Friday dip per-person: někdo má 0.75 (zlatý pátek), jiný 0.95 (kone-week pracant)
+    const fridayMul = 0.75 + rng() * 0.20;
+    // Začátek dne: ranní ptáčata (7), normální (8), pozdě vstávající (9)
+    const startRoll = rng();
+    const startHour = startRoll < 0.15 ? 7 : startRoll < 0.85 ? 8 : 9;
+    // Posun oběda ±30 min (někdo jde dřív, někdo později)
+    const lunchOffset = (rng() < 0.5 ? -1 : 1) * Math.floor(rng() * 3) * 15;
     const [rateMin, rateMax] = rateRangeFor(dept);
     const rate = rngRange(rateMin, rateMax);
-    people.push({ name, dept, behavior, diligence, rate });
+    people.push({ name, dept, persona, baseDiligence: Math.max(0.30, Math.min(0.98, baseDiligence)), fridayMul, startHour, lunchOffset, rate });
   }
 
-  // 8 cheaterů rozprostřených napříč odděleními, ať detekce v dashboardu má jasné případy.
-  const cheaterAssign: { dept: string; behavior: Behavior }[] = [
-    { dept: 'Obchod Export',     behavior: 'cheater_mouse' },
-    { dept: 'Ekonomika',         behavior: 'cheater_keyboard' },
-    { dept: 'Obchod ČR',         behavior: 'cheater_mouse' },
-    { dept: 'Zákaznický servis', behavior: 'cheater_keyboard' },
-    { dept: 'Marketing',         behavior: 'cheater_mouse' },
-    { dept: 'Logistika',         behavior: 'cheater_mouse' },
-    { dept: 'IT',                behavior: 'cheater_keyboard' },
-    { dept: 'Personalistika',    behavior: 'cheater_keyboard' },
+  // 15 cheaterů (0.75% z 1991) – 3 typy. Distribuovaní napříč odděleními ať detekce
+  // má co řešit v různých kontextech.
+  const cheaterAssign: { dept: string; persona: Persona }[] = [
+    // Mouse jiggler (5 lidí) – nejtypičtější
+    { dept: 'Obchod Export',     persona: 'cheater_mouse' },
+    { dept: 'Obchod ČR',         persona: 'cheater_mouse' },
+    { dept: 'Marketing',         persona: 'cheater_mouse' },
+    { dept: 'Logistika',         persona: 'cheater_mouse' },
+    { dept: 'Sklad',             persona: 'cheater_mouse' },
+    // AHK keyboard bot (4 lidi)
+    { dept: 'Ekonomika',         persona: 'cheater_keyboard' },
+    { dept: 'Zákaznický servis', persona: 'cheater_keyboard' },
+    { dept: 'IT',                persona: 'cheater_keyboard' },
+    { dept: 'Personalistika',    persona: 'cheater_keyboard' },
+    // Subtle (6 lidí) – cheatuje jen Po a St, ostatní dny normální. Tady je
+    // potřeba lepší integrity-check, aby je detekce zachytila.
+    { dept: 'Obchod EU',         persona: 'cheater_subtle' },
+    { dept: 'Marketing',         persona: 'cheater_subtle' },
+    { dept: 'Reklamace',         persona: 'cheater_subtle' },
+    { dept: 'Konstrukce',        persona: 'cheater_subtle' },
+    { dept: 'Kvalita',           persona: 'cheater_subtle' },
+    { dept: 'Tréning',           persona: 'cheater_subtle' },
   ];
   for (const c of cheaterAssign) {
-    const target = people.find((p) => p.dept === c.dept && p.behavior === 'normal');
-    if (target) { target.behavior = c.behavior; target.diligence = 0.9; }
+    const target = people.find((p) => p.dept === c.dept && p.persona === 'normal');
+    if (target) {
+      target.persona = c.persona;
+      target.baseDiligence = baseDiligenceFor(c.persona);
+    }
   }
   return people;
 }
@@ -251,7 +360,12 @@ function genPeople(): { name: string; dept: string; behavior: Behavior; diligenc
 const pick = <T>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 const rnd = (n: number) => Math.floor(Math.random() * n);
 
-type Person = { id: string; deviceId: string; dept: string; behavior: Behavior; diligence: number; hoDip: number; monitors: number; workPool: Pick[]; siteBase: string };
+type Person = {
+  id: string; deviceId: string; dept: string;
+  persona: Persona; baseDiligence: number; hoDip: number;
+  fridayMul: number; startHour: number; lunchOffset: number;
+  monitors: number; workPool: Pick[]; siteBase: string;
+};
 
 async function main() {
   // ─── 1) Statická konfigurace ─────────────────────────────────────────────
@@ -333,9 +447,12 @@ async function main() {
         id: user.id,
         deviceId: device.id,
         dept: p.dept,
-        behavior: p.behavior,
-        diligence: p.diligence,
-        hoDip: hoDipFor(p.behavior),
+        persona: p.persona,
+        baseDiligence: p.baseDiligence,
+        hoDip: hoDipFor(p.persona),
+        fridayMul: p.fridayMul,
+        startHour: p.startHour,
+        lunchOffset: p.lunchOffset,
         monitors: monitorsFor(p.dept),
         workPool: buildPool(p.dept),
         siteBase: siteBaseFor(p.dept),
@@ -368,8 +485,43 @@ async function main() {
   const absences: Prisma.AbsenceCreateManyInput[] = [];
   const FLUSH_AT = 1000;
 
+  // ── Plán absencí: kontinuální dovolené (5 dní v kuse), 3-denní nemoci, 1-denní wfh ──
+  // Bez tohoto by každý člověk měl náhodné 1-denní výpadky a kalendář by vypadal jak švýcarský sýr.
+  // S tímhle uvidíš v "Absences" view skutečné dovolenkové týdny.
+  function planAbsences(c: Person): { day: number; type: 'NEMOC' | 'DOVOLENA' | 'HOME_OFFICE' }[] {
+    if (c.persona.startsWith('cheater')) return []; // cheateři jezdí vždy
+    const plan: { day: number; type: 'NEMOC' | 'DOVOLENA' | 'HOME_OFFICE' }[] = [];
+    // 25 % šance na celý týden dovolené v posledních 30 dnech
+    if (Math.random() < 0.25) {
+      const start = 5 + Math.floor(Math.random() * 20);
+      for (let i = 0; i < 5; i++) plan.push({ day: start + i, type: 'DOVOLENA' });
+    }
+    // 12 % šance na 3-denní nemoc
+    if (Math.random() < 0.12) {
+      const start = 2 + Math.floor(Math.random() * 25);
+      for (let i = 0; i < 3; i++) plan.push({ day: start + i, type: 'NEMOC' });
+    }
+    // 5 % šance na další 1-denní nemoc
+    if (Math.random() < 0.05) {
+      plan.push({ day: 1 + Math.floor(Math.random() * 27), type: 'NEMOC' });
+    }
+    // Home office: typicky 1-2 dny týdně (úterý nebo čtvrtek), persona "social_media" a "streamer" 3 dny
+    const hoTargetDays = c.persona === 'social_media' || c.persona === 'streamer' ? 3 : c.persona === 'top' ? 1 : 2;
+    let hoCount = 0;
+    for (let attempt = 0; attempt < 30 && hoCount < hoTargetDays * 4; attempt++) {
+      const day = 1 + Math.floor(Math.random() * 28);
+      if (plan.some((a) => a.day === day)) continue;
+      plan.push({ day, type: 'HOME_OFFICE' });
+      hoCount++;
+    }
+    return plan;
+  }
+
   for (let pi = 0; pi < created.length; pi++) {
     const c = created[pi];
+    const absenceMap = new Map<number, 'NEMOC' | 'DOVOLENA' | 'HOME_OFFICE'>();
+    for (const a of planAbsences(c)) absenceMap.set(a.day, a.type);
+
     for (let dayBack = 0; dayBack < 30; dayBack++) {
       const dayStart = addDays(today, -dayBack);
       const lp = localParts(dayStart);
@@ -377,24 +529,36 @@ async function main() {
       if (dow === 0 || dow === 6) continue; // víkend – bez intervalů
       const date = dayStart;
 
-      // Absence: ~3 % nemoc, ~7 % dovolená per workday. Cheaters jezdí vždy.
-      if (!c.behavior.startsWith('cheater')) {
-        const r = Math.random();
-        const leave = r < 0.03 ? 'NEMOC' : r < 0.10 ? 'DOVOLENA' : null;
-        if (leave) {
-          absences.push({ userId: c.id, date, type: leave, source: 'OKBASE' });
-          continue;
-        }
+      const plannedAbs = absenceMap.get(dayBack);
+      if (plannedAbs === 'NEMOC' || plannedAbs === 'DOVOLENA') {
+        absences.push({ userId: c.id, date, type: plannedAbs, source: 'OKBASE' });
+        continue;
       }
-
-      const isHO = c.behavior.startsWith('cheater') ? false : Math.random() < 0.22;
+      const isHO = plannedAbs === 'HOME_OFFICE';
       if (isHO) absences.push({ userId: c.id, date, type: 'HOME_OFFICE', source: 'OKBASE' });
 
-      // 8 prac. hod × 4 intervalů (po 15 min)
-      for (let hour = 8; hour < 16; hour++) {
+      // Per-day variance: každý člověk má dobré/špatné dny (hash userId+den)
+      const dayMul = dayQualityHash(c.id, dayStart.getTime());
+      // Friday dip (per-person)
+      const dowMul = dow === 5 ? c.fridayMul : dow === 1 ? 0.92 : 1.0;
+      // Cheater_subtle: cheatuje jen v pondělí a středu, jinak normální
+      const cheatToday = c.persona === 'cheater_subtle' && (dow === 1 || dow === 3);
+      const effectivePersona: Persona = c.persona === 'cheater_subtle' && !cheatToday ? 'normal' : c.persona;
+
+      // Pracovní okno per-person: 7-15, 8-16 nebo 9-17
+      const startH = c.startHour;
+      const endH = startH + 8;
+      // Lunch slot: 12:00 ± lunchOffset (15min granularita)
+      const lunchStartHour = 12;
+      const lunchStartMin = c.lunchOffset; // -30, -15, 0, 15, 30
+      const lunchEndMin = lunchStartMin + 30;
+
+      for (let hour = startH; hour < endH; hour++) {
         for (let min = 0; min < 60; min += 15) {
           const intervalStart = zonedToUtc(lp.year, lp.month, lp.day, hour, min);
-          const row = makeRow(c, intervalStart, isHO);
+          // Lunch break: 30 min locked uprostřed dne
+          const isLunch = hour === lunchStartHour && min >= lunchStartMin && min < lunchEndMin;
+          const row = makeRow(c, intervalStart, isHO, hour, min, dayMul * dowMul, effectivePersona, isLunch);
           if (row) batch.push(row);
           if (batch.length >= FLUSH_AT) {
             await prisma.activityInterval.createMany({ data: batch });
@@ -461,8 +625,21 @@ async function main() {
   console.log(`Seed hotov: ${created.length} uživatelů, ${absences.length} absencí, ${agg.hours} hodinových agregátů, ${agg.days} denních (agregace ${aggSec}s).`);
 }
 
-/** Vyrobí 1 interval pro uživatele v konkrétní 15-min slot. */
-function makeRow(c: Person, intervalStart: Date, isHO: boolean): Prisma.ActivityIntervalCreateManyInput | null {
+/**
+ * Vyrobí 1 interval pro uživatele v konkrétní 15-min slot.
+ *
+ * Variance vrstvy (aby dashboard nebyl flat):
+ *   1) `dayMul` ∈ 0.78-1.22 (per-day "kvalita dne", hash userId+den)
+ *   2) `hourCurve(hour, min)` ∈ 0.15-1.10 (warmup, lunch, peak)
+ *   3) `persona` – 10 typů s různými app pooly a frekvencemi nonwork
+ *   4) `isLunch` – 30 min locked uprostřed dne
+ *   5) Friday/Monday dow multiplikátor aplikovaný v `dayMul` callerem
+ */
+function makeRow(
+  c: Person, intervalStart: Date, isHO: boolean,
+  hour: number, minute: number, dayMul: number,
+  persona: Persona, isLunch: boolean,
+): Prisma.ActivityIntervalCreateManyInput | null {
   const last = c.siteBase.split('.')[1];
   const clientIp = isHO ? `192.168.${rnd(255)}.${rnd(255)}` : `${c.siteBase}.${last}.${rnd(254) + 1}`;
 
@@ -470,7 +647,7 @@ function makeRow(c: Person, intervalStart: Date, isHO: boolean): Prisma.Activity
     userId: c.id,
     deviceId: c.deviceId,
     intervalStart,
-    intervalSeconds: 60, // agent posílá 60s; demo aproximuje 15min jako "průměr" stejné šance
+    intervalSeconds: 60,
     activeSeconds: 0,
     idleSeconds: 0,
     keystrokeCount: 0,
@@ -482,45 +659,86 @@ function makeRow(c: Person, intervalStart: Date, isHO: boolean): Prisma.Activity
     typingKeystrokeCount: 0,
   };
 
-  // Production workers mají málo PC času (60% intervalů locked, zbytek pomalu)
+  // Lunch break – 30 min locked uprostřed dne (každý den, každý člověk)
+  if (isLunch) {
+    return { ...base, sessionLocked: true, activeSeconds: 0, idleSeconds: 60 };
+  }
+
+  // Production workers: 60% intervalů locked (operátoři u strojů, nepoužívají PC)
   if (PRODUCTION_DEPTS.has(c.dept) && Math.random() < 0.6) {
     return { ...base, sessionLocked: true, activeSeconds: 0, idleSeconds: 60 };
   }
 
-  const dipFactor = isHO ? 1 - c.hoDip : 1;
-  const effectiveDiligence = c.diligence * dipFactor;
+  // Gameři: 12:30-13:00 sneak hra (jen pondělí, středa, pátek – ať to není každý den)
+  const dow = new Date(intervalStart).getUTCDay();
+  if (persona === 'gamer' && hour === 12 && minute >= 30 && (dow === 1 || dow === 3 || dow === 5)) {
+    return { ...base, activeSeconds: 55, idleSeconds: 5, foregroundApp: 'steam.exe', windowTitle: pick(['Counter-Strike 2', 'Dota 2', 'League of Legends']), mouseEvents: 80 + rnd(40), keystrokeCount: 40 + rnd(40) };
+  }
 
-  // Cheater behaviors: mouse jiggler (mírná mouse aktivita pořád), keyboard (rytmické úhozy)
-  if (c.behavior === 'cheater_mouse') {
+  // ── Cheateři – konstantní vzor (kromě subtle, ten je už filtrován v calleru) ──
+  if (persona === 'cheater_mouse') {
     return { ...base, activeSeconds: 60, idleSeconds: 0, foregroundApp: 'chrome.exe', windowTitle: 'YouTube', mouseEvents: 50 + rnd(20), keystrokeCount: 0 };
   }
-  if (c.behavior === 'cheater_keyboard') {
+  if (persona === 'cheater_keyboard') {
     return { ...base, activeSeconds: 60, idleSeconds: 0, foregroundApp: 'winword.exe', windowTitle: null, keystrokeCount: 180 + rnd(15), mouseEvents: rnd(3), typingMs: 60_000, typingKeystrokeCount: 180 + rnd(15) };
   }
 
-  const nonWorkProb = c.behavior === 'slacker' ? 0.32 : (1 - effectiveDiligence) * 0.55;
+  // ── Normální variance: hodinová křivka × dayMul × persona × HO dip ──
+  const hMul = hourCurve(hour, minute);
+  const dipFactor = isHO ? 1 - c.hoDip : 1;
+  const effectiveDiligence = Math.max(0.10, Math.min(1.0, c.baseDiligence * dayMul * hMul * dipFactor));
+
+  // Per-persona "noise" v non-work probabilitě
+  let nonWorkProb: number;
+  switch (persona) {
+    case 'slacker':       nonWorkProb = 0.40 - effectiveDiligence * 0.20; break;
+    case 'social_media':  nonWorkProb = 0.28 - effectiveDiligence * 0.10; break;
+    case 'streamer':      nonWorkProb = 0.32 - effectiveDiligence * 0.15; break;
+    case 'chatty':        nonWorkProb = 0.12; break; // málo browsingu, ale málo deep work
+    case 'top':           nonWorkProb = 0.04; break;
+    default:              nonWorkProb = (1 - effectiveDiligence) * 0.45; break;
+  }
+
   const r = Math.random();
   let app: string;
   let title: string | null = null;
   let active: number;
-  if (r < nonWorkProb) {
+
+  if (persona === 'streamer' && hour >= 14 && Math.random() < 0.35) {
+    // Streamer má YouTube/Netflix na pozadí odpoledne
+    app = 'chrome.exe'; title = pick(['YouTube – Long video essay', 'Netflix – Watching', 'Twitch – streamer live']);
+    active = 8 + rnd(15); // málo aktivního – běží to na pozadí
+  } else if (persona === 'social_media' && Math.random() < 0.18) {
+    // Social media check
+    app = 'chrome.exe'; title = pick(['Facebook', 'Instagram', 'LinkedIn – feed']);
+    active = 20 + rnd(25);
+  } else if (persona === 'chatty' && Math.random() < 0.45) {
+    // Chatty: většinou Teams/Slack
+    app = Math.random() < 0.7 ? 'teams.exe' : 'slack.exe';
+    title = pick(['Obecné – chat', 'Tým call', 'Direct message']);
+    active = 35 + rnd(20);
+  } else if (r < nonWorkProb) {
     if (Math.random() < 0.6) { app = 'chrome.exe'; title = pick(BROWSER_NONWORK_TITLES); }
     else { app = pick(NONWORK_APPS); }
-    active = 30 + rnd(30);
+    active = 25 + rnd(30);
   } else if (r < nonWorkProb + 0.10) {
-    app = 'chrome.exe'; title = pick(BROWSER_WORK_TITLES); active = 40 + rnd(20);
+    app = 'chrome.exe'; title = pick(BROWSER_WORK_TITLES); active = 35 + rnd(20);
   } else if (Math.random() < 0.04) {
-    app = pick(UNKNOWN_APPS); active = 30 + rnd(30);
+    app = pick(UNKNOWN_APPS); active = 25 + rnd(30);
   } else {
     const w = pick(c.workPool);
     app = w[0]; title = w[1];
-    active = Math.random() > 0.85 ? rnd(15) : 45 + rnd(15);
+    // Top performeři mají delší focus bloky (55-60s aktivní), slackeři jen 30-50s
+    const peakActive = persona === 'top' ? 55 + rnd(5) : 40 + rnd(18);
+    const lowActive = rnd(15);
+    active = Math.random() > 0.85 ? lowActive : peakActive;
   }
 
-  const ks = active > 30 && TYPING_APPS.has(app) ? rnd(220) : rnd(30);
+  // Aplikuj hodinovou křivku přímo na active (warmup → méně aktivní vteřin)
+  active = Math.max(0, Math.min(60, Math.round(active * (0.55 + hMul * 0.45))));
+
+  const ks = active > 30 && TYPING_APPS.has(app) ? Math.round(rnd(220) * dayMul) : rnd(30);
   const mouse = app === 'sldworks.exe' ? 50 + rnd(100) : active > 15 ? rnd(75) : rnd(8);
-  // Typing session: pokud > 30 znaků v intervalu, předpokládáme souvislý
-  // typing pattern – pro fázi 2 KPM. (Realisticky agent posílá per-keydown.)
   const typingMs = ks > 30 ? Math.min(60_000, ks * 200) : 0;
 
   return {
@@ -558,7 +776,7 @@ async function seedPrintAndUsb(users: Person[]): Promise<void> {
   const usbEvents: Prisma.UsbFileEventCreateManyInput[] = [];
 
   for (const u of users) {
-    const isCheater = u.behavior.startsWith('cheater');
+    const isCheater = u.persona.startsWith('cheater');
     // Tisk podle role: vedení/HR/ekonomika tisknou hodně, výroba málo
     const heavyPrinter = ['Personalistika', 'Vedení', 'Ekonomika', 'Reklamace', 'Právní'].includes(u.dept);
     const noPrinter = ['Výroba — Hala 1', 'Výroba — Hala 2', 'Výroba — Hala 3', 'Sklad', 'Údržba'].includes(u.dept);
