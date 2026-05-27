@@ -4,6 +4,7 @@ import { api, type SummaryRow } from './api.js';
 import { minutesToHm } from './util.js';
 import { useT } from './i18n/index.js';
 import { useSort, SortHeader } from './tableSort.js';
+import { usePagination } from './pagination.js';
 
 type Props = { from: string; to: string; department?: string };
 
@@ -33,6 +34,7 @@ export function SummaryView({ from, to, department }: Props) {
   }, [rows, search]);
 
   const { sorted, key, dir, setSort } = useSort(filtered, 'activeMinutes', 'desc');
+  const { paged, controls } = usePagination(sorted, 50);
 
   return (
     <div className="card p-5">
@@ -68,7 +70,7 @@ export function SummaryView({ from, to, department }: Props) {
           </tr>
         </thead>
         <tbody>
-          {sorted.map((r) => (
+          {paged.map((r) => (
             <tr key={r.userId} className="divide-row">
               <td className="td font-medium">{r.displayName ?? r.userId}</td>
               <td className="td muted">{r.department ?? '—'}</td>
@@ -81,6 +83,7 @@ export function SummaryView({ from, to, department }: Props) {
           {sorted.length === 0 && !loading && <tr><td colSpan={6} className="td py-6 text-center muted-2">{t('summary.noData')}</td></tr>}
         </tbody>
       </table>
+      {controls}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { Shield, UserPlus, Save, Trash2, KeyRound, X, AlertTriangle, Search } fr
 import { api, type AccessAdminUser } from './api.js';
 import { useT } from './i18n/index.js';
 import { useSort, SortHeader } from './tableSort.js';
+import { usePagination } from './pagination.js';
 
 type Role = 'ADMIN' | 'MANAGER' | 'IT' | 'VIEWER';
 
@@ -31,6 +32,7 @@ export function AccessControlView() {
     });
   }, [users, search, roleFilter]);
   const { sorted: sortedUsers, key, dir, setSort } = useSort(filteredUsers, 'username', 'asc');
+  const { paged: pagedUsers, controls: paginationControls } = usePagination(sortedUsers, 50);
 
   async function reload() {
     try {
@@ -127,7 +129,7 @@ export function AccessControlView() {
                 </tr>
               </thead>
               <tbody>
-                {sortedUsers.map((u) => {
+                {pagedUsers.map((u) => {
                   const roleInfo = ROLE_OPTIONS.find((r) => r.value === u.role);
                   return (
                     <tr key={u.id} className="divide-row">
@@ -162,6 +164,7 @@ export function AccessControlView() {
                 {sortedUsers.length === 0 && <tr><td colSpan={6} className="td py-6 text-center muted-2">{t('common.noData')}</td></tr>}
               </tbody>
             </table>
+            {paginationControls}
           </div>
           </>
         )}

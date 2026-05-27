@@ -3,6 +3,7 @@ import { HeartPulse, AlertTriangle, AlertOctagon, CheckCircle2, BatteryLow, Hard
 import { api, type DeviceHealthRow, type DeviceHealthDetail, type HealthStatus } from './api.js';
 import { useT, type Locale } from './i18n/index.js';
 import { useSort, SortHeader } from './tableSort.js';
+import { usePagination } from './pagination.js';
 
 // Mapování locale → BCP-47 pro toLocale*String (čeština chce 'cs-CZ' atd.)
 function bcp47(locale: Locale): string {
@@ -54,6 +55,7 @@ export function HardwareHealthView() {
   // ale localeCompare zarazuje stejne pri opakovanem kliku, tedy v praxi to znamena
   // alfabeticky. Manazer pak nejcasteji prepne na batteryHealthPct asc.
   const { sorted: sortedRows, key: sortKey, dir: sortDir, setSort } = useSort(filtered, 'status', 'asc');
+  const { paged: pagedRows, controls: paginationControls } = usePagination(sortedRows, 50);
 
   return (
     <div className="space-y-4">
@@ -110,7 +112,7 @@ export function HardwareHealthView() {
               <th className="th w-10"></th>
             </tr></thead>
             <tbody>
-              {sortedRows.map((r) => (
+              {pagedRows.map((r) => (
                 <tr key={r.deviceId} className="divide-row cursor-pointer hover:bg-emerald-50/30 dark:hover:bg-emerald-500/5" onClick={() => api.deviceHealthDetail(r.deviceId).then(setOpen)}>
                   <td className="td"><StatusBadge s={r.status} /></td>
                   <td className="td">
@@ -146,6 +148,7 @@ export function HardwareHealthView() {
               {sortedRows.length === 0 && <tr><td className="td muted-2" colSpan={10}>{loading ? t('common.loading') : t('health.noMatch')}</td></tr>}
             </tbody>
           </table>
+          {paginationControls}
         </div>
       </div>
 
