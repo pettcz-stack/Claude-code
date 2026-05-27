@@ -40,4 +40,13 @@ export default tseslint.config(
     files: ['**/*.test.ts', 'tests/**/*.ts'],
     languageOptions: { globals: { describe: 'readonly', it: 'readonly', expect: 'readonly', beforeAll: 'readonly', afterAll: 'readonly', beforeEach: 'readonly', afterEach: 'readonly' } },
   },
+  {
+    // Node CLI utility skripty (sync-postgres-schema apod.) – Node globals dostupné.
+    files: ['scripts/**/*.mjs', 'scripts/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: { process: 'readonly', console: 'readonly', Buffer: 'readonly', __dirname: 'readonly' },
+    },
+  },
 );

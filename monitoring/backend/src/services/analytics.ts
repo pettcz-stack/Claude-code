@@ -21,11 +21,10 @@ async function computeFocusSessions(userId: string, from: Date, to: Date): Promi
   let sessions = 0;
   let totalMinutes = 0;
   let runApp: string | null = null;
-  let runStart: Date | null = null;
   let runMin = 0;
   const flush = () => {
     if (runMin >= FOCUS_MIN_MINUTES) { sessions++; totalMinutes += runMin; }
-    runApp = null; runStart = null; runMin = 0;
+    runApp = null; runMin = 0;
   };
   let prevEnd: Date | null = null;
   for (const it of intervals) {
@@ -37,7 +36,7 @@ async function computeFocusSessions(userId: string, from: Date, to: Date): Promi
       runMin += active;
     } else {
       flush();
-      if (isFocused) { runApp = it.foregroundApp; runStart = it.intervalStart; runMin = active; }
+      if (isFocused) { runApp = it.foregroundApp; runMin = active; }
     }
     prevEnd = new Date(it.intervalStart.getTime() + it.intervalSeconds * 1000);
   }
