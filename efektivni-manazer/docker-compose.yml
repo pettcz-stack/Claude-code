@@ -1,0 +1,76 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-efektivni}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-efektivni}
+      POSTGRES_DB: ${POSTGRES_DB:-efektivni}
+    volumes:
+      - efektivni-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-efektivni}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ./api
+    image: efektivni-manazer-api:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      LLM_EXTRACTOR_MODEL: ${LLM_EXTRACTOR_MODEL:-claude-sonnet-4-6}
+      LLM_DRAFT_MODEL: ${LLM_DRAFT_MODEL:-claude-opus-4-7}
+      EFEKTIVNI_MASTER_PASSWORD: ${EFEKTIVNI_MASTER_PASSWORD}
+      EFEKTIVNI_ENCRYPTION_KEY: ${EFEKTIVNI_ENCRYPTION_KEY}
+      EFEKTIVNI_SESSION_SECRET: ${EFEKTIVNI_SESSION_SECRET}
+      WORKING_HOURS_START: ${WORKING_HOURS_START:-8}
+      WORKING_HOURS_END: ${WORKING_HOURS_END:-18}
+      WORKING_DAYS: ${WORKING_DAYS:-1,2,3,4,5}
+      TIMEZONE: ${TIMEZONE:-Europe/Prague}
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "127.0.0.1:8091:8000"
+
+  worker:
+    build:
+      context: ./api
+    image: efektivni-manazer-api:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      LLM_EXTRACTOR_MODEL: ${LLM_EXTRACTOR_MODEL:-claude-sonnet-4-6}
+      LLM_DRAFT_MODEL: ${LLM_DRAFT_MODEL:-claude-opus-4-7}
+      EFEKTIVNI_ENCRYPTION_KEY: ${EFEKTIVNI_ENCRYPTION_KEY}
+      MAIL_SYNC_INTERVAL: ${MAIL_SYNC_INTERVAL:-120}
+      SLA_TICK_INTERVAL: ${SLA_TICK_INTERVAL:-300}
+      WORKING_HOURS_START: ${WORKING_HOURS_START:-8}
+      WORKING_HOURS_END: ${WORKING_HOURS_END:-18}
+      WORKING_DAYS: ${WORKING_DAYS:-1,2,3,4,5}
+      TIMEZONE: ${TIMEZONE:-Europe/Prague}
+    command: ["python", "-m", "app.workers.run"]
+
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8091}
+    image: efektivni-manazer-web:latest
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:8090:3000"
+
+volumes:
+  efektivni-db:
