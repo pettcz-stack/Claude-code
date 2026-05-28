@@ -102,20 +102,26 @@ export default function DashboardPage() {
   const [showNew, setShowNew] = useState(false);
 
   async function refresh() {
-    try {
-      const [o, t, n] = await Promise.all([
-        api<Overview>("/stats/overview"),
-        api<Task[]>("/tasks?open_only=true"),
-        api<Notification[]>("/notifications?open_only=true"),
-      ]);
-      setOverview(o);
-      setTasks(t);
-      setNotifs(n);
-    } catch (e: any) {
-      setErr(e.message);
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    // Každý fetch běží samostatně, ať jeden výpadek neblokuje zbytek
+    // (např. když je API starý a /stats/overview ještě nemá).
+    const oP = api<Overview>("/stats/overview").catch((e) => {
+      console.warn("stats/overview failed:", e.message);
+      return null;
+    });
+    const tP = api<Task[]>("/tasks?open_only=true").catch((e) => {
+      setErr((cur) => cur || `Tasks: ${e.message}`);
+      return [] as Task[];
+    });
+    const nP = api<Notification[]>("/notifications?open_only=true").catch((e) => {
+      setErr((cur) => cur || `Notifications: ${e.message}`);
+      return [] as Notification[];
+    });
+    const [o, t, n] = await Promise.all([oP, tP, nP]);
+    setOverview(o);
+    setTasks(t);
+    setNotifs(n);
+    setLoading(false);
   }
   useEffect(() => { refresh(); }, []);
 

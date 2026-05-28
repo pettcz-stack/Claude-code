@@ -67,6 +67,23 @@ export default function SettingsPage() {
     }
   }
 
+  if (err && (!imap || !profile)) {
+    return (
+      <>
+        <Nav />
+        <main className="mx-auto max-w-3xl p-8">
+          <div className="rounded border border-rose-500/40 bg-rose-500/10 p-4 text-sm">
+            <p className="font-semibold text-rose-300">Chyba při načítání nastavení</p>
+            <p className="mt-1 text-rose-200/80">{err}</p>
+            <p className="mt-3 text-muted">
+              Zkus zkontrolovat <code>docker compose logs api</code> a ujisti se,
+              že API kontejner běží s nejnovějším buildem (<code>docker compose up -d --build</code>).
+            </p>
+          </div>
+        </main>
+      </>
+    );
+  }
   if (!imap || !profile) return <><Nav /><main className="p-8 text-muted">Načítám…</main></>;
 
   return (
