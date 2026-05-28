@@ -32,6 +32,17 @@ class TaskUpdate(BaseModel):
     closed: bool | None = None
 
 
+class TaskCreate(BaseModel):
+    direction: Literal["delegated", "mine"]
+    title: str
+    summary: str = ""
+    requested_output: str = ""
+    counterpart_email: str = ""
+    counterpart_name: str = ""
+    deadline: datetime | None = None
+    phase: str = "new"
+
+
 class MessageOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

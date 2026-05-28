@@ -6,6 +6,7 @@ from ..db import get_db
 from ..models import Setting
 from ..schemas import ImapSettingsIn, ImapSettingsOut, ProfileSettingsIn
 from ..services.crypto import encrypt
+from ..services.demo import seed_demo_data, wipe_demo
 
 router = APIRouter(prefix="/settings", tags=["settings"], dependencies=[Depends(require_session)])
 
@@ -79,3 +80,19 @@ def set_profile(payload: ProfileSettingsIn, db: Session = Depends(get_db)) -> di
     db.merge(row)
     db.commit()
     return row.value
+
+
+@router.post("/seed-demo")
+def seed_demo(db: Session = Depends(get_db)) -> dict[str, int]:
+    """Smaže vše a nahraje realistická demo data (13 úkolů, vlákna, notifikace)."""
+    profile = db.get(Setting, PROFILE_KEY)
+    my_email = (profile.value.get("my_email") if profile else "") or "torsten@firma.cz"
+    my_name = (profile.value.get("my_name") if profile else "") or "Torsten"
+    return seed_demo_data(db, my_email=my_email, my_name=my_name)
+
+
+@router.post("/wipe-all")
+def wipe_all(db: Session = Depends(get_db)) -> dict[str, bool]:
+    """Smaže VŠECHNY úkoly, vlákna, notifikace. Nedotkne se profilu ani IMAP nastavení."""
+    wipe_demo(db)
+    return {"ok": True}

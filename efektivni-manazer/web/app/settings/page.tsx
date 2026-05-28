@@ -197,6 +197,52 @@ export default function SettingsPage() {
             </button>
           </form>
         </section>
+
+        <section className="rounded border border-line bg-panel p-6">
+          <h2 className="mb-1 text-lg font-semibold">Demo data</h2>
+          <p className="mb-4 text-sm text-muted">
+            Naplní DB realistickými ukázkovými úkoly (delegované i moje, různé fáze,
+            po termínu, hotové) – ať si nasimulujeme jak to vypadá, než přijde reálný
+            mail z IMAPu. <strong>Pozor:</strong> nejdřív smaže všechna existující data
+            (kromě profilu a IMAP nastavení).
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                if (!confirm("Smazat existující úkoly a nahrát demo data?")) return;
+                try {
+                  const r = await api<Record<string, number>>("/settings/seed-demo", {
+                    method: "POST",
+                  });
+                  setSavedMsg(
+                    `Demo nahrané: ${r.tasks} úkolů, ${r.messages} mailů, ${r.notifications} notifikací.`
+                  );
+                } catch (e: any) {
+                  setErr(e.message);
+                }
+              }}
+              className="rounded bg-brand px-4 py-2 text-sm font-medium text-bg"
+            >
+              Naplnit demo data
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!confirm("Opravdu smazat VŠECHNY úkoly, vlákna a notifikace?")) return;
+                try {
+                  await api("/settings/wipe-all", { method: "POST" });
+                  setSavedMsg("Všechna data smazána.");
+                } catch (e: any) {
+                  setErr(e.message);
+                }
+              }}
+              className="rounded border border-rose-500/40 px-4 py-2 text-sm text-rose-300 hover:bg-rose-500/10"
+            >
+              Smazat všechna data
+            </button>
+          </div>
+        </section>
       </main>
     </>
   );

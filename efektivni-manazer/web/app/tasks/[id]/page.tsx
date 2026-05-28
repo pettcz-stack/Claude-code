@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Nav from "@/components/Nav";
-import { api, PHASE_LABEL, Task } from "@/lib/api";
+import { Avatar } from "@/components/Avatar";
+import { PhaseBadge } from "@/components/PhaseBadge";
+import { api, Task } from "@/lib/api";
+import { deadlineLabel, PHASE_LABEL } from "@/lib/ui";
 
 type ThreadDetail = {
   id: number;
@@ -65,28 +68,69 @@ export default function TaskDetailPage() {
     setTask(t);
   }
 
-  if (loading) return <><Nav /><main className="p-8 text-muted">Načítám…</main></>;
+  if (loading)
+    return (
+      <>
+        <Nav />
+        <main className="p-8 text-muted">Načítám…</main>
+      </>
+    );
   if (err || !task || !thread)
-    return <><Nav /><main className="p-8 text-danger">{err || "Nenalezeno"}</main></>;
+    return (
+      <>
+        <Nav />
+        <main className="p-8 text-rose-300">{err || "Nenalezeno"}</main>
+      </>
+    );
 
   const phases = task.direction === "delegated" ? PHASES_DELEGATED : PHASES_MINE;
+  const dl = deadlineLabel(task.deadline);
 
   return (
     <>
       <Nav />
       <main className="mx-auto max-w-5xl px-6 py-8">
-        <button onClick={() => router.back()} className="mb-4 text-sm text-muted hover:text-ink">
+        <button
+          onClick={() => router.back()}
+          className="mb-4 text-sm text-muted hover:text-ink"
+        >
           ← Zpět
         </button>
 
-        <h1 className="text-2xl font-semibold">{task.title}</h1>
-        <p className="mt-1 text-sm text-muted">
-          {task.direction === "delegated" ? "Delegoval/a jsem" : "Můj úkol"} ·{" "}
-          {task.counterpart_name || task.counterpart_email}
-        </p>
+        <header className="mb-6 flex items-start gap-4">
+          <Avatar
+            name={task.counterpart_name}
+            email={task.counterpart_email}
+            size={56}
+          />
+          <div className="flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <PhaseBadge phase={task.phase} />
+              <span className="text-xs text-muted">
+                {task.direction === "delegated" ? "delegoval/a jsem" : "můj úkol"}
+              </span>
+            </div>
+            <h1 className="mt-1 text-2xl font-semibold">{task.title}</h1>
+            <p className="mt-0.5 text-sm text-muted">
+              {task.counterpart_name || task.counterpart_email}
+              {task.counterpart_name && task.counterpart_email && (
+                <span> · {task.counterpart_email}</span>
+              )}
+            </p>
+          </div>
+          {dl && (
+            <div className="text-right">
+              <div className="text-xs uppercase tracking-wide text-muted">Deadline</div>
+              <div className={`text-lg font-semibold ${dl.style}`}>{dl.text}</div>
+              <div className="text-xs text-muted">
+                {task.deadline && new Date(task.deadline).toLocaleString("cs-CZ")}
+              </div>
+            </div>
+          )}
+        </header>
 
-        <section className="mt-6 grid gap-4 md:grid-cols-2">
-          <div className="rounded border border-line bg-panel p-4">
+        <section className="mb-6 grid gap-4 md:grid-cols-3">
+          <div className="rounded-lg border border-line bg-panel p-4 md:col-span-1">
             <h3 className="mb-2 text-xs font-semibold uppercase text-muted">Stav</h3>
             <select
               value={task.phase}
@@ -94,18 +138,18 @@ export default function TaskDetailPage() {
               className="w-full rounded border border-line bg-bg px-2 py-1.5"
             >
               {phases.map((p) => (
-                <option key={p} value={p}>{PHASE_LABEL[p] || p}</option>
+                <option key={p} value={p}>
+                  {PHASE_LABEL[p] || p}
+                </option>
               ))}
             </select>
-            <p className="mt-3 text-xs text-muted">
-              Deadline: {task.deadline ? new Date(task.deadline).toLocaleString("cs-CZ") : "—"}
-            </p>
-            <div className="mt-3 flex gap-2">
+
+            <div className="mt-4 flex flex-wrap gap-2">
               <button
                 onClick={() => update({ closed: true })}
-                className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-bg"
+                className="rounded bg-emerald-500/20 px-3 py-1.5 text-sm font-medium text-emerald-200 hover:bg-emerald-500/30"
               >
-                Označit hotové
+                ✓ Označit hotové
               </button>
               {task.closed_at && (
                 <button
@@ -117,44 +161,57 @@ export default function TaskDetailPage() {
               )}
             </div>
           </div>
-          <div className="rounded border border-line bg-panel p-4">
-            <h3 className="mb-2 text-xs font-semibold uppercase text-muted">Co se čeká</h3>
+
+          <div className="rounded-lg border border-line bg-panel p-4 md:col-span-2">
+            <h3 className="mb-2 text-xs font-semibold uppercase text-muted">
+              Co se čeká
+            </h3>
             <p className="text-sm">{task.requested_output || "—"}</p>
-            <h3 className="mt-3 mb-1 text-xs font-semibold uppercase text-muted">Shrnutí</h3>
+            <h3 className="mt-3 mb-1 text-xs font-semibold uppercase text-muted">
+              Shrnutí
+            </h3>
             <p className="text-sm text-muted">{task.summary || "—"}</p>
           </div>
         </section>
 
-        <section className="mt-8">
-          <h3 className="mb-2 text-xs font-semibold uppercase text-muted">
-            Vlákno · {thread.subject}
-          </h3>
-          <ul className="space-y-3">
-            {thread.messages.map((m) => (
-              <li key={m.id} className="rounded border border-line bg-panel p-4">
-                <div className="mb-2 flex items-center justify-between text-xs text-muted">
-                  <span>
-                    <span
-                      className={
-                        "mr-2 inline-block rounded px-1.5 py-0.5 text-[10px] uppercase " +
-                        (m.direction === "outbound"
-                          ? "bg-brand/20 text-brand"
-                          : "bg-line text-ink")
-                      }
-                    >
-                      {m.direction === "outbound" ? "odesláno" : "přijato"}
+        {thread.messages.length > 0 && (
+          <section>
+            <h3 className="mb-2 text-xs font-semibold uppercase text-muted">
+              Vlákno · {thread.subject}
+            </h3>
+            <ul className="space-y-3">
+              {thread.messages.map((m) => (
+                <li
+                  key={m.id}
+                  className={`rounded-lg border bg-panel p-4 ${
+                    m.direction === "outbound" ? "border-brand/30" : "border-line"
+                  }`}
+                >
+                  <div className="mb-2 flex items-center justify-between text-xs text-muted">
+                    <span>
+                      <span
+                        className={
+                          "mr-2 inline-block rounded px-1.5 py-0.5 text-[10px] uppercase " +
+                          (m.direction === "outbound"
+                            ? "bg-brand/20 text-brand"
+                            : "bg-line text-ink")
+                        }
+                      >
+                        {m.direction === "outbound" ? "odesláno" : "přijato"}
+                      </span>
+                      <span className="font-medium text-ink">{m.from_addr}</span>{" "}
+                      → {m.to_addrs.join(", ")}
                     </span>
-                    {m.from_addr} → {m.to_addrs.join(", ")}
-                  </span>
-                  <span>{new Date(m.date).toLocaleString("cs-CZ")}</span>
-                </div>
-                <pre className="whitespace-pre-wrap break-words font-sans text-sm">
-                  {m.body_text?.slice(0, 4000)}
-                </pre>
-              </li>
-            ))}
-          </ul>
-        </section>
+                    <span>{new Date(m.date).toLocaleString("cs-CZ")}</span>
+                  </div>
+                  <pre className="whitespace-pre-wrap break-words font-sans text-sm">
+                    {m.body_text?.slice(0, 4000)}
+                  </pre>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </main>
     </>
   );

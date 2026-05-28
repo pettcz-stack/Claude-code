@@ -5,10 +5,50 @@ from sqlalchemy.orm import Session
 
 from ..auth import require_session
 from ..db import get_db
-from ..models import Task, TaskPhase
-from ..schemas import TaskOut, TaskUpdate
+from ..models import Task, TaskDirection, TaskPhase, Thread
+from ..schemas import TaskCreate, TaskOut, TaskUpdate
 
 router = APIRouter(prefix="/tasks", tags=["tasks"], dependencies=[Depends(require_session)])
+
+
+@router.post("", response_model=TaskOut)
+def create_task(payload: TaskCreate, db: Session = Depends(get_db)) -> Task:
+    """Manuální vytvoření úkolu (mimo email). Vytvoří synthetic vlákno bez zpráv."""
+    try:
+        direction = TaskDirection(payload.direction)
+    except ValueError as e:
+        raise HTTPException(400, "Neznámý direction") from e
+    try:
+        phase = TaskPhase(payload.phase)
+    except ValueError as e:
+        raise HTTPException(400, "Neznámá fáze") from e
+
+    thread = Thread(
+        subject=payload.title,
+        participants=[payload.counterpart_email] if payload.counterpart_email else [],
+        last_message_at=datetime.now(timezone.utc),
+    )
+    db.add(thread)
+    db.flush()
+
+    task = Task(
+        thread_id=thread.id,
+        direction=direction,
+        phase=phase,
+        counterpart_email=payload.counterpart_email,
+        counterpart_name=payload.counterpart_name,
+        title=payload.title,
+        summary=payload.summary,
+        requested_output=payload.requested_output,
+        deadline=payload.deadline,
+        last_activity_at=datetime.now(timezone.utc),
+        manual_overrides={"manual": True},
+        extractor_meta={"source": "manual"},
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    return task
 
 
 @router.get("", response_model=list[TaskOut])

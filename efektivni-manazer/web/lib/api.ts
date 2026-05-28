@@ -77,20 +77,35 @@ export type Profile = {
   my_name: string;
 };
 
-export const PHASE_LABEL: Record<string, string> = {
-  new: "Nový",
-  awaiting_ack: "Čeká na potvrzení",
-  awaiting_eta: "Čeká na termín",
-  in_progress: "Probíhá",
-  awaiting_result: "Čeká na výsledek",
-  blocked: "Zablokovaný",
-  acked: "Potvrzen",
-  done: "Hotovo",
-  dropped: "Zrušen",
+export type CounterpartStats = {
+  email: string;
+  name: string;
+  owes_me: number;
+  i_owe: number;
+  done: number;
+  overdue: number;
+  last_activity: string | null;
 };
 
-export const LEVEL_LABEL: Record<string, string> = {
-  info: "Info",
-  warning: "Upozornění",
-  urgent: "Urgentní",
+export type Overview = {
+  open: number;
+  overdue: number;
+  awaiting_ack: number;
+  awaiting_eta: number;
+  mine_open: number;
+  delegated_open: number;
 };
+
+export type TaskCreate = {
+  direction: "delegated" | "mine";
+  title: string;
+  summary?: string;
+  requested_output?: string;
+  counterpart_email?: string;
+  counterpart_name?: string;
+  deadline?: string | null;
+  phase?: string;
+};
+
+// re-export pro zpětnou kompatibilitu (před refactorem):
+export { PHASE_LABEL, LEVEL_LABEL } from "./ui";
