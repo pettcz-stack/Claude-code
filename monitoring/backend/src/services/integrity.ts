@@ -4,7 +4,7 @@ import { deptWhere } from './accessControl.js';
 
 export type IntegrityFlag = {
   type: 'MOUSE_JIGGLER' | 'KEYBOARD_WEIGHT' | 'NO_APP_SWITCH' | 'ROBOTIC_REGULARITY'
-      | 'PIRATED_SOFTWARE' | 'AFTER_HOURS_ACTIVITY';
+      | 'EVASION_SOFTWARE' | 'AFTER_HOURS_ACTIVITY';
   severity: 'high' | 'medium';
   detail: string;
   affectedMinutes: number;
@@ -141,26 +141,29 @@ export async function detectAlerts(from: Date, to: Date, department?: string | s
     arr.push(r);
   }
 
-  // 2) Bulk-load pirátského SW použití (per-user součet active minutes na "Pirátský software")
-  const piratedApps = await prisma.appCategory.findMany({
-    where: { category: 'Pirátský software' },
+  // 2) Bulk-load EVASION SW použití (per-user součet active minutes na "Obcházení monitoringu")
+  // Detekce SW co obchází monitoring (mouse jiggler, AHK skripty, Caffeine, atd.).
+  // Toto NENÍ pirátství (license audit), ale podvádění – aktivně se snaží
+  // zmanipulovat výsledky měření.
+  const evasionApps = await prisma.appCategory.findMany({
+    where: { category: 'Obcházení monitoringu' },
     select: { appName: true },
   });
-  const piratedSet = new Set(piratedApps.map((a) => a.appName));
-  const piratedByUser = new Map<string, { minutes: number; apps: Set<string> }>();
-  if (piratedSet.size > 0) {
-    const piratedIntervals = await prisma.activityInterval.findMany({
+  const evasionSet = new Set(evasionApps.map((a) => a.appName));
+  const evasionByUser = new Map<string, { minutes: number; apps: Set<string> }>();
+  if (evasionSet.size > 0) {
+    const evasionIntervals = await prisma.activityInterval.findMany({
       where: {
         userId: { in: users.map((u) => u.id) },
         intervalStart: { gte: from, lt: to },
-        foregroundApp: { in: [...piratedSet] },
+        foregroundApp: { in: [...evasionSet] },
       },
       select: { userId: true, activeSeconds: true, foregroundApp: true },
     });
-    for (const r of piratedIntervals) {
+    for (const r of evasionIntervals) {
       if (!r.foregroundApp) continue;
-      let info = piratedByUser.get(r.userId);
-      if (!info) { info = { minutes: 0, apps: new Set() }; piratedByUser.set(r.userId, info); }
+      let info = evasionByUser.get(r.userId);
+      if (!info) { info = { minutes: 0, apps: new Set() }; evasionByUser.set(r.userId, info); }
       info.minutes += r.activeSeconds / 60;
       info.apps.add(r.foregroundApp);
     }
@@ -192,19 +195,20 @@ export async function detectAlerts(from: Date, to: Date, department?: string | s
     const active = byUser.get(u.id) ?? [];
     const r = computeIntegrityFromIntervals(u.id, active);
 
-    // PIRATED_SOFTWARE flag — > 30 min nelicencovaného SW = high
-    const pir = piratedByUser.get(u.id);
-    if (pir && pir.minutes >= 30) {
-      const sev: 'high' | 'medium' = pir.minutes >= 120 ? 'high' : 'medium';
-      const apps = [...pir.apps].slice(0, 4).join(', ');
+    // EVASION_SOFTWARE flag — uživatel má spuštěné nástroje obcházející monitoring.
+    // I krátká přítomnost je podezřelá → 10 min = medium, 60 min = high.
+    const ev = evasionByUser.get(u.id);
+    if (ev && ev.minutes >= 10) {
+      const sev: 'high' | 'medium' = ev.minutes >= 60 ? 'high' : 'medium';
+      const apps = [...ev.apps].slice(0, 4).join(', ');
       r.flags.push({
-        type: 'PIRATED_SOFTWARE',
+        type: 'EVASION_SOFTWARE',
         severity: sev,
-        detail: `Použití nelicencovaného / pirátského software (${Math.round(pir.minutes)} min): ${apps}${pir.apps.size > 4 ? ' …' : ''}. Bezpečnostní a právní riziko – malware, audit licencí, GDPR.`,
-        affectedMinutes: Math.round(pir.minutes),
+        detail: `Použití software obcházejícího monitoring (${Math.round(ev.minutes)} min): ${apps}${ev.apps.size > 4 ? ' …' : ''}. Pravděpodobné podvádění – mouse jiggler / AHK skript / Caffeine / pokus o killnutí agenta. Měření aktivity tohoto uživatele je nedůvěryhodné.`,
+        affectedMinutes: Math.round(ev.minutes),
       });
-      r.riskScore = Math.min(100, r.riskScore + (sev === 'high' ? 70 : 35));
-      if (sev === 'high') r.suspicious = true;
+      r.riskScore = Math.min(100, r.riskScore + (sev === 'high' ? 75 : 40));
+      r.suspicious = true; // jakákoli evasion = suspicious
     }
 
     // AFTER_HOURS_ACTIVITY — > 4 noci za období s aktivitou po 21:00 = medium

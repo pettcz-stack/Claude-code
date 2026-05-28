@@ -763,37 +763,43 @@ async function main() {
     });
   }
 
-  // ─── 5b) Pirátský software – klíčové pro IT auditora ────────────────────
-  // Aplikace označené `category: 'Pirátský software'` se použijí pro detekci
-  // v alerts.ts (PIRATED_SOFTWARE flag). Type=NON_WORK → snižuje skóre uživatele
-  // (správně – nelegální činnost není práce).
-  const PIRATED_APPS = [
-    { appName: 'photoshop_crack.exe',  category: 'Pirátský software', type: 'NON_WORK' },
-    { appName: 'illustrator_crack.exe',category: 'Pirátský software', type: 'NON_WORK' },
-    { appName: 'autocad_pirated.exe',  category: 'Pirátský software', type: 'NON_WORK' },
-    { appName: 'sldworks_keygen.exe',  category: 'Pirátský software', type: 'NON_WORK' },
-    { appName: 'idea_pirated.exe',     category: 'Pirátský software', type: 'NON_WORK' },
-    { appName: 'office_kms.exe',       category: 'Pirátský software', type: 'NON_WORK' },
-    { appName: 'winrar_crack.exe',     category: 'Pirátský software', type: 'NON_WORK' },
-    { appName: 'vmware_keygen.exe',    category: 'Pirátský software', type: 'NON_WORK' },
-    { appName: 'mimikatz.exe',         category: 'Pirátský software', type: 'NON_WORK' }, // hacker tool
-    { appName: 'utorrent.exe',         category: 'Pirátský software', type: 'NON_WORK' }, // torrent klient
+  // ─── 5b) Obcházení monitoringu – software co simuluje aktivitu / udržuje "online" ──
+  // Apps označené `category: 'Obcházení monitoringu'` se detekují v alerts.ts
+  // (EVASION_SOFTWARE flag). Tohle je primární zájem IT auditora – uživatelé co
+  // se PROAKTIVNĚ snaží obcházet monitoring (na rozdíl od pirátského SW, který
+  // řeší licenční audit, ne integritu měření).
+  //
+  // Type=NON_WORK – obcházení monitoringu rozhodně není práce, ale skóre samotné
+  // tím nehoříme; primární výstup je v Upozornění + suspicious flagu.
+  const EVASION_APPS = [
+    { appName: 'mouse_jiggler.exe',  category: 'Obcházení monitoringu', type: 'NON_WORK' }, // SW mouse jiggler
+    { appName: 'move_mouse.exe',     category: 'Obcházení monitoringu', type: 'NON_WORK' }, // Move Mouse (open-source jiggler)
+    { appName: 'autohotkey.exe',     category: 'Obcházení monitoringu', type: 'NON_WORK' }, // AHK – pravděpodobně skript co simuluje vstupy
+    { appName: 'caffeine.exe',       category: 'Obcházení monitoringu', type: 'NON_WORK' }, // udržuje screen aktivní, blokuje spořič
+    { appName: 'noscreensaver.exe',  category: 'Obcházení monitoringu', type: 'NON_WORK' },
+    { appName: 'keep_alive.exe',     category: 'Obcházení monitoringu', type: 'NON_WORK' }, // utility "keep PC awake"
+    { appName: 'desktop_wiggler.exe',category: 'Obcházení monitoringu', type: 'NON_WORK' },
+    { appName: 'autoclicker.exe',    category: 'Obcházení monitoringu', type: 'NON_WORK' }, // auto-clicker
+    { appName: 'mousekey.exe',       category: 'Obcházení monitoringu', type: 'NON_WORK' },
+    { appName: 'process_hacker.exe', category: 'Obcházení monitoringu', type: 'NON_WORK' }, // pokus o killnutí agenta
   ];
-  for (const a of PIRATED_APPS) {
+  for (const a of EVASION_APPS) {
     await prisma.appCategory.upsert({
       where: { appName: a.appName },
       create: { appName: a.appName, category: a.category, type: a.type, licensed: false },
       update: { category: a.category, type: a.type, licensed: false },
     });
   }
+  // Cleanup: pokud někde z minulé verze zůstaly entries "Pirátský software", smaž je
+  await prisma.appCategory.deleteMany({ where: { category: 'Pirátský software' } });
 
-  // ─── 6) Print, USB, HW health, Admins, Audit, Claims, Piracy ────────────
+  // ─── 6) Print, USB, HW health, Admins, Audit, Claims, Evasion, After-hours ─
   await seedPrintAndUsb(created);
   await seedDeviceHealth(created);
   await seedAdditionalAdmins();
   await seedAccessAuditSamples(created);
   await seedClassificationClaims(created);
-  await seedPiracyActivity(created);
+  await seedEvasionActivity(created);
   await seedAfterHoursActivity(created);
 
   // ─── 7) Settings & aggregation ──────────────────────────────────────────
@@ -1162,60 +1168,65 @@ async function seedClassificationClaims(users: Person[]): Promise<void> {
 }
 
 /**
- * Seed pirátského software: 18 uživatelů aktivně používá nelicencované SW.
- * Realisticky distribuovaní napříč rolemi:
- *  - Marketing (Photoshop/Illustrator cracked) – designeři co nechtěli platit Adobe
- *  - Konstrukce (AutoCAD/SolidWorks keygen) – designer s vlastním projektem
- *  - Vývoj (JetBrains pirated) – freelance side projects
- *  - IT (mimikatz, nmap) – security tools nebo malicious intent
- *  - Random rolI (Office KMS, WinRAR crack, uTorrent, VMware keygen)
+ * Seed software obcházení monitoringu: ~20 uživatelů má spuštěné nástroje
+ * pro fingovanou aktivitu / udržení online statusu. Toto je primární zájem
+ * IT auditora – uživatelé co PROAKTIVNĚ obcházejí měření (rozdíl proti
+ * pirátskému SW, který řeší licenční audit).
+ *
+ * Persony narativně:
+ *  - Mouse jiggler během oběda nebo schůzek (status zůstane "aktivní")
+ *  - AutoHotkey skript co simuluje úhozy během dlouhých Teams callů
+ *  - Caffeine.exe aby PC nezamknul (kdo nechce zadávat heslo)
+ *  - Process Hacker (advanced) – pokus o killnutí agenta
  */
-async function seedPiracyActivity(users: Person[]): Promise<void> {
+async function seedEvasionActivity(users: Person[]): Promise<void> {
   const existing = await prisma.activityInterval.count({
-    where: { foregroundApp: { contains: '_crack' } },
+    where: { foregroundApp: { in: ['mouse_jiggler.exe', 'autohotkey.exe', 'caffeine.exe', 'move_mouse.exe'] } },
   });
   if (existing > 0) {
-    console.log(`Demo piracy preskoceno – uz existuje ${existing} intervalu.`);
+    console.log(`Demo evasion preskoceno – uz existuje ${existing} intervalu.`);
     return;
   }
 
-  // Vyber pirátů per oddělení/persona
   const findCandidate = (predicate: (u: Person) => boolean): Person | undefined =>
     users.find((u) => predicate(u) && !u.persona.startsWith('cheater'));
 
-  const piratePlan: { user: Person | undefined; app: string; intensityHoursPerWeek: number; reason: string }[] = [
-    // 5× Marketing – Adobe cracked
-    { user: findCandidate((u) => u.dept === 'Marketing'), app: 'photoshop_crack.exe',  intensityHoursPerWeek: 8, reason: 'Designer Adobe crack' },
-    { user: users.filter((u) => u.dept === 'Marketing')[3], app: 'illustrator_crack.exe', intensityHoursPerWeek: 6, reason: 'Designer Adobe crack' },
-    { user: users.filter((u) => u.dept === 'Marketing')[7], app: 'photoshop_crack.exe',  intensityHoursPerWeek: 4, reason: 'Designer Adobe crack' },
-    { user: users.filter((u) => u.dept === 'Marketing')[11], app: 'illustrator_crack.exe', intensityHoursPerWeek: 3, reason: 'Designer Adobe crack' },
-    { user: users.filter((u) => u.dept === 'Marketing')[15], app: 'photoshop_crack.exe', intensityHoursPerWeek: 5, reason: 'Designer Adobe crack' },
-    // 4× Konstrukce – AutoCAD/SW keygen (vlastní side projekty doma)
-    { user: findCandidate((u) => u.dept === 'Konstrukce'), app: 'autocad_pirated.exe',   intensityHoursPerWeek: 3, reason: 'CAD side project' },
-    { user: users.filter((u) => u.dept === 'Konstrukce')[20], app: 'sldworks_keygen.exe', intensityHoursPerWeek: 4, reason: 'CAD side project' },
-    { user: users.filter((u) => u.dept === 'Konstrukce')[45], app: 'autocad_pirated.exe', intensityHoursPerWeek: 2, reason: 'CAD side project' },
-    { user: users.filter((u) => u.dept === 'Konstrukce')[80], app: 'sldworks_keygen.exe', intensityHoursPerWeek: 5, reason: 'CAD side project' },
-    // 3× Vývoj – cracked IDE
-    { user: findCandidate((u) => u.dept === 'Vývoj'), app: 'idea_pirated.exe', intensityHoursPerWeek: 12, reason: 'Vývojář cracked IDE' },
-    { user: users.filter((u) => u.dept === 'Vývoj')[12], app: 'idea_pirated.exe', intensityHoursPerWeek: 8, reason: 'Vývojář cracked IDE' },
-    { user: users.filter((u) => u.dept === 'Vývoj')[30], app: 'idea_pirated.exe', intensityHoursPerWeek: 6, reason: 'Vývojář cracked IDE' },
-    // 3× IT – security/hacker tools (mohou být legitimní pro pentestera, ale bez schválení = problém)
-    { user: findCandidate((u) => u.dept === 'IT'), app: 'mimikatz.exe', intensityHoursPerWeek: 2, reason: 'Security tool bez schvaleni' },
-    { user: users.filter((u) => u.dept === 'IT')[8], app: 'vmware_keygen.exe', intensityHoursPerWeek: 3, reason: 'VMware crack' },
-    { user: users.filter((u) => u.dept === 'IT podpora')[2], app: 'office_kms.exe', intensityHoursPerWeek: 1, reason: 'KMS aktivator Office' },
-    // 3× ostatní oddělení – uTorrent / KMS / WinRAR
-    { user: findCandidate((u) => u.dept === 'Ekonomika'), app: 'utorrent.exe', intensityHoursPerWeek: 4, reason: 'Stahování filmů v práci' },
-    { user: findCandidate((u) => u.dept === 'Obchod ČR'), app: 'winrar_crack.exe', intensityHoursPerWeek: 1, reason: 'WinRAR crack' },
-    { user: findCandidate((u) => u.dept === 'Personalistika'), app: 'office_kms.exe', intensityHoursPerWeek: 1, reason: 'KMS aktivator Office' },
+  // Plán: 20 uživatelů přes různé persony s různými evasion nástroji.
+  // Intensity = hodin/týden kdy daný nástroj běží na popředí (mouse_jiggler
+  // bývá většinou na pozadí, ale občas user otevře okno aby konfiguroval).
+  const evasionPlan: { user: Person | undefined; app: string; intensityHoursPerWeek: number; reason: string }[] = [
+    // 5× lidi co maskuji nepřítomnost u PC (sales, obchod, manažeři)
+    { user: findCandidate((u) => u.dept === 'Obchod ČR'),         app: 'mouse_jiggler.exe',   intensityHoursPerWeek: 6, reason: 'Maskuje schůzky/cesty' },
+    { user: users.filter((u) => u.dept === 'Obchod ČR')[25],      app: 'mouse_jiggler.exe',   intensityHoursPerWeek: 4, reason: 'Maskuje nečinnost' },
+    { user: users.filter((u) => u.dept === 'Obchod Export')[8],   app: 'move_mouse.exe',      intensityHoursPerWeek: 5, reason: 'Long sales hovor – udržuje status' },
+    { user: findCandidate((u) => u.dept === 'Zákaznický servis'), app: 'mouse_jiggler.exe',   intensityHoursPerWeek: 8, reason: 'Sleduje seriály v práci' },
+    { user: users.filter((u) => u.dept === 'Marketing')[2],       app: 'desktop_wiggler.exe', intensityHoursPerWeek: 3, reason: 'Fake activity přes oběd' },
+    // 4× AutoHotkey – simulace úhozů (často IT/Vývoj kteří znají skripty)
+    { user: findCandidate((u) => u.dept === 'IT podpora'),        app: 'autohotkey.exe',      intensityHoursPerWeek: 10, reason: 'AHK skript simuluje typing' },
+    { user: users.filter((u) => u.dept === 'IT')[5],              app: 'autohotkey.exe',      intensityHoursPerWeek: 6, reason: 'AHK skript' },
+    { user: users.filter((u) => u.dept === 'Vývoj')[20],          app: 'autohotkey.exe',      intensityHoursPerWeek: 4, reason: 'AHK skript' },
+    { user: findCandidate((u) => u.dept === 'Ekonomika'),         app: 'autohotkey.exe',      intensityHoursPerWeek: 5, reason: 'AHK skript' },
+    // 5× Caffeine / NoScreenSaver – udržuje PC neuzamčené
+    { user: findCandidate((u) => u.dept === 'Konstrukce'),        app: 'caffeine.exe',        intensityHoursPerWeek: 8, reason: 'PC nesmí usnout pres render' },
+    { user: users.filter((u) => u.dept === 'Konstrukce')[60],     app: 'caffeine.exe',        intensityHoursPerWeek: 6, reason: 'CAD render keep alive' },
+    { user: users.filter((u) => u.dept === 'Personalistika')[3],  app: 'noscreensaver.exe',   intensityHoursPerWeek: 5, reason: 'Maskuje delsi prestavku' },
+    { user: findCandidate((u) => u.dept === 'Reklamace'),         app: 'keep_alive.exe',      intensityHoursPerWeek: 4, reason: 'Status v Teams' },
+    { user: users.filter((u) => u.dept === 'Logistika')[5],       app: 'caffeine.exe',        intensityHoursPerWeek: 3, reason: 'Maskuje absence' },
+    // 3× AutoClicker – fingovani repetitivni prace
+    { user: findCandidate((u) => u.dept === 'Sklad'),             app: 'autoclicker.exe',     intensityHoursPerWeek: 4, reason: 'Auto-klikani na potvrzeni' },
+    { user: findCandidate((u) => u.dept === 'Datacentrum'),       app: 'mousekey.exe',        intensityHoursPerWeek: 2, reason: 'Skriptovany klik' },
+    { user: users.filter((u) => u.dept === 'Zákaznický servis')[10], app: 'autoclicker.exe',  intensityHoursPerWeek: 6, reason: 'Fake CRM klikani' },
+    // 3× pokus o killnutí agenta (advanced – pravdepodobne IT lide)
+    { user: users.filter((u) => u.dept === 'IT')[12],             app: 'process_hacker.exe',  intensityHoursPerWeek: 1, reason: 'Pokus o killnuti monitoring agenta' },
+    { user: users.filter((u) => u.dept === 'Datacentrum')[3],     app: 'process_hacker.exe',  intensityHoursPerWeek: 1, reason: 'Pokus o killnuti agenta' },
+    { user: findCandidate((u) => u.dept === 'Vývoj'),             app: 'process_hacker.exe',  intensityHoursPerWeek: 1, reason: 'Pokus o killnuti agenta' },
   ].filter((p) => p.user) as { user: Person; app: string; intensityHoursPerWeek: number; reason: string }[];
 
   const today = floorToDay(new Date());
   const newRows: Prisma.ActivityIntervalCreateManyInput[] = [];
-  // Per-user dedup set – aby random pick (dayBack, hour, min) nedával 2 stejné
-  // sloty per user (unique constraint deviceId+userId+intervalStart by selhal).
   const usedSlots = new Set<string>();
   let injected = 0;
-  for (const p of piratePlan) {
+  for (const p of evasionPlan) {
     const user = p.user;
     if (!user) continue;
     const totalIntervals = Math.round(p.intensityHoursPerWeek * 4.3 * 4);
@@ -1230,7 +1241,9 @@ async function seedPiracyActivity(users: Person[]): Promise<void> {
       const dow = localDow(dayStart);
       if (dow === 0 || dow === 6) continue;
       const lp = localParts(dayStart);
-      // Pirátská aktivita po pracovní době – 17-19 (mimo work windows 7-17).
+      // Evasion aktivita – po pracovní době (17-19h), aby se nemíchala s běžnými intervaly.
+      // (Reálně by mouse jiggler běžel CELOU pracovní dobu, ale to bychom museli
+      // přepsat existující intervaly. Tady stačí ukázat že tool je nainstalovaný.)
       const hour = pick([17, 18, 19]);
       const min = pick([0, 15, 30, 45]);
       const intervalStart = zonedToUtc(lp.year, lp.month, lp.day, hour, min);
@@ -1252,12 +1265,10 @@ async function seedPiracyActivity(users: Person[]): Promise<void> {
       injected++;
     }
   }
-  // Insert in batches
   for (let i = 0; i < newRows.length; i += 500) {
-    // Bezpečné: piracy intervaly jsou 17-19h (mimo všechny work windows 7-17)
     await prisma.activityInterval.createMany({ data: newRows.slice(i, i + 500) });
   }
-  console.log(`Demo piracy: ${piratePlan.length} uživatelů s ${injected} pirátskými intervaly.`);
+  console.log(`Demo evasion: ${evasionPlan.length} uživatelů s ${injected} obcházecími intervaly.`);
 }
 
 /**

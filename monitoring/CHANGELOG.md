@@ -9,20 +9,24 @@ Verzování: [Semantic Versioning](https://semver.org/lang/cs/).
 
 ## [Unreleased]
 
-## [0.9.3] — Realistická demo data + detekce pirátství — 2026-05-28
+## [0.9.3] — Realistická demo data + detekce podvádění — 2026-05-28
 
 **TL;DR:** Generální oprava demo datasetu na 1991 zaměstnanců aby vypadal jako reálná firma:
 skóre šplhalo z **2 %** na realistických **50-65 %** (15-min intervaly měly špatnou škálu),
-přidáno **18 uživatelů s pirátským SW** + **60 lidí s aktivitou po 21:00**, HO dip kalibrovaný
-dle výzkumu (Stanford, McKinsey, ActivTrak) na −18 %, performance optimalizace (alerts +
-heatmap caching, bulk integrity = 100× rychlejší).
+přidáno **20 uživatelů s software pro obcházení monitoringu** (mouse jiggler, AHK, Caffeine,
+Process Hacker) + **60 lidí s aktivitou po 21:00**, HO dip kalibrovaný dle výzkumu (Stanford,
+McKinsey, ActivTrak) na −18 %, performance optimalizace (alerts + heatmap caching, bulk
+integrity = 100× rychlejší).
 
 ### 🆕 Přidáno
-- **Software piracy detection** — nový alert `PIRATED_SOFTWARE` (high/medium)
-  - 10 pirátských aplikací v `AppCategory` (Photoshop crack, AutoCAD pirated, SW keygen,
-    JetBrains pirated, Office KMS, mimikatz, uTorrent, WinRAR crack, VMware keygen)
-  - 18 reálně rozprostřených uživatelů (Marketing, Konstrukce, Vývoj, IT, Ekonomika…)
-  - Detekce ≥ 30 min = medium, ≥ 120 min = high (+ DailyStat.suspicious=true)
+- **Detekce obcházení monitoringu** — nový alert `EVASION_SOFTWARE` (high/medium)
+  - 10 aplikací v kategorii „Obcházení monitoringu" (mouse_jiggler.exe, move_mouse.exe,
+    autohotkey.exe, caffeine.exe, noscreensaver.exe, keep_alive.exe, desktop_wiggler.exe,
+    autoclicker.exe, mousekey.exe, process_hacker.exe)
+  - 20 uživatelů s narativem: mouse jiggler během oběda/schůzek, AHK skript v Teams callech,
+    Caffeine při CAD renderu, Process Hacker = pokus o killnutí agenta
+  - Detekce ≥ 10 min = medium, ≥ 60 min = high (+ DailyStat.suspicious=true)
+  - Pozn.: Toto NENÍ piracy/license audit – je to **detekce úmyslného podvádění**.
 - **After-hours activity** — nový alert `AFTER_HOURS_ACTIVITY` (medium)
   - 60 uživatelů s aktivitou 21:00-05:00 (cheateři non-stop, IT on-call, manažeři)
 - **10 person** místo 4: top, normal, chatty, social_media, streamer, gamer, slacker,

@@ -255,8 +255,9 @@ export async function aggregateAllFast(): Promise<{ users: number; hours: number
   const deptRules = await getDeptRules();
 
   // Set pirátských app pro flag suspicious=true při výskytu (audit důležitost).
-  const piratedApps = new Set(
-    (await prisma.appCategory.findMany({ where: { category: 'Pirátský software' }, select: { appName: true } }))
+  // Set evasion app (mouse jiggler, AHK, Caffeine, atd.) pro flag suspicious.
+  const evasionApps = new Set(
+    (await prisma.appCategory.findMany({ where: { category: 'Obcházení monitoringu' }, select: { appName: true } }))
       .map((a) => a.appName),
   );
 
@@ -401,10 +402,12 @@ export async function aggregateAllFast(): Promise<{ users: number; hours: number
       const dayActive = dayActiveMap.get(d.day.getTime()) ?? [];
       const integ = computeIntegrityFromIntervals(u.id, dayActive);
       // Pirátské použití per den (≥ 30 min) také značí suspicious – ať se ukáže v overview "podezření" countu.
-      const piratedMinThisDay = dayActive
-        .filter((it) => it.foregroundApp && piratedApps.has(it.foregroundApp))
+      // Per-den evasion (≥ 10 min) → suspicious. Nižší threshold než pirátství,
+      // protože i krátká přítomnost je vážná (admin chce vědět hned).
+      const evasionMinThisDay = dayActive
+        .filter((it) => it.foregroundApp && evasionApps.has(it.foregroundApp))
         .reduce((s, it) => s + it.activeSeconds / 60, 0);
-      const suspicious = integ.suspicious || piratedMinThisDay >= 30;
+      const suspicious = integ.suspicious || evasionMinThisDay >= 10;
       dailyRows.push({
         userId: u.id, date: d.day,
         workMin: d.work, nonWorkMin: d.nonwork, idleMin: d.idle, unknownMin: d.unknown,

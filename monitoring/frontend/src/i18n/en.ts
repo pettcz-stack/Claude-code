@@ -792,7 +792,7 @@ export const en: typeof cs = {
     labelKeyboardWeight: 'Object on keyboard / key simulator',
     labelNoAppSwitch: 'No application switching',
     labelRoboticRegularity: 'Robotically regular pattern',
-    labelPiratedSoftware: 'Pirated software',
+    labelEvasionSoftware: 'Anti-monitoring software',
     labelAfterHours: 'After-hours activity',
   },
   calendar: {
@@ -840,7 +840,7 @@ export const en: typeof cs = {
     labelKeyboardWeight: 'Object on keyboard / key simulator',
     labelNoAppSwitch: 'No application switching',
     labelRoboticRegularity: 'Robotically regular pattern',
-    labelPiratedSoftware: 'Pirated software',
+    labelEvasionSoftware: 'Anti-monitoring software',
     labelAfterHours: 'After-hours activity',
   },
   emptyState: {

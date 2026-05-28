@@ -28,9 +28,9 @@ export const RELEASES: ReleaseHighlight[] = [
   {
     version: '0.9.3',
     date: '2026-05-28',
-    title: 'Realistická demo data + detekce pirátství',
+    title: 'Realistická demo data + detekce podvádění',
     highlights: [
-      '18 uživatelů s pirátským softwarem (Photoshop crack, AutoCAD pirated, JetBrains pirated, mimikatz, uTorrent…) — nový alert typ PIRATED_SOFTWARE',
+      '20 uživatelů spouští software obcházející monitoring (mouse jiggler, AutoHotkey, Caffeine, autoclicker, Process Hacker…) — nový alert typ Obcházení monitoringu',
       '~60 uživatelů s aktivitou po 21:00 — nový alert AFTER_HOURS_ACTIVITY (workaholici, IT on-call, ale i botové)',
       'Realistická škála aktivního času — 15-min intervaly správně reprezentují 15 minut (skóre 2 % → ~ 55 %)',
       'Svátky a víkendy: seed respektuje státní svátky CZ, ~6 % firmy má víkendovou aktivitu (IT support, on-call)',
@@ -40,7 +40,7 @@ export const RELEASES: ReleaseHighlight[] = [
       'Bulk integrity check: 1991 sekvenčních query → 1 bulk (100× rychlejší /alerts)',
     ],
     features: [
-      'piratedSoftware',
+      'evasionSoftware',
       'afterHoursActivity',
       'realisticDemoData',
       'holidaysWeekends',
