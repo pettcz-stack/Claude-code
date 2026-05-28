@@ -14,6 +14,22 @@ services:
       timeout: 3s
       retries: 10
 
+  davmail:
+    image: mguessan/davmail:latest
+    restart: unless-stopped
+    volumes:
+      # davmail očekává konfiguraci na /etc/davmail.properties
+      - ./davmail/davmail.properties:/etc/davmail.properties:ro
+      # Token store musí přežít restart kontejneru
+      - efektivni-davmail:/home/davmail/.davmail
+    # IMAP/SMTP davmailu vystavíme jen na 127.0.0.1, abys mohl
+    # ručně zkontrolovat třeba přes Thunderbird nebo `openssl s_client`.
+    ports:
+      - "127.0.0.1:1143:1143"
+      - "127.0.0.1:1025:1025"
+    stdin_open: true
+    tty: true
+
   api:
     build:
       context: ./api
@@ -74,3 +90,4 @@ services:
 
 volumes:
   efektivni-db:
+  efektivni-davmail:

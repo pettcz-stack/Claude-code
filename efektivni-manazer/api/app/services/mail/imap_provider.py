@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from imap_tools import MailBox, AND
+from imap_tools import AND, MailBox, MailBoxUnencrypted
 
 from .provider import FetchedMessage, MailProvider
 
@@ -12,9 +12,11 @@ class ImapMailProvider(MailProvider):
         self.username = username
         self.password = password
 
-    def _connect(self) -> MailBox:
-        # imap_tools přepíná SSL/STARTTLS podle třídy; pro jednoduchost SSL pevně
-        mb = MailBox(self.host, port=self.port)
+    def _connect(self):
+        # SSL = klasický externí IMAP (port 993).
+        # Bez SSL = davmail gateway na localhost / docker síti (port 1143).
+        cls = MailBox if self.use_ssl else MailBoxUnencrypted
+        mb = cls(self.host, port=self.port)
         mb.login(self.username, self.password)
         return mb
 

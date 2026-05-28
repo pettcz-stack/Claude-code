@@ -119,11 +119,20 @@ export default function SettingsPage() {
 
         <section className="rounded border border-line bg-panel p-6">
           <h2 className="mb-1 text-lg font-semibold">IMAP připojení</h2>
-          <p className="mb-4 text-sm text-muted">
-            Pro Outlook / O365 zkus <code>outlook.office365.com:993 (SSL)</code>{" "}
-            a <strong>App Password</strong> (Microsoft 365 admin musí mít IMAP
-            povolen). Heslo se uloží zašifrované Fernet klíčem.
-          </p>
+          <div className="mb-4 space-y-2 text-sm text-muted">
+            <p>
+              <strong>Doporučeno (davmail gateway uvnitř compose):</strong>{" "}
+              host <code>davmail</code>, port <code>1143</code>, SSL <em>off</em>.
+              Heslo zadej libovolné – davmail si autorizaci ošetří přes prohlížeč
+              (postup viz README). Tahle cesta nevyžaduje IMAP povolený na O365 tenantu.
+            </p>
+            <p>
+              <strong>Alternativa (přímý IMAP):</strong>{" "}
+              <code>outlook.office365.com:993 (SSL)</code> + App Password – jen
+              když admin IMAP nezavřel.
+            </p>
+            <p>Heslo se uloží zašifrované Fernet klíčem.</p>
+          </div>
           <form onSubmit={saveImap} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
