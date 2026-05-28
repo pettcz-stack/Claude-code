@@ -43,12 +43,20 @@ docker compose up -d --build
 
 Při prvním přihlášení nastavíš IMAP credentials přes UI (`Nastavení`).
 
-## Připojení na O365 přes davmail (doporučeno)
+## Připojení na O365 přes davmail (volitelné, doporučeno)
 
 Pokud Ti admin **nezpřístupnil IMAP** na O365 tenantu (typický korporátní stav),
 součástí compose je gateway **davmail**, která se chová jako lokální IMAP server
 a vůči O365 mluví přes EWS / Graph s Tvojí vlastní OAuth identitou. Žádný admin
 consent, žádné App Password.
+
+> **Důležité:** davmail je pod compose profilem `mail`, takže se NEspouští
+> při běžném `docker compose up`. Spustí se ručně až ve chvíli, kdy chceš
+> projít OAuth flow:
+> ```bash
+> docker compose --profile mail build davmail   # první build cca 2 min (stáhne z SourceForge)
+> docker compose --profile mail up -d davmail
+> ```
 
 ### První přihlášení (jednou)
 

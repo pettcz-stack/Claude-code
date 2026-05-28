@@ -15,15 +15,18 @@ services:
       retries: 10
 
   davmail:
-    image: mguessan/davmail:latest
+    # davmail nemá oficiální image na Docker Hubu, stavíme z oficiálního
+    # zip distribučního balíčku ze SourceForge. Service je pod profilem,
+    # takže se NEspouští při běžném `docker compose up` — pustíš ho ručně
+    # ve chvíli, kdy budeš dělat OAuth flow:
+    #   docker compose --profile mail up -d davmail
+    profiles: ["mail"]
+    build:
+      context: ./davmail
     restart: unless-stopped
     volumes:
-      # davmail očekává konfiguraci na /etc/davmail.properties
       - ./davmail/davmail.properties:/etc/davmail.properties:ro
-      # Token store musí přežít restart kontejneru
       - efektivni-davmail:/home/davmail/.davmail
-    # IMAP/SMTP davmailu vystavíme jen na 127.0.0.1, abys mohl
-    # ručně zkontrolovat třeba přes Thunderbird nebo `openssl s_client`.
     ports:
       - "127.0.0.1:1143:1143"
       - "127.0.0.1:1025:1025"
