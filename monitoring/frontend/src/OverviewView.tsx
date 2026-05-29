@@ -8,6 +8,7 @@ import { PageSkeleton } from './Skeleton.js';
 import { ScoreScaleLegend } from './Legend.js';
 import { TYPE_COLORS, scoreHex, scoreColor } from './util.js';
 import { useT } from './i18n/index.js';
+import { useViewMode } from './viewMode.js';
 import { MetricInfo } from './MetricInfo.js';
 import { EmptyState } from './EmptyState.js';
 
@@ -37,6 +38,7 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
   from: string; to: string; department?: string; dark: boolean; onOpenUser: (id: string) => void;
 }) {
   const { t } = useT();
+  const { isBasic } = useViewMode();
   const [o, setO] = useState<Overview | null>(null);
   const [mon, setMon] = useState<MonitorsData | null>(null);
   useEffect(() => { api.overview(from, to, department).then(setO).catch(() => setO(null)); }, [from, to, department]);
@@ -137,8 +139,8 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
         <RankCard title={t('overview.bottomEmployees')} rows={o.bottom} onOpenUser={onOpenUser} />
       </div>
 
-      {/* Efektivita podle počtu monitorů */}
-      {mon && (
+      {/* Efektivita podle počtu monitorů – PRO only (hloubková analýza) */}
+      {mon && !isBasic && (
         <div className="card p-5">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Monitor size={16} className="text-emerald-600" /> {t('overview.scoreByMonitors')}</h3>
           <div className="grid gap-4 sm:grid-cols-2">

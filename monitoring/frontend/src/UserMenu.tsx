@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { LogOut, ChevronDown, ShieldCheck, Code2, Sparkles, Download, Apple } from 'lucide-react';
+import { LogOut, ChevronDown, ShieldCheck, Code2, Sparkles, Download, Apple, Gauge, Layers } from 'lucide-react';
 import { useT } from './i18n/index.js';
 import { useDevMode } from './devMode.js';
+import { useViewMode } from './viewMode.js';
 import { CURRENT_VERSION } from './releases.js';
 import { WhatsNewPanel } from './WhatsNew.js';
 
@@ -29,6 +30,7 @@ const ROLE_COLOR: Record<string, string> = {
 export function UserMenu({ username, role, onLogout }: { username: string; role: string; onLogout: () => void }) {
   const { t } = useT();
   const { devMode, setDevMode } = useDevMode();
+  const { viewMode, setViewMode } = useViewMode();
   const [open, setOpen] = useState(false);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -79,6 +81,38 @@ export function UserMenu({ username, role, onLogout }: { username: string; role:
             </span>
             <span className="text-[10px] font-mono muted-2">v{CURRENT_VERSION}</span>
           </button>
+          {/* View mode toggle (Basic vs Pro) – dostupné pro všechny role */}
+          <div className="border-t border-gray-100 px-4 py-2 dark:border-slate-800">
+            <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wide muted-2">
+              {t('userMenu.viewMode')}
+            </div>
+            <div className="flex gap-1 rounded-lg bg-gray-100 p-0.5 text-xs dark:bg-slate-800">
+              <button
+                onClick={() => setViewMode('basic')}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 transition-colors ${
+                  viewMode === 'basic'
+                    ? 'bg-white text-gray-900 shadow-sm dark:bg-slate-700 dark:text-slate-100'
+                    : 'muted hover:text-gray-700 dark:hover:text-slate-200'
+                }`}
+                title={t('userMenu.viewModeBasicTooltip')}
+              >
+                <Gauge size={12} />
+                <span>{t('userMenu.viewModeBasic')}</span>
+              </button>
+              <button
+                onClick={() => setViewMode('pro')}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 transition-colors ${
+                  viewMode === 'pro'
+                    ? 'bg-white text-gray-900 shadow-sm dark:bg-slate-700 dark:text-slate-100'
+                    : 'muted hover:text-gray-700 dark:hover:text-slate-200'
+                }`}
+                title={t('userMenu.viewModeProTooltip')}
+              >
+                <Layers size={12} />
+                <span>{t('userMenu.viewModePro')}</span>
+              </button>
+            </div>
+          </div>
           {role === 'ADMIN' && (
             <button
               onClick={() => setDevMode(!devMode)}

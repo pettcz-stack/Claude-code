@@ -18,6 +18,11 @@ export const de: typeof cs = {
   userMenu: {
     devMode: 'Entwicklermodus',
     devModeTooltip: 'Zeigt ⓘ Icons neben Metriken mit Erklärung der Berechnung. Nützlich für Auditor / DPO / Debugging.',
+    viewMode: 'Ansicht',
+    viewModeBasic: 'Basic',
+    viewModePro: 'Pro',
+    viewModeBasicTooltip: 'Vereinfachte Ansicht – nur Hauptkennzahlen (Manager)',
+    viewModeProTooltip: 'Vollansicht – alle Details, Drill-downs, Methodik (Auditor / DSB)',
     downloadAgent: 'Agent herunterladen',
     downloadWindowsTooltip: 'MSI-Installer für Windows 10/11',
     downloadMacosTooltip: 'Installer-Paket für macOS 13+',

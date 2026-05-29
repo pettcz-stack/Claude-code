@@ -29,6 +29,11 @@ export const en: typeof cs = {
   userMenu: {
     devMode: 'Developer mode',
     devModeTooltip: 'Shows ⓘ icons next to metrics explaining how they are calculated. Useful for auditors / DPO / debugging.',
+    viewMode: 'View',
+    viewModeBasic: 'Basic',
+    viewModePro: 'Pro',
+    viewModeBasicTooltip: 'Simplified view – key metrics only (manager)',
+    viewModeProTooltip: 'Full view – all details, drill-downs, methodology (auditor / DPO)',
     downloadAgent: 'Download agent',
     downloadWindowsTooltip: 'MSI installer for Windows 10/11',
     downloadMacosTooltip: 'Installer package for macOS 13+',

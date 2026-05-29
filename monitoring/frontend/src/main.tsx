@@ -5,6 +5,7 @@ import { ToastProvider } from './Toast.js';
 import { ErrorBoundary } from './ErrorBoundary.js';
 import { I18nProvider } from './i18n/index.js';
 import { DevModeProvider } from './devMode.js';
+import { ViewModeProvider } from './viewMode.js';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -13,7 +14,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <ErrorBoundary>
         <ToastProvider>
           <DevModeProvider>
-            <App />
+            <ViewModeProvider>
+              <App />
+            </ViewModeProvider>
           </DevModeProvider>
         </ToastProvider>
       </ErrorBoundary>

@@ -18,6 +18,11 @@ export const pl: typeof cs = {
   userMenu: {
     devMode: 'Tryb deweloperski',
     devModeTooltip: 'Pokazuje ⓘ ikonki przy metrykach z wyjaśnieniem sposobu obliczania. Przydatne dla audytora / DPO / debugowania.',
+    viewMode: 'Widok',
+    viewModeBasic: 'Basic',
+    viewModePro: 'Pro',
+    viewModeBasicTooltip: 'Uproszczony widok – tylko kluczowe wskaźniki (kierownik)',
+    viewModeProTooltip: 'Pełny widok – wszystkie szczegóły, drill-downy, metodyka (audytor / IOD)',
     downloadAgent: 'Pobierz agenta',
     downloadWindowsTooltip: 'Instalator MSI dla Windows 10/11',
     downloadMacosTooltip: 'Pakiet instalacyjny dla macOS 13+',

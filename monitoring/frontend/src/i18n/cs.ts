@@ -31,6 +31,11 @@ export const cs = {
   userMenu: {
     devMode: 'Vývojářský režim',
     devModeTooltip: 'Zobrazí ⓘ ikonky u metrik s vysvětlením, jak jsou počítány. Užitečné pro auditora / DPO / debug.',
+    viewMode: 'Pohled',
+    viewModeBasic: 'Basic',
+    viewModePro: 'Pro',
+    viewModeBasicTooltip: 'Zjednodušený pohled – jen klíčové ukazatele (manažer)',
+    viewModeProTooltip: 'Plný pohled – všechny detaily, drill-downy, methodology (auditor / DPO)',
     downloadAgent: 'Stáhnout agenta',
     downloadWindowsTooltip: 'MSI instalátor pro Windows 10/11',
     downloadMacosTooltip: 'Instalační balíček pro macOS 13+',

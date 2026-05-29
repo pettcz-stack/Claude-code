@@ -196,13 +196,29 @@ export function createApp() {
   app.get('/api/v1/me', requireAuth, async (req: Request, res: Response) => {
     const role = req.admin?.role ?? 'VIEWER';
     const departments = await allowedDepartments(req.admin?.id ?? '', role as Role);
+    // Načteme i UI preferences (viewMode) pro hydratu localStorage na frontendu
+    const me = await prisma.adminUser.findUnique({
+      where: { id: req.admin?.id ?? '' },
+      select: { viewMode: true },
+    });
     res.json({
       id: req.admin?.id,
       username: req.admin?.username,
       role,
       capabilities: capabilities(role),
-      departments, // null = bez restrikce; pole = MANAGER s těmito odděleními
+      departments,
+      preferences: { viewMode: me?.viewMode ?? 'pro' },
     });
+  });
+
+  // Per-account UI preferences (basic/pro view atd.). Bezpečnostně low-impact:
+  // jen UI nastavení, žádný permission scope. Zapisuje se best-effort z fronty.
+  app.patch('/api/v1/account/preferences', requireAuth, async (req: Request, res: Response) => {
+    if (!req.admin?.id) { res.status(401).json({ error: 'unauthorized' }); return; }
+    const vm = req.body?.viewMode;
+    if (vm !== 'basic' && vm !== 'pro') { res.status(400).json({ error: 'invalid_viewMode' }); return; }
+    await prisma.adminUser.update({ where: { id: req.admin.id }, data: { viewMode: vm } });
+    res.json({ ok: true, viewMode: vm });
   });
 
   // --- Ingest (vlastní token agenta + jemné omezení četnosti) ---
