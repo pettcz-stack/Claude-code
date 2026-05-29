@@ -70,6 +70,18 @@ export function createApp() {
 
   // HTTP access log – píše do stdout (`docker logs`) a chyby (4xx/5xx) navíc
   // do in-memory event logu pro „Diagnostický log" v Nastavení.
+  //
+  // 401 filter: některé 401 jsou benigní šum (user zavřel tab, session expiry,
+  // dashboard se načítá před autentizací). Logujeme jen 401 na ingest a login
+  // (= reálné auth problémy nebo brute-force pokusy). 401 na read-only dashboard
+  // a account preferences potichu ignorujeme – jinak diag log zaplaví bezvýznamnými
+  // varováními kdykoli user otevře dashboard se starou session cookie.
+  function shouldLog401(method: string, path: string): boolean {
+    if (path.startsWith('/api/v1/ingest') || path === '/api/v1/ingest/' || path === '/') return true;
+    if (path === '/api/v1/login') return true;
+    if (path.startsWith('/api/v1/enroll')) return true;
+    return false;
+  }
   app.use((req, res, next) => {
     if (req.path === '/api/v1/health' || req.path === '/api/v1/metrics') return next();
     const t0 = Date.now();
@@ -83,6 +95,9 @@ export function createApp() {
       // eslint-disable-next-line no-console
       console.log(`${new Date().toISOString()} ${line}`);
       if (res.statusCode >= 400) {
+        // Filtruj šumové 401 (dashboard/preferences bez session) — jen 401
+        // s reálným security významem (ingest/login/enroll) jdou do diag logu.
+        if (res.statusCode === 401 && !shouldLog401(req.method, req.path)) return;
         pushEvent(res.statusCode >= 500 ? 'error' : 'warn', line, {
           method: req.method, path: req.path, status: res.statusCode, ms, device: dev,
           ip: (req.headers['x-forwarded-for'] as string) || req.ip,

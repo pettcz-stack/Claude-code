@@ -1,21 +1,17 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
 /**
  * View mode — Basic vs Pro. Některý admin chce vidět jen pár klíčových
  * ukazatelů (Basic = manažer), jiný chce do hloubky (Pro = auditor / DPO).
  *
- * Basic režim skrývá:
- *  - Detailní KPI dlaždice (jen Score + Aktivní práce + Online)
- *  - Pokročilé alert typy (jen High severity)
- *  - Sekce Software & náklady detail (jen Top 3 nákladové)
- *  - Heatmap fine-grained breakdown
- *  - Per-app drill-downy v Top aplikace
+ * Persistence:
+ *  1) localStorage per browser (rychlé, primární storage)
+ *  2) backend sync NA EXPLICITNÍ ZMĚNU od uživatele (cross-device sync)
+ *     – nesyncujeme na initial mount default hodnoty (jinak spam 401 v
+ *     diagnostickém logu pro nepřihlášené uživatele)
  *
- * Pro režim zobrazuje všechno (současný defaultní stav).
- *
- * Persistence: localStorage per browser (rychlé), volitelně sync s backend
- * AdminUser.viewMode pro per-account preferenci napříč zařízeními.
- * Backend sync proběhne lazy při save - pokud failnem (offline), zůstane jen v localStorage.
+ * Backend sync je best-effort: pokud user není přihlášený (401) nebo backend
+ * nedostupný (network), zůstane jen v localStorage.
  */
 
 export type ViewMode = 'basic' | 'pro';
@@ -41,11 +37,13 @@ export function ViewModeProvider({ children }: { children: ReactNode }) {
     const stored = localStorage.getItem(STORAGE_KEY);
     return stored === 'basic' || stored === 'pro' ? stored : 'pro';
   });
+  // Track jestli to byla uživatelská změna (vs initial mount). Bez tohoto
+  // by useEffect na mount syncoval default na backend → 401 pro nepřihlášené.
+  const userTouched = useRef(false);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, viewMode);
-    // Best-effort sync s backend account preferencí. Pokud nemáme přihlášeného
-    // user nebo backend nedostupný, je to OK – localStorage je primární storage.
+    if (!userTouched.current) return; // skip initial mount
     fetch('/api/v1/account/preferences', {
       method: 'PATCH',
       credentials: 'include',
@@ -54,9 +52,14 @@ export function ViewModeProvider({ children }: { children: ReactNode }) {
     }).catch(() => undefined);
   }, [viewMode]);
 
+  const setViewMode = (v: ViewMode) => {
+    userTouched.current = true;
+    setViewModeState(v);
+  };
+
   const value: ViewModeCtx = {
     viewMode,
-    setViewMode: setViewModeState,
+    setViewMode,
     isBasic: viewMode === 'basic',
     isPro: viewMode === 'pro',
   };
