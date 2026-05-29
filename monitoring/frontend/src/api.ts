@@ -163,15 +163,24 @@ export type IntegrityFlag = { type: string; severity: 'high' | 'medium'; detail:
 export type IntegrityResult = { userId: string; riskScore: number; suspicious: boolean; flags: IntegrityFlag[] };
 export type AlertItem = { userId: string; displayName: string | null; department: string | null; riskScore: number; suspicious: boolean; flags: IntegrityFlag[] };
 
+export type ReasonCode =
+  | 'AFTER_HOURS' | 'WEEKEND_WORK' | 'SKIPPED_LUNCHES' | 'OVER_ENGAGEMENT'
+  | 'DECLINING_TREND' | 'COLLABORATION_DROP' | 'JOB_BROWSING'
+  | 'IMPROVING_TREND' | 'CONSISTENT_HIGH'
+  | 'NO_BURNOUT_SIGNS' | 'NO_FLIGHT_SIGNS' | 'STABLE_PERFORMANCE'
+  | 'STABLE_VS_BASELINE' | 'TREND_VS_BASELINE';
+export type Reason = { code: ReasonCode; params?: Record<string, number> };
+export type InsightCode = 'BURNOUT_HIGH' | 'FLIGHT_RISK_HIGH' | 'PERFORMANCE_DECLINING' | 'PERFORMANCE_BOOST';
+
 export type Insight = {
   type: 'burnout' | 'flight' | 'declining' | 'boost';
+  code: InsightCode;
+  params: Record<string, number | string>;
   userId: string;
   displayName: string;
   department: string | null;
   severity: 'high' | 'medium';
-  headline: string;
-  detail: string;
-  action: string;
+  reasons: Reason[];
 };
 
 export type RiskSignals = {
@@ -179,10 +188,10 @@ export type RiskSignals = {
   displayName: string;
   department: string | null;
   baseline: { avgScore30d: number; avgWorkMin30d: number; sampleDays: number };
-  engagementTrend: { score: number; direction: 'improving' | 'declining' | 'stable'; daysOfData: number; explain: string };
-  burnoutRisk: { score: number; level: 'low' | 'moderate' | 'high'; reasons: string[] };
-  flightRisk: { score: number; level: 'low' | 'moderate' | 'high'; reasons: string[] };
-  boostSignal: { score: number; reasons: string[] };
+  engagementTrend: { score: number; direction: 'improving' | 'declining' | 'stable'; daysOfData: number; explainCode: Reason };
+  burnoutRisk: { score: number; level: 'low' | 'moderate' | 'high'; reasons: Reason[] };
+  flightRisk: { score: number; level: 'low' | 'moderate' | 'high'; reasons: Reason[] };
+  boostSignal: { score: number; reasons: Reason[] };
 };
 
 export type Overview = {
