@@ -66,18 +66,18 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
         </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="card p-4">
-          <div className="mb-1 flex items-center gap-1.5 text-xs uppercase muted-2"><Wallet size={13} /> {t('software.wasteKpi', { unit })}<MetricInfo text={t('methodology.waste')} /></div>
+        <div className="card-dense">
+          <div className="mb-1 flex items-center gap-1.5 kpi-label"><Wallet size={13} /> {t('software.wasteKpi', { unit })}<MetricInfo text={t('methodology.waste')} /></div>
           <div className="text-3xl font-bold text-red-500">{kc(data.totalWasteCost)}</div>
           <div className="text-xs muted-2">{t('software.wasteKpiDesc', { unit })}</div>
         </div>
-        <div className="card p-4">
-          <div className="mb-1 flex items-center gap-1.5 text-xs uppercase muted-2"><Wallet size={13} /> {t('software.savingKpi', { unit })}</div>
+        <div className="card-dense">
+          <div className="mb-1 flex items-center gap-1.5 kpi-label"><Wallet size={13} /> {t('software.savingKpi', { unit })}</div>
           <div className="text-3xl font-bold text-emerald-600">{kc(data.totalWasteCost)}</div>
           <div className="text-xs muted-2">{t('software.savingKpiDesc', { unit })}</div>
         </div>
-        <div className="card p-4">
-          <div className="mb-1 flex items-center gap-1.5 text-xs uppercase muted-2"><Boxes size={13} /> {t('software.workforceKpi')}</div>
+        <div className="card-dense">
+          <div className="mb-1 flex items-center gap-1.5 kpi-label"><Boxes size={13} /> {t('software.workforceKpi')}</div>
           <div className="text-3xl font-bold">{data.workforce}</div>
           <div className="text-xs muted-2">{t('software.workforceKpiDesc')}</div>
         </div>
@@ -200,7 +200,7 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
 function CostCard({ label, value, currency, big }: { label: string; value: number; currency: string; big?: boolean }) {
   return (
     <div className={`rounded-lg border p-3 ${big ? 'border-red-300 dark:border-red-500/40' : 'border-gray-200 dark:border-slate-700'}`}>
-      <div className="text-xs uppercase muted-2">{label}</div>
+      <div className="kpi-label">{label}</div>
       <div className={`font-bold ${big ? 'text-2xl text-red-500' : 'text-xl'}`}>{value.toLocaleString('cs-CZ')} {currency}</div>
     </div>
   );

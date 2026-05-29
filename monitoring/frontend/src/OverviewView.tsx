@@ -13,9 +13,9 @@ import { EmptyState } from './EmptyState.js';
 
 function Kpi({ icon, label, value, sub, accent, color, info }: { icon: React.ReactNode; label: string; value: string; sub?: React.ReactNode; accent?: string; color?: string; info?: string }) {
   return (
-    <div className="card p-4">
-      <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide muted-2">{icon} {label}{info && <MetricInfo text={info} />}</div>
-      <div className={`text-2xl font-bold ${accent ?? ''}`} style={color ? { color } : undefined}>{value}</div>
+    <div className="card-dense">
+      <div className="mb-1 flex items-center gap-1.5 kpi-label">{icon} {label}{info && <MetricInfo text={info} />}</div>
+      <div className={`text-2xl font-bold tabular-nums ${accent ?? ''}`} style={color ? { color } : undefined}>{value}</div>
       {sub && <div className="mt-0.5 text-xs">{sub}</div>}
     </div>
   );

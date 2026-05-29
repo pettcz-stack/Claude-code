@@ -8,7 +8,7 @@ export function PageSkeleton({ kpi = 4 }: { kpi?: number }) {
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: kpi }).map((_, i) => (
-          <div key={i} className="card p-4">
+          <div key={i} className="card-dense">
             <Skeleton className="mb-2 h-3 w-24" />
             <Skeleton className="h-7 w-20" />
           </div>

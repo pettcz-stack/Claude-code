@@ -11,7 +11,7 @@ import { NewBadge } from './NewBadge.js';
 
 function Card({ title, icon, children, accent, info }: { title: React.ReactNode; icon: React.ReactNode; children: React.ReactNode; accent?: string; info?: string }) {
   return (
-    <div className="card p-4">
+    <div className="card-dense">
       <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide muted-2">{icon} {title}{info && <MetricInfo text={info} />}</div>
       <div className={`text-lg font-semibold ${accent ?? ''}`}>{children}</div>
     </div>

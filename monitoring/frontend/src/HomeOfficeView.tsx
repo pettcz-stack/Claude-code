@@ -6,6 +6,7 @@ import { scoreColor } from './util.js';
 import { useT } from './i18n/index.js';
 import { useSort, SortHeader } from './tableSort.js';
 import { MetricInfo } from './MetricInfo.js';
+import { PageSkeleton } from './Skeleton.js';
 
 function BigScore({ icon, label, score, sub, info }: { icon: React.ReactNode; label: string; score: number; sub: string; info?: string }) {
   return (
@@ -36,7 +37,7 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
       (u.department ?? '').toLowerCase().includes(q));
   }, [allPerUser, search]);
   const { sorted: sortedPerUser, key, dir, setSort } = useSort(filteredPerUser, 'diff', 'asc');
-  if (!d) return <p className="muted-2">{t('common.loading')}</p>;
+  if (!d) return <PageSkeleton />;
 
   const diff = d.company.hoScore - d.company.officeScore;
   const amt = (days: number) => (unit === 'hours' ? `${days * 8} h` : `${days} ${t('homeoffice.daysShort')}`);
@@ -75,8 +76,8 @@ export function HomeOfficeView({ from, to, department, onOpenUser }: {
 
       {/* Podíl zábavy */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="card p-4"><div className="text-xs uppercase muted-2">{t('homeoffice.funShareHo')}</div><div className="text-2xl font-bold text-red-500">{d.company.hoNonWorkPct} %</div></div>
-        <div className="card p-4"><div className="text-xs uppercase muted-2">{t('homeoffice.funShareOffice')}</div><div className="text-2xl font-bold">{d.company.officeNonWorkPct} %</div></div>
+        <div className="card-dense"><div className="text-xs uppercase muted-2">{t('homeoffice.funShareHo')}</div><div className="text-2xl font-bold text-red-500">{d.company.hoNonWorkPct} %</div></div>
+        <div className="card-dense"><div className="text-xs uppercase muted-2">{t('homeoffice.funShareOffice')}</div><div className="text-2xl font-bold">{d.company.officeNonWorkPct} %</div></div>
       </div>
 
       {/* Oddělení */}

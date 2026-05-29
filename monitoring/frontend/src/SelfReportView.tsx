@@ -57,7 +57,7 @@ function earnedBadges(r: SelfReportData): Badge[] {
 
 function Compare({ icon, label, pct, color, note }: { icon: React.ReactNode; label: string; pct: number; color: string; note: string }) {
   return (
-    <div className="card p-4">
+    <div className="card-dense">
       <div className="mb-2 flex items-center gap-2 text-sm font-medium">{icon} {label}</div>
       <div className="text-3xl font-bold leading-none" style={{ color }}>{pct}%</div>
       <div className="mb-2 mt-1 text-xs muted-2">{note}</div>
@@ -159,7 +159,7 @@ export function SelfReportView({ user, from, to, preloaded }: { user?: User; fro
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="card p-4">
+        <div className="card-dense">
           <div className="text-xs uppercase muted-2">{t('selfReport.focusBlocks')}</div>
           <div className="mt-1 text-2xl font-bold text-emerald-600">{r.focusSessions}×</div>
           <div className="text-xs muted-2">
@@ -168,12 +168,12 @@ export function SelfReportView({ user, from, to, preloaded }: { user?: User; fro
               : t('selfReport.focusNoBlocks')}
           </div>
         </div>
-        <div className="card p-4">
+        <div className="card-dense">
           <div className="text-xs uppercase muted-2">{t('selfReport.bestHour')}</div>
           <div className="mt-1 text-2xl font-bold">{r.bestHourLabel ?? '—'}</div>
           <div className="text-xs muted-2">{r.bestHourLabel ? t('selfReport.bestHourTip') : t('selfReport.bestHourNoData')}</div>
         </div>
-        <div className="card p-4">
+        <div className="card-dense">
           <div className="text-xs uppercase muted-2">{t('selfReport.weekDelta')}</div>
           {r.trendDeltaPct === null
             ? <div className="mt-1 text-2xl font-bold muted-2">—</div>

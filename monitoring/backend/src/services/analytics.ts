@@ -105,18 +105,21 @@ export async function trend(from: Date, to: Date, userId?: string, department?: 
       ).map((u) => u.id);
 
   // Čteme z předpočítaných denních souhrnů (rychlé i nad roky dat).
+  // Pozn.: unknownMin potřebujeme pro stejný score-výpočet jako scoreboard/overview/userScore.
+  // Bez něj by trend ukazoval JINÉ skóre pro stejného uživatele než scoreboard – admin
+  // v demu by to viděl jako bug. Formule = work / (expected - unknown).
   const rows = await prisma.dailyStat.findMany({
     where: { userId: { in: userIds }, date: { gte: from, lt: to } },
-    select: { userId: true, date: true, workMin: true, nonWorkMin: true, idleMin: true },
+    select: { userId: true, date: true, workMin: true, nonWorkMin: true, idleMin: true, unknownMin: true },
   });
 
-  // den -> uživatel -> {work, nonwork, idle}
-  const perDay = new Map<string, Map<string, { work: number; nonwork: number; idle: number }>>();
+  // den -> uživatel -> {work, nonwork, idle, unknown}
+  const perDay = new Map<string, Map<string, { work: number; nonwork: number; idle: number; unknown: number }>>();
   for (const r of rows) {
     const dk = dayKey(r.date);
     let users = perDay.get(dk);
     if (!users) (users = new Map()), perDay.set(dk, users);
-    users.set(r.userId, { work: r.workMin, nonwork: r.nonWorkMin, idle: r.idleMin });
+    users.set(r.userId, { work: r.workMin, nonwork: r.nonWorkMin, idle: r.idleMin, unknown: r.unknownMin });
   }
 
   // Absence (HR/OKbase) – jen u jednoho člověka má smysl značit dovolenou/nemoc.
@@ -146,7 +149,10 @@ export async function trend(from: Date, to: Date, userId?: string, department?: 
       work += a.work;
       nonwork += a.nonwork;
       idle += a.idle;
-      scoreSum += Math.min(100, Math.round((a.work / expectedPerDay) * 100));
+      // Stejný vzorec jako scoreboardRows() a computeUserScore() – work / (expected - unknown).
+      // Nezahrnujeme unknown do "expected fundu", protože nemáme jak je férově soudit.
+      const adjExp = Math.max(expectedPerDay - a.unknown, 1);
+      scoreSum += Math.min(100, Math.round((a.work / adjExp) * 100));
     }
     points.push({
       date: dk,

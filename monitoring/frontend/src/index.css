@@ -8,10 +8,29 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+   DESIGN SYSTEM v0.9.4 (unified B2B modern look)
+
+   Konvence:
+     - Padding cards: p-5 (20 px) – standardní. p-4 jen pro dense KPI/listy.
+     - Section title: text-sm font-semibold + mb-3 (h3-like)
+     - Icon size: 14 (button), 16 (nav/inline), 20 (header), 24 (empty state)
+     - Danger color: text-red-600 (primární), bg-red-50 dark:bg-red-500/15
+     - Spacing top-level: space-y-4 mezi sekcemi, space-y-2 mezi atomy
+     - Radius: rounded-xl (small card), rounded-2xl (large card)
+   --------------------------------------------------------------------------- */
 @layer components {
-  /* Povrchy a karty */
+  /* === Povrchy a karty === */
   .card {
-    @apply rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-slate-700/70 dark:bg-slate-800/60;
+    @apply rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700/70 dark:bg-slate-800/60;
+  }
+  /* Dense varianty – KPI dlaždice, kompaktní listy */
+  .card-dense {
+    @apply rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-slate-700/70 dark:bg-slate-800/60;
+  }
+  /* Featured – výrazný emerald accent */
+  .card-feature {
+    @apply rounded-2xl border border-emerald-200 bg-emerald-50/40 p-5 shadow-sm dark:border-emerald-700/40 dark:bg-emerald-500/5;
   }
   .panel {
     @apply rounded-xl border border-gray-200 bg-white dark:border-slate-700/70 dark:bg-slate-800/60;
@@ -26,21 +45,41 @@
     @apply border-t border-gray-100 dark:border-slate-700/60;
   }
 
-  /* Formulářové prvky */
+  /* === Typografie === */
+  .section-title {
+    @apply mb-3 text-sm font-semibold;
+  }
+  .section-subtitle {
+    @apply mb-3 text-xs muted;
+  }
+  .kpi-label {
+    @apply text-[11px] font-medium uppercase tracking-wide muted;
+  }
+  .kpi-value {
+    @apply mt-1 text-2xl font-bold tabular-nums;
+  }
+
+  /* === Formulářové prvky === */
   .field {
-    @apply rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-800 outline-none focus:border-emerald-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100;
+    @apply rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-800 outline-none focus:border-emerald-500 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:disabled:bg-slate-900;
   }
   .btn {
-    @apply inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors;
+    @apply inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply btn bg-emerald-600 text-white hover:bg-emerald-700;
+    @apply btn bg-emerald-600 text-white hover:bg-emerald-700 disabled:hover:bg-emerald-600;
   }
   .btn-ghost {
     @apply btn border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700/50;
   }
+  .btn-danger {
+    @apply btn border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-700/40 dark:bg-red-500/15 dark:text-red-300 dark:hover:bg-red-500/25;
+  }
+  .btn-icon {
+    @apply inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-700/50 dark:hover:text-slate-200;
+  }
 
-  /* Tabulky */
+  /* === Tabulky === */
   .th {
     @apply px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-slate-500;
   }
@@ -48,7 +87,7 @@
     @apply px-3 py-2 text-sm;
   }
 
-  /* Štítky typů */
+  /* === Štítky typů === */
   .chip {
     @apply rounded px-1.5 py-0.5 text-xs font-medium;
   }
@@ -60,6 +99,23 @@
   }
   .chip-neutral {
     @apply chip bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-slate-300;
+  }
+  .chip-warning {
+    @apply chip bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300;
+  }
+  .chip-info {
+    @apply chip bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300;
+  }
+
+  /* === Status indikátory === */
+  .badge-success {
+    @apply inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300;
+  }
+  .badge-danger {
+    @apply inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-500/15 dark:text-red-300;
+  }
+  .badge-warning {
+    @apply inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300;
   }
 }
 

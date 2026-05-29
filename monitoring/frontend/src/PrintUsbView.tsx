@@ -76,7 +76,7 @@ export function PrintUsbView({ from, to }: { from: string; to: string }) {
         </div>
       </header>
 
-      {error && <div className="card p-4 text-sm text-red-600">{t('common.error')}: {error}</div>}
+      {error && <div className="card-dense text-sm text-red-700 dark:text-red-300">{t('common.error')}: {error}</div>}
 
       {trackingOff && (
         <div className="card flex items-start gap-3 border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
