@@ -9,6 +9,81 @@ Verzování: [Semantic Versioning](https://semver.org/lang/cs/).
 
 ## [Unreleased]
 
+## [0.9.4] — Risk signály, Basic/Pro režim, NO-AI policy — 2026-05-29
+
+**TL;DR:** Strategický posun od "monitoring dashboardu" (komodita) k "manager
+coaching tool" s **akčními doporučeními** (burnout/flight/decline/boost).
+Per-user baseline místo firemního thresholdu — chytá _změny vůči vlastnímu
+průměru_. Per-account **Basic / Pro režim** pro různé persona uživatelů.
+Skóre nyní konzistentní napříč všemi kartami (P0 backend fix). **NO-AI policy:**
+produkční kód nesmí volat externí AI API, CI lint to vynucuje.
+
+### 🆕 Přidáno
+- **Risk signals** (`services/riskSignals.ts`) — interpretovaná vrstva NAD raw skórem:
+  - **Engagement trend**: per-user baseline 30 dní × current 7 dní → změna v procentních bodech
+  - **Burnout risk** (0-100, low/moderate/high) = `0.35 × afterHoursPct + 0.25 × weekendDays + 0.20 × skipLunches + 0.20 × overEngagement` + top 3 důvody
+  - **Flight risk** (0-100) = `0.45 × trendDecline + 0.25 × collabDrop (Teams/Slack) + 0.30 × jobBrowsing (LinkedIn/jobs.cz)`
+  - **Boost signal** = pozitivní performer detection (improving + konzistence)
+- **`computeTopInsights()`** — top 10 akčních doporučení napříč firmou/dept
+  s formátem _headline / detail / action_ (manažer ví co dělat)
+- **`InsightsPanel`** v Overview nahoře (akce > raw KPI)
+- **2 nové endpointy:** `/api/v1/dashboard/insights` + `/api/v1/dashboard/risk-signals?userId`
+- **Basic / Pro view mode** — per-account UI preference
+  - `viewMode` field na `AdminUser` (default `pro`)
+  - `ViewModeProvider` (frontend) + toggle v UserMenu (všechny role)
+  - PATCH `/api/v1/account/preferences` + sync z localStorage
+  - PoC application: `OverviewView` skryje monitor-handicap sekci v Basic módu
+  - i18n cs/en/de/sk/pl
+- **Stahování agenta z dashboardu** (Dev Mode) — tlačítka Windows MSI + macOS PKG + fallback `install-mac.sh`
+- **Design system v0.9.4**:
+  - `.card-dense` (built-in p-4) pro KPI dlaždice
+  - `.card-feature` (emerald accent) pro highlight cards
+  - `.section-title`, `.kpi-label`, `.kpi-value` — typografie konstanty
+  - `.btn-danger`, `.btn-icon`, `.field` (disabled state)
+  - `.badge-success/danger/warning`, `.chip-warning/info`
+- **Showcase persona pro risk signal demo:**
+  - Hana Procházková (Obchod ČR) — burnout pattern (víkendy + přesčasy)
+  - Petr Kučera (IT) — flight risk (klesající + LinkedIn browsing)
+
+### 🔧 Opraveno (P0/P1)
+- **P0 Score konzistence v Trendu**: `trend()` používal hardcoded `expectedPerDay=480` a NEodečítal `unknownMin` → scoreboard a userDetail měli pro stejného usera jiné skóre (např. 83 % vs 89 %, 6 p.b. gap). Fix: `trend()` nyní fetchuje `unknownMin` a používá `adjExp = max(480 - unknown, 1)` jako ostatní views.
+- **P1 i18n**: slovenský překlep `Zatiaľ sa na tvoje data` → české `Zatím se`
+- **P1 Hardcoded tooltip** ve Scoreboardu → `t('scoreboard.barTooltip')` ve všech 5 jazycích
+- **P1 ErrorBoundary**: `console.error` v produkci → log jen v dev (`import.meta.env.DEV`)
+- **P1 Locale formátování čísel**: SoftwareView používal hardcoded `cs-CZ` → dynamicky podle `useT().locale`
+- **P1 Login rate-limit**: `max: 20` → `max: 5` (OWASP norma)
+- **P2 Suspicious flag konzistence**: `aggregateDays` (realtime cron) i `aggregateAllFast` (seed) nyní používají stejný práh ≥ 10 min evasion activity
+- **P2 PRAGMA reset**: `aggregateAllFast` má try/finally — i při výjimce DB nezůstane v unsafe módu
+
+### 🛡️ Bezpečnost & compliance
+- **NO-AI POLICY** (`docs/ARCHITECTURE_NO_AI.md`) — produkční kód NESMÍ volat externí AI/LLM API:
+  - Tabulka zakázáno/povoleno
+  - Důvody: GDPR čl. 28, ISO 27001, AI Act EU 2026, náklady, privacy
+  - Výjimky: dev-time tooling (Claude Code, ChatGPT)
+- **CI lint enforcement** (`tools/check-no-ai.mjs`):
+  - Detekuje 14+ AI SDK importů (OpenAI, Anthropic, Google AI, Bedrock, Cohere, HF, Replicate, Mistral, Together, Groq, Vercel AI, LangChain, LlamaIndex)
+  - Detekuje fetch URL patterns (api.openai.com, api.anthropic.com, …)
+  - Detekuje env vars `*_API_KEY` / `AI_TOKEN`
+  - Detekuje forbidden deps v `package.json`
+  - Exit 1 = build fail. Verifikováno leak testem.
+- **CI workflow**: nový "Architecture check (no AI/LLM API integrations)" step v BE i FE jobech — blocking
+- **Hlavičky** v `riskSignals.ts` a `integrity.ts` — dev vidí pravidlo ihned
+
+### 🎨 UI / UX
+- **InsightsPanel** v Overview NAHOŘE — akce před raw KPI
+- **OverviewView KPI**: `card p-4` → `card-dense + kpi-label`
+- **SoftwareView KPI**: 3× `card p-4` → `card-dense`
+- **HomeOfficeView**: `card p-4` → `card-dense` (3 místa)
+- **HomeOfficeView loading**: plain `<p>` text → `<PageSkeleton />`
+- **ScoreView, SelfReportView, PrintUsbView, Skeleton**: stejná unifikace
+- **UserMenu** rozšířen o:
+  - Basic / Pro pohled toggle (segmented control)
+  - Stáhnout agenta (Windows / macOS / install-mac.sh fallback) v Dev Mode
+- **Dockerfile.demo** sentinel `.seeded-v5` → `.seeded-v6` (forced reseed po update)
+
+### 🚀 Výkon
+- `cq.insights()` přidán do cached queries (5 min TTL)
+
 ## [0.9.3] — Realistická demo data + detekce podvádění — 2026-05-28
 
 **TL;DR:** Generální oprava demo datasetu na 1991 zaměstnanců aby vypadal jako reálná firma:

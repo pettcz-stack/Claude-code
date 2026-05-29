@@ -26,6 +26,29 @@ export type ReleaseHighlight = {
 /** Aktuální release - na začátku pole. Po release+1 sjede na index 1 atd. */
 export const RELEASES: ReleaseHighlight[] = [
   {
+    version: '0.9.4',
+    date: '2026-05-29',
+    title: 'Risk signály, Basic/Pro režim, NO-AI policy',
+    highlights: [
+      'Akční doporučení manažerovi — burnout risk, flight risk, declining performance, boost signal — místo raw čísel rovnou „pozvi na 1:1" / „naplánuj retention talk" / „pochval/povýš"',
+      'Per-user baseline (30 dní) + engagement trend (7 dní vs baseline) — vidíš změny vůči vlastnímu průměru, ne firemnímu',
+      'Basic / Pro režim v avatar menu — basic = klíčové ukazatele (manažer), pro = vše do hloubky (auditor/DPO). Per-account persistence.',
+      'Stahování agenta pro Windows + macOS přímo z dashboardu (v Dev Mode)',
+      'Skóre konzistentní napříč kartami — trend graf nyní ukazuje stejné číslo jako scoreboard pro stejného uživatele (fix P0)',
+      'Unifikovaný design systém (card-dense, kpi-label, btn-danger, badge-*)',
+      'NO-AI POLICY: produkční kód NESMÍ volat OpenAI / Anthropic / Google AI / Bedrock / atd. CI lint to vynucuje.',
+    ],
+    features: [
+      'riskSignals',
+      'insightsPanel',
+      'basicProMode',
+      'agentDownload',
+      'scoreConsistency',
+      'designSystemV094',
+      'noAiPolicy',
+    ],
+  },
+  {
     version: '0.9.3',
     date: '2026-05-28',
     title: 'Realistická demo data + detekce podvádění',

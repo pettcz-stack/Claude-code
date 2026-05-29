@@ -666,8 +666,8 @@ async function main() {
       const machineId = `DEMO-PC-${idx + 1}`;
       const device = await prisma.device.upsert({
         where: { machineId },
-        update: { lastSeen: new Date(), agentVersion: '0.9.3', os: idx % 5 === 0 ? 'macOS 14' : 'Windows 11' },
-        create: { machineId, hostname: `SINSU-PC-${String(idx + 1).padStart(4, '0')}`, os: idx % 5 === 0 ? 'macOS 14' : 'Windows 11', agentVersion: '0.9.3', lastSeen: new Date() },
+        update: { lastSeen: new Date(), agentVersion: '0.9.4', os: idx % 5 === 0 ? 'macOS 14' : 'Windows 11' },
+        create: { machineId, hostname: `SINSU-PC-${String(idx + 1).padStart(4, '0')}`, os: idx % 5 === 0 ? 'macOS 14' : 'Windows 11', agentVersion: '0.9.4', lastSeen: new Date() },
       });
       created.push({
         id: user.id,
