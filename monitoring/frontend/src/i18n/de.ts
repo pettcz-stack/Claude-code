@@ -18,6 +18,10 @@ export const de: typeof cs = {
   userMenu: {
     devMode: 'Entwicklermodus',
     devModeTooltip: 'Zeigt ⓘ Icons neben Metriken mit Erklärung der Berechnung. Nützlich für Auditor / DPO / Debugging.',
+    downloadAgent: 'Agent herunterladen',
+    downloadWindowsTooltip: 'MSI-Installer für Windows 10/11',
+    downloadMacosTooltip: 'Installer-Paket für macOS 13+',
+    downloadMacosScript: 'Alternative: install-mac.sh Skript (manuell)',
     whatsNew: 'Neuigkeiten',
     version: 'Version',
   },

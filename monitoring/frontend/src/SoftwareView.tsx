@@ -9,7 +9,7 @@ import { useSort, SortHeader } from './tableSort.js';
 import { MetricInfo } from './MetricInfo.js';
 
 export function SoftwareView({ from, to, department, canEdit }: { from: string; to: string; department?: string; canEdit: boolean }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const appName = useAppName();
   const [data, setData] = useState<SoftwareAudit | null>(null);
   const [cost, setCost] = useState<CostResult | null>(null);
@@ -19,7 +19,9 @@ export function SoftwareView({ from, to, department, canEdit }: { from: string; 
   const toast = useToast();
   const mult = period === 'year' ? 12 : 1;
   const unit = period === 'year' ? t('software.periodYear') : t('software.periodMonth');
-  const kc = (v: number) => `${(v * mult).toLocaleString('cs-CZ')} ${t('software.currency')}`;
+  // Formátování čísel respektuje aktuální locale (cs-CZ, en-US, de-DE, sk-SK, pl-PL)
+  const localeBcp = locale === 'cs' ? 'cs-CZ' : locale === 'sk' ? 'sk-SK' : locale === 'de' ? 'de-DE' : locale === 'pl' ? 'pl-PL' : 'en-US';
+  const kc = (v: number) => `${(v * mult).toLocaleString(localeBcp)} ${t('software.currency')}`;
 
   function load() {
     api.software(from, to, department).then((d) => {

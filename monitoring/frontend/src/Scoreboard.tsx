@@ -27,7 +27,7 @@ export function Scoreboard({ from, to, department }: { from: string; to: string;
               <div className="truncate text-sm font-medium">{r.displayName}</div>
               <div className="truncate text-xs muted-2">{r.department}</div>
             </div>
-            <div className="flex h-5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700" title="Práce / Zábava / Nečinný / Mimo PC">
+            <div className="flex h-5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700" title={t('scoreboard.barTooltip')}>
               <div style={{ width: `${r.workPct}%`, background: TYPE_COLORS.work }} />
               <div style={{ width: `${r.nonWorkPct}%`, background: TYPE_COLORS.nonwork }} />
               <div style={{ width: `${r.idlePct}%`, background: TYPE_COLORS.idle }} />

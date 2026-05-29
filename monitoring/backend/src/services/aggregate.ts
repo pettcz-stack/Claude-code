@@ -96,7 +96,20 @@ export async function aggregateDays(pairs: { userId: string; day: Date }[]): Pro
     let site: string | null = null, sb = -1; for (const [c, m] of locMin) if (m > sb) { sb = m; site = c || null; }
     const integ = await computeIntegrity(userId, day, dayEnd);
 
-    const data = { workMin: work, nonWorkMin: nonwork, idleMin: idle, unknownMin: unknown, keystroke, typingMs, typingKeystrokeCount: typingKs, monitorTop, multiMonitorMin: multiMon, domWorkCat, site, suspicious: integ.suspicious };
+    // Per-den evasion >= 10 min taky značí suspicious (stejně jako v aggregateAllFast)
+    // Konzistentní detekce napříč seed/realtime cestou.
+    const evasionAppNames = new Set(
+      (await prisma.appCategory.findMany({ where: { category: 'Obcházení monitoringu' }, select: { appName: true } }))
+        .map((a) => a.appName),
+    );
+    const evasionRows = await prisma.activityInterval.findMany({
+      where: { userId, intervalStart: { gte: day, lt: dayEnd }, foregroundApp: { in: [...evasionAppNames] } },
+      select: { activeSeconds: true },
+    });
+    const evasionMinThisDay = evasionRows.reduce((s, r) => s + r.activeSeconds / 60, 0);
+    const suspicious = integ.suspicious || evasionMinThisDay >= 10;
+
+    const data = { workMin: work, nonWorkMin: nonwork, idleMin: idle, unknownMin: unknown, keystroke, typingMs, typingKeystrokeCount: typingKs, monitorTop, multiMonitorMin: multiMon, domWorkCat, site, suspicious };
     await prisma.dailyStat.upsert({
       where: { userId_date: { userId, date: day } },
       create: { userId, date: day, ...data },
@@ -276,6 +289,7 @@ export async function aggregateAllFast(): Promise<{ users: number; hours: number
   let daysTotal = 0;
   let processed = 0;
 
+  try {
   for (const u of users) {
     const intervals = await prisma.activityInterval.findMany({
       where: { userId: u.id },
@@ -435,11 +449,15 @@ export async function aggregateAllFast(): Promise<{ users: number; hours: number
     }
   }
 
-  // Resetuj PRAGMA do bezpečného stavu pro provoz.
-  try {
-    await prisma.$executeRawUnsafe('PRAGMA synchronous = NORMAL');
-    await prisma.$executeRawUnsafe('PRAGMA journal_mode = WAL');
-  } catch { /* ignoruj */ }
+  } finally {
+    // Reset PRAGMA do bezpečného stavu pro provoz – I PŘI VÝJIMCE.
+    // Bez tohoto by chyba uprostřed seedu zanechala DB v unsafe módu
+    // (synchronous=OFF → riziko korupce při výpadku napájení).
+    try {
+      await prisma.$executeRawUnsafe('PRAGMA synchronous = NORMAL');
+      await prisma.$executeRawUnsafe('PRAGMA journal_mode = WAL');
+    } catch { /* ignoruj */ }
+  }
 
   return { users: processed, hours: hoursTotal, days: daysTotal };
 }

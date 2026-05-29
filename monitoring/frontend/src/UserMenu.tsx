@@ -1,9 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
-import { LogOut, ChevronDown, ShieldCheck, Code2, Sparkles } from 'lucide-react';
+import { LogOut, ChevronDown, ShieldCheck, Code2, Sparkles, Download, Apple } from 'lucide-react';
 import { useT } from './i18n/index.js';
 import { useDevMode } from './devMode.js';
 import { CURRENT_VERSION } from './releases.js';
 import { WhatsNewPanel } from './WhatsNew.js';
+
+// URL šablona pro stažení agenta. `agent-latest` je rolling tag, který CI bumpne
+// při každém úspěšném buildu nové verze agenta.
+const AGENT_DOWNLOAD = {
+  windows: 'https://github.com/pettcz-stack/claude-code/releases/download/agent-latest/FocusAgent.msi',
+  macos:   'https://github.com/pettcz-stack/claude-code/releases/download/agent-latest/FocusAgent.pkg',
+  // Pro non-PKG fallback (manuální instalace ze zdroje)
+  macosScript: 'https://github.com/pettcz-stack/claude-code/releases/download/agent-latest/install-mac.sh',
+};
 
 const ROLE_COLOR: Record<string, string> = {
   ADMIN: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
@@ -84,6 +93,43 @@ export function UserMenu({ username, role, onLogout }: { username: string; role:
                 <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all ${devMode ? 'left-3.5' : 'left-0.5'}`} />
               </span>
             </button>
+          )}
+          {role === 'ADMIN' && devMode && (
+            <div className="border-t border-gray-100 px-4 py-2 dark:border-slate-800">
+              <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wide muted-2">
+                {t('userMenu.downloadAgent')}
+              </div>
+              <div className="flex gap-1.5">
+                <a
+                  href={AGENT_DOWNLOAD.windows}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-gray-200 px-2 py-1.5 text-xs hover:bg-gray-50 dark:border-slate-700 dark:hover:bg-slate-800"
+                  download
+                  onClick={() => setOpen(false)}
+                  title={t('userMenu.downloadWindowsTooltip')}
+                >
+                  <Download size={12} className="text-sky-500" />
+                  <span>Windows</span>
+                </a>
+                <a
+                  href={AGENT_DOWNLOAD.macos}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-gray-200 px-2 py-1.5 text-xs hover:bg-gray-50 dark:border-slate-700 dark:hover:bg-slate-800"
+                  download
+                  onClick={() => setOpen(false)}
+                  title={t('userMenu.downloadMacosTooltip')}
+                >
+                  <Apple size={12} className="text-zinc-500" />
+                  <span>macOS</span>
+                </a>
+              </div>
+              <a
+                href={AGENT_DOWNLOAD.macosScript}
+                className="mt-1.5 block text-[10px] muted-2 hover:underline"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {t('userMenu.downloadMacosScript')}
+              </a>
+            </div>
           )}
           <button
             onClick={() => { setOpen(false); onLogout(); }}

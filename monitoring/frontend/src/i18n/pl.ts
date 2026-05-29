@@ -18,6 +18,10 @@ export const pl: typeof cs = {
   userMenu: {
     devMode: 'Tryb deweloperski',
     devModeTooltip: 'Pokazuje ⓘ ikonki przy metrykach z wyjaśnieniem sposobu obliczania. Przydatne dla audytora / DPO / debugowania.',
+    downloadAgent: 'Pobierz agenta',
+    downloadWindowsTooltip: 'Instalator MSI dla Windows 10/11',
+    downloadMacosTooltip: 'Pakiet instalacyjny dla macOS 13+',
+    downloadMacosScript: 'Alternatywnie: skrypt install-mac.sh (ręcznie)',
     whatsNew: 'Co nowego',
     version: 'Wersja',
   },

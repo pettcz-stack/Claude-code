@@ -19,8 +19,14 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(err: Error, info: ErrorInfo): void {
-    // eslint-disable-next-line no-console
-    console.error('FOCUS UI error boundary:', err, info.componentStack);
+    // Logujeme jen ve vývoji (DEV server) – v produkci nechceme stack trace
+    // v DevTools viditelný end-userům. Boundary stejně ukáže detail v UI.
+    // Vite injectuje import.meta.env, my však použijeme bezpečné `(import.meta as any)`.
+    const dev = (import.meta as { env?: { DEV?: boolean } }).env?.DEV;
+    if (dev) {
+      // eslint-disable-next-line no-console
+      console.error('FOCUS UI error boundary:', err, info.componentStack);
+    }
   }
 
   render(): ReactNode {

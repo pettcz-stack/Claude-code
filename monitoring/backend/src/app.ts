@@ -136,9 +136,11 @@ export function createApp() {
   });
 
   // --- Přihlášení (rate-limited proti brute-force) ---
+  // OWASP doporučuje ≤ 5 pokusů / 15 min pro citlivé endpointy. Dříve max:20
+  // (~1000 pokusů/den – brute-force 3-znakového hesla schůdný).
   const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 20,
+    max: 5,
     standardHeaders: true,
     legacyHeaders: false,
     skip: () => isTest,

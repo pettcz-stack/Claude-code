@@ -18,6 +18,10 @@ export const sk: typeof cs = {
   userMenu: {
     devMode: 'Vývojársky režim',
     devModeTooltip: 'Zobrazí ⓘ ikonky pri metrikách s vysvetlením, ako sú počítané. Užitočné pre auditora / DPO / debug.',
+    downloadAgent: 'Stiahnuť agenta',
+    downloadWindowsTooltip: 'MSI inštalátor pre Windows 10/11',
+    downloadMacosTooltip: 'Inštalačný balíček pre macOS 13+',
+    downloadMacosScript: 'Alternatívne: install-mac.sh skript (manuálne)',
     whatsNew: 'Čo je nové',
     version: 'Verzia',
   },
