@@ -15,6 +15,12 @@ export const pl: typeof cs = {
     noDataYet: { title: 'Urządzenie wdrożone, czekamy na dane', body: 'Pierwszy interwał dotrze ~2 minuty po wdrożeniu.' },
     error: { title: 'Coś poszło nie tak' },
   },
+  insights: {
+    title: 'Działania w tym tygodniu',
+    subtitle: 'Najważniejsze sygnały do uwagi',
+    severityHigh: 'Wysokie ryzyko',
+    moreHidden: '+ {n} kolejnych sygnałów',
+  },
   userMenu: {
     devMode: 'Tryb deweloperski',
     devModeTooltip: 'Pokazuje ⓘ ikonki przy metrykach z wyjaśnieniem sposobu obliczania. Przydatne dla audytora / DPO / debugowania.',

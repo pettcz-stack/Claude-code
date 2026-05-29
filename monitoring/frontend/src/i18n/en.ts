@@ -26,6 +26,12 @@ export const en: typeof cs = {
       title: 'Something went wrong',
     },
   },
+  insights: {
+    title: 'Action items this week',
+    subtitle: 'Top signals you should focus on',
+    severityHigh: 'High risk',
+    moreHidden: '+ {n} more signals',
+  },
   userMenu: {
     devMode: 'Developer mode',
     devModeTooltip: 'Shows ⓘ icons next to metrics explaining how they are calculated. Useful for auditors / DPO / debugging.',

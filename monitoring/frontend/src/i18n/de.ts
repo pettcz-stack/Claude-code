@@ -15,6 +15,12 @@ export const de: typeof cs = {
     noDataYet: { title: 'Gerät eingesetzt, warte auf Daten', body: 'Erstes Intervall kommt ~2 Minuten nach Enrollment.' },
     error: { title: 'Etwas ist schiefgelaufen' },
   },
+  insights: {
+    title: 'Aktionsempfehlungen diese Woche',
+    subtitle: 'Top-Signale, auf die Sie sich konzentrieren sollten',
+    severityHigh: 'Hohes Risiko',
+    moreHidden: '+ {n} weitere Signale',
+  },
   userMenu: {
     devMode: 'Entwicklermodus',
     devModeTooltip: 'Zeigt ⓘ Icons neben Metriken mit Erklärung der Berechnung. Nützlich für Auditor / DPO / Debugging.',

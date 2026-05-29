@@ -141,6 +141,32 @@ dashboardRouter.get('/alerts', async (req, res) => {
   res.json({ alerts: await cq.alerts(from, to, dept) });
 });
 
+/** Top management insights — kompozitní signály burnout/flight/declining/boost.
+ *  Vrátí seznam akčních doporučení pro manažera, ne raw metriky. */
+dashboardRouter.get('/insights', async (req, res) => {
+  const parsed = rangeSchema.safeParse(req.query);
+  if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
+  const { from, to, department } = parsed.data;
+  const dept = await resolveDept(req, res, department);
+  if (dept === null) return;
+  res.json({ insights: await cq.insights(from, to, dept) });
+});
+
+/** Per-user risk signals — baseline + engagement trend + burnout/flight risk.
+ *  Volá se ze user detail page pro hlubší analýzu. */
+dashboardRouter.get('/risk-signals', async (req, res) => {
+  const parsed = rangeSchema.safeParse(req.query);
+  if (!parsed.success) return void res.status(400).json({ error: 'invalid_query' });
+  const { userId } = parsed.data;
+  if (!userId) return void res.status(400).json({ error: 'userId_required' });
+  if (!(await assertCanSeeUser(req, res, userId))) return;
+  const { computeRiskSignalsForUsers } = await import('../services/riskSignals.js');
+  const sigs = await computeRiskSignalsForUsers([userId], new Date(parsed.data.to));
+  const sig = sigs.get(userId);
+  if (!sig) return void res.status(404).json({ error: 'no_data' });
+  res.json({ signals: sig });
+});
+
 /** Denní trend skóre (uživatel nebo firma). */
 dashboardRouter.get('/trend', async (req, res) => {
   const parsed = rangeSchema.safeParse(req.query);

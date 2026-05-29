@@ -163,6 +163,28 @@ export type IntegrityFlag = { type: string; severity: 'high' | 'medium'; detail:
 export type IntegrityResult = { userId: string; riskScore: number; suspicious: boolean; flags: IntegrityFlag[] };
 export type AlertItem = { userId: string; displayName: string | null; department: string | null; riskScore: number; suspicious: boolean; flags: IntegrityFlag[] };
 
+export type Insight = {
+  type: 'burnout' | 'flight' | 'declining' | 'boost';
+  userId: string;
+  displayName: string;
+  department: string | null;
+  severity: 'high' | 'medium';
+  headline: string;
+  detail: string;
+  action: string;
+};
+
+export type RiskSignals = {
+  userId: string;
+  displayName: string;
+  department: string | null;
+  baseline: { avgScore30d: number; avgWorkMin30d: number; sampleDays: number };
+  engagementTrend: { score: number; direction: 'improving' | 'declining' | 'stable'; daysOfData: number; explain: string };
+  burnoutRisk: { score: number; level: 'low' | 'moderate' | 'high'; reasons: string[] };
+  flightRisk: { score: number; level: 'low' | 'moderate' | 'high'; reasons: string[] };
+  boostSignal: { score: number; reasons: string[] };
+};
+
 export type Overview = {
   kpi: { userCount: number; avgScore: number; avgScoreDelta: number | null; activeHours: number; nonWorkHours: number; idleHours: number; nonWorkPct: number; flaggedCount: number; onlineCount: number; deviceCount: number };
   split: { work: number; nonwork: number; idle: number; pcoff: number };
@@ -389,6 +411,15 @@ export const api = {
     const q = new URLSearchParams({ from, to });
     if (department) q.set('department', department);
     return getJson<{ alerts: AlertItem[] }>(`/api/v1/dashboard/alerts?${q}`).then((d) => d.alerts);
+  },
+  insights: (from: string, to: string, department?: string) => {
+    const q = new URLSearchParams({ from, to });
+    if (department) q.set('department', department);
+    return getJson<{ insights: Insight[] }>(`/api/v1/dashboard/insights?${q}`).then((d) => d.insights);
+  },
+  riskSignals: (userId: string, from: string, to: string) => {
+    const q = new URLSearchParams({ userId, from, to });
+    return getJson<{ signals: RiskSignals }>(`/api/v1/dashboard/risk-signals?${q}`).then((d) => d.signals);
   },
   // Správa kategorií a pravidel
   adminCategories: () => getJson<{ categories: AppCategoryRow[] }>('/api/v1/admin/categories').then((d) => d.categories),

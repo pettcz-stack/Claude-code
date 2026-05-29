@@ -15,6 +15,12 @@ export const sk: typeof cs = {
     noDataYet: { title: 'Zariadenie nasadené, čakáme na dáta', body: 'Prvý interval dorazí ~2 minúty po enrollmente.' },
     error: { title: 'Niečo sa nepodarilo' },
   },
+  insights: {
+    title: 'Akčné odporúčania tento týždeň',
+    subtitle: 'Top signály, na ktoré sa zamerajte',
+    severityHigh: 'Vysoké riziko',
+    moreHidden: '+ {n} ďalších signálov',
+  },
   userMenu: {
     devMode: 'Vývojársky režim',
     devModeTooltip: 'Zobrazí ⓘ ikonky pri metrikách s vysvetlením, ako sú počítané. Užitočné pre auditora / DPO / debug.',

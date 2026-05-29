@@ -28,6 +28,12 @@ export const cs = {
       title: 'Něco se nepodařilo',
     },
   },
+  insights: {
+    title: 'Akční doporučení tento týden',
+    subtitle: 'Top signály, na které byste se měli zaměřit',
+    severityHigh: 'Vysoké riziko',
+    moreHidden: '+ {n} dalších signálů',
+  },
   userMenu: {
     devMode: 'Vývojářský režim',
     devModeTooltip: 'Zobrazí ⓘ ikonky u metrik s vysvětlením, jak jsou počítány. Užitečné pro auditora / DPO / debug.',

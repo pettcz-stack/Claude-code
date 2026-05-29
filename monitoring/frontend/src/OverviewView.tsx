@@ -9,6 +9,7 @@ import { ScoreScaleLegend } from './Legend.js';
 import { TYPE_COLORS, scoreHex, scoreColor } from './util.js';
 import { useT } from './i18n/index.js';
 import { useViewMode } from './viewMode.js';
+import { InsightsPanel } from './InsightsPanel.js';
 import { MetricInfo } from './MetricInfo.js';
 import { EmptyState } from './EmptyState.js';
 
@@ -59,6 +60,10 @@ export function OverviewView({ from, to, department, dark, onOpenUser }: {
   return (
     <div className="space-y-4">
       <ScoreScaleLegend />
+
+      {/* Manager insights panel – kompozitní signály (burnout/flight/declining/boost).
+          Zobrazí se nahoře, nad raw KPI, protože akční doporučení > čísla. */}
+      <InsightsPanel from={from} to={to} department={department} onOpenUser={onOpenUser} />
 
       {/* KPI strip */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
