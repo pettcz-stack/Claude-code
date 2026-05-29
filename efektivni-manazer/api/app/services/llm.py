@@ -123,23 +123,71 @@ def extract_from_thread(
     )
 
 
-def draft_ping(task_title: str, task_summary: str, last_messages: list[dict]) -> str:
+def draft_ping(
+    task_title: str,
+    task_summary: str,
+    counterpart_name: str,
+    last_messages: list[dict],
+    tone: str = "friendly",
+) -> str:
     """Vygeneruje zdvořilý draft pingu / dotazu (volá se na vyžádání, Opus)."""
     settings = get_settings()
     client = _client()
+    tone_hint = {
+        "friendly": "Tón: kamarádský ale profesionální, jako mezi kolegy.",
+        "formal":   "Tón: formální, vykání, oslovení 'Vážený pane / Vážená paní'.",
+        "urgent":   "Tón: zdvořilý ale jasně signalizující urgenci (deadline / blokuje další práci).",
+    }.get(tone, "Tón: profesionálně neutrální.")
     msg = client.messages.create(
         model=settings.llm_draft_model,
         max_tokens=600,
         system=(
-            "Jsi asistent manažera. Napiš stručný, zdvořilý český draft emailu, "
-            "kterým se uživatel zeptá na stav úkolu nebo požádá o termín. "
-            "Drž se obsahu vlákna, nevymýšlej fakta. Vrať pouze text emailu bez subjectu."
+            "Jsi asistent manažera. Napiš stručný český draft emailu (5-12 řádků), "
+            "kterým se uživatel zeptá na stav úkolu, požádá o termín nebo upomene "
+            "dohodnutý termín. Drž se obsahu vlákna, nevymýšlej fakta. "
+            "Vrať POUZE text emailu (bez Subject:, bez 'S pozdravem ...' řádku se jménem). "
+            + tone_hint
         ),
         messages=[
             {
                 "role": "user",
                 "content": json.dumps(
-                    {"task_title": task_title, "task_summary": task_summary, "last_messages": last_messages},
+                    {
+                        "task_title": task_title,
+                        "task_summary": task_summary,
+                        "counterpart_name": counterpart_name,
+                        "last_messages": last_messages,
+                    },
+                    ensure_ascii=False, default=str,
+                ),
+            }
+        ],
+    )
+    return "".join(block.text for block in msg.content if hasattr(block, "text")).strip()
+
+
+def summarize_thread(thread_subject: str, messages: list[dict]) -> str:
+    """Krátká LLM sumarizace celého vlákna v markdownu."""
+    settings = get_settings()
+    client = _client()
+    msg = client.messages.create(
+        model=settings.llm_extractor_model,
+        max_tokens=800,
+        system=(
+            "Jsi asistent manažera. Sumarizuj toto emailové vlákno česky. "
+            "Strukturuj odpověď jako markdown s těmito sekcemi:\n"
+            "## O čem to je\n"
+            "## Co bylo dohodnuto\n"
+            "## Co je otevřené\n"
+            "## Akce na uživateli\n"
+            "Buď stručný (každá sekce 1-3 odrážky). Nevymýšlej fakta. "
+            "Pokud sekce nemá obsah, napiš 'Nic'."
+        ),
+        messages=[
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {"subject": thread_subject, "messages": messages},
                     ensure_ascii=False, default=str,
                 ),
             }

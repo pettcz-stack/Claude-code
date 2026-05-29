@@ -3,42 +3,25 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import Nav from "@/components/Nav";
-import { Avatar } from "@/components/Avatar";
+import {
+  IconAlert,
+  IconBell,
+  IconClock,
+  IconInbox,
+  IconList,
+  IconPlus,
+  IconRefresh,
+  IconSearch,
+  IconSend,
+  IconUsers,
+} from "@/components/Icon";
 import { NewTaskDialog } from "@/components/NewTaskDialog";
-import { PhaseBadge } from "@/components/PhaseBadge";
 import { StatCard } from "@/components/StatCard";
+import { TaskCard } from "@/components/TaskCard";
 import { api, Notification, Overview, Task } from "@/lib/api";
-import { deadlineLabel, formatRelative, LEVEL_LABEL, LEVEL_STYLE } from "@/lib/ui";
+import { formatRelative, LEVEL_LABEL, LEVEL_STYLE } from "@/lib/ui";
 
 type Filter = "all" | "delegated" | "mine" | "overdue";
-
-function TaskCard({ t }: { t: Task }) {
-  const dl = deadlineLabel(t.deadline);
-  return (
-    <Link
-      href={`/tasks/${t.id}`}
-      className="group flex items-start gap-3 border-b border-line px-4 py-3 transition hover:bg-line/40"
-    >
-      <Avatar name={t.counterpart_name} email={t.counterpart_email} size={36} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <div className="truncate font-medium text-ink group-hover:text-brand">
-            {t.title || "(bez nadpisu)"}
-          </div>
-          <PhaseBadge phase={t.phase} />
-        </div>
-        <div className="mt-0.5 truncate text-xs text-muted">
-          {t.counterpart_name || t.counterpart_email || "—"}
-          {t.summary && <span> · {t.summary.slice(0, 100)}</span>}
-        </div>
-      </div>
-      <div className="shrink-0 text-right text-xs">
-        {dl && <div className={`font-medium ${dl.style}`}>{dl.text}</div>}
-        <div className="text-muted">{formatRelative(t.last_activity_at)}</div>
-      </div>
-    </Link>
-  );
-}
 
 function NotificationCard({
   n,
@@ -53,11 +36,20 @@ function NotificationCard({
 }) {
   return (
     <div
-      className={`flex items-start gap-3 rounded-lg border-l-4 bg-panel px-4 py-3 ${LEVEL_STYLE[n.level] || ""}`}
+      className={`flex items-start gap-3 rounded-lg border-l-4 bg-panel px-4 py-3 transition hover:bg-line/30 ${LEVEL_STYLE[n.level] || ""}`}
     >
+      <div className="mt-0.5">
+        {n.level === "urgent" ? (
+          <IconAlert size={18} />
+        ) : n.level === "warning" ? (
+          <IconBell size={18} />
+        ) : (
+          <IconInbox size={18} />
+        )}
+      </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 text-xs text-muted">
-          <span className="font-semibold uppercase">{LEVEL_LABEL[n.level]}</span>
+        <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted">
+          <span className="font-semibold">{LEVEL_LABEL[n.level]}</span>
           <span>·</span>
           <span>{formatRelative(n.created_at)}</span>
         </div>
@@ -91,6 +83,18 @@ function NotificationCard({
   );
 }
 
+function EmptyState({ title, hint }: { title: string; hint?: string }) {
+  return (
+    <div className="grid place-items-center px-4 py-12 text-center">
+      <div className="mb-3 grid h-12 w-12 place-items-center rounded-full bg-line/60 text-muted">
+        <IconInbox size={22} />
+      </div>
+      <div className="text-sm font-medium text-muted">{title}</div>
+      {hint && <div className="mt-1 text-xs text-muted/70">{hint}</div>}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -98,13 +102,12 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState("");
   const [showNew, setShowNew] = useState(false);
 
   async function refresh() {
-    setLoading(true);
-    // Každý fetch běží samostatně, ať jeden výpadek neblokuje zbytek
-    // (např. když je API starý a /stats/overview ještě nemá).
+    setRefreshing(true);
     const oP = api<Overview>("/stats/overview").catch((e) => {
       console.warn("stats/overview failed:", e.message);
       return null;
@@ -122,8 +125,11 @@ export default function DashboardPage() {
     setTasks(t);
     setNotifs(n);
     setLoading(false);
+    setRefreshing(false);
   }
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    refresh();
+  }, []);
 
   const tasksByDir = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -166,20 +172,32 @@ export default function DashboardPage() {
   return (
     <>
       <Nav />
-      <main className="mx-auto max-w-6xl px-6 py-8">
-        <div className="mb-6 flex items-center justify-between">
+      <main className="mx-auto max-w-6xl px-6 py-6">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold">Dashboard</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
             <p className="text-sm text-muted">
               {loading ? "Načítám…" : "Stav úkolů a co dnes vyžaduje pozornost."}
             </p>
           </div>
-          <button
-            onClick={() => setShowNew(true)}
-            className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-bg hover:opacity-90"
-          >
-            + Nový úkol
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={refresh}
+              disabled={refreshing}
+              className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-sm text-muted hover:bg-line/60 disabled:opacity-50"
+              title="Obnovit"
+            >
+              <IconRefresh size={15} className={refreshing ? "animate-spin" : ""} />
+              <span className="hidden sm:inline">Obnovit</span>
+            </button>
+            <button
+              onClick={() => setShowNew(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-gradient-to-br from-brand to-emerald-400 px-4 py-2 text-sm font-semibold text-bg shadow-lg shadow-brand/20 hover:opacity-90"
+            >
+              <IconPlus size={15} />
+              Nový úkol
+            </button>
+          </div>
         </div>
 
         {err && (
@@ -191,34 +209,50 @@ export default function DashboardPage() {
         {/* Stats row */}
         {overview && (
           <section className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
-            <StatCard label="Otevřených" value={overview.open} hint="celkem aktivních" />
+            <StatCard
+              label="Otevřených"
+              value={overview.open}
+              hint="celkem aktivních"
+              icon={<IconList size={20} />}
+            />
             <StatCard
               label="Po termínu"
               value={overview.overdue}
               tone={overview.overdue > 0 ? "danger" : "default"}
-              hint="urgovat"
+              hint={overview.overdue > 0 ? "vyžaduje urgenci" : "vše v termínu"}
+              icon={<IconAlert size={20} />}
             />
-            <StatCard label="Moje úkoly" value={overview.mine_open} hint="já musím odpovědět" />
+            <StatCard
+              label="Moje úkoly"
+              value={overview.mine_open}
+              tone={overview.mine_open > 0 ? "info" : "default"}
+              hint="vyžaduje moji odpověď"
+              icon={<IconInbox size={20} />}
+            />
             <StatCard
               label="Čekám na"
               value={overview.delegated_open}
-              hint="delegovaných čeká na akci"
+              tone="good"
+              hint="delegováno ostatním"
+              icon={<IconSend size={20} />}
             />
           </section>
         )}
 
         {/* Notifikace */}
         <section className="mb-8">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
-            Akce dnes ({notifs.length})
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted">
+            <IconBell size={14} />
+            Akce dnes
+            <span className="rounded bg-line px-1.5 py-0.5 text-[10px]">{notifs.length}</span>
           </h2>
           {loading ? (
             <div className="rounded-lg border border-line bg-panel px-4 py-6 text-center text-muted">
               Načítám…
             </div>
           ) : notifs.length === 0 ? (
-            <div className="rounded-lg border border-line bg-panel px-4 py-6 text-center text-muted">
-              ✓ Nic, co by hořelo. Můžeš si dát kávu.
+            <div className="rounded-lg border border-line bg-panel py-2">
+              <EmptyState title="Nic nehoří" hint="Můžeš si dát kávu." />
             </div>
           ) : (
             <div className="space-y-2">
@@ -237,22 +271,33 @@ export default function DashboardPage() {
 
         {/* Hledání + filtry */}
         <section className="mb-4 flex flex-wrap items-center gap-3">
-          <input
-            placeholder="Hledat v úkolech…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 min-w-[200px] rounded-lg border border-line bg-panel px-3 py-2 text-sm outline-none focus:border-brand"
-          />
+          <div className="relative flex-1 min-w-[200px]">
+            <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">
+              <IconSearch size={15} />
+            </div>
+            <input
+              placeholder="Hledat v úkolech (titul, jméno, obsah)…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-lg border border-line bg-panel py-2 pl-9 pr-3 text-sm outline-none focus:border-brand"
+            />
+          </div>
           <div className="flex gap-1 rounded-lg border border-line bg-panel p-1 text-xs">
             {(["all", "mine", "delegated", "overdue"] as Filter[]).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`rounded px-3 py-1.5 ${
+                className={`rounded px-3 py-1.5 transition ${
                   filter === f ? "bg-brand text-bg" : "text-muted hover:text-ink"
                 }`}
               >
-                {f === "all" ? "Vše" : f === "mine" ? "Moje" : f === "delegated" ? "Čekám na" : "Po termínu"}
+                {f === "all"
+                  ? "Vše"
+                  : f === "mine"
+                  ? "Moje"
+                  : f === "delegated"
+                  ? "Čekám na"
+                  : "Po termínu"}
               </button>
             ))}
           </div>
@@ -261,15 +306,16 @@ export default function DashboardPage() {
         {/* Dvojí sloupec úkolů */}
         <section className="grid gap-6 md:grid-cols-2">
           <div>
-            <h2 className="mb-3 flex items-center justify-between text-sm font-semibold uppercase tracking-wide text-muted">
-              <span>Moje úkoly</span>
-              <span className="rounded bg-line px-2 py-0.5 text-xs">{tasksByDir.mine.length}</span>
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted">
+              <IconInbox size={14} />
+              Moje úkoly
+              <span className="rounded bg-line px-1.5 py-0.5 text-[10px]">
+                {tasksByDir.mine.length}
+              </span>
             </h2>
-            <div className="overflow-hidden rounded-lg border border-line bg-panel">
+            <div className="overflow-hidden rounded-xl border border-line bg-panel">
               {tasksByDir.mine.length === 0 ? (
-                <p className="px-4 py-8 text-center text-sm text-muted">
-                  Žádné otevřené úkoly pro Tebe.
-                </p>
+                <EmptyState title="Žádné otevřené úkoly pro Tebe" />
               ) : (
                 tasksByDir.mine.map((t) => <TaskCard key={t.id} t={t} />)
               )}
@@ -277,15 +323,16 @@ export default function DashboardPage() {
           </div>
 
           <div>
-            <h2 className="mb-3 flex items-center justify-between text-sm font-semibold uppercase tracking-wide text-muted">
-              <span>Čekám na ostatní</span>
-              <span className="rounded bg-line px-2 py-0.5 text-xs">{tasksByDir.delegated.length}</span>
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted">
+              <IconSend size={14} />
+              Čekám na ostatní
+              <span className="rounded bg-line px-1.5 py-0.5 text-[10px]">
+                {tasksByDir.delegated.length}
+              </span>
             </h2>
-            <div className="overflow-hidden rounded-lg border border-line bg-panel">
+            <div className="overflow-hidden rounded-xl border border-line bg-panel">
               {tasksByDir.delegated.length === 0 ? (
-                <p className="px-4 py-8 text-center text-sm text-muted">
-                  Žádné delegované úkoly.
-                </p>
+                <EmptyState title="Žádné delegované úkoly" />
               ) : (
                 tasksByDir.delegated.map((t) => <TaskCard key={t.id} t={t} />)
               )}

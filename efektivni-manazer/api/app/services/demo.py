@@ -37,6 +37,8 @@ SCENARIOS: list[dict] = [
     {
         "direction": "delegated",
         "phase": "awaiting_ack",
+        "priority": 2,
+        "tags": ["facility", "Q3"],
         "counterpart_name": "Petra Nováková",
         "counterpart_email": "petra.novakova@dodavatel.cz",
         "title": "Nabídka na nové kancelářské vybavení",
@@ -82,6 +84,8 @@ SCENARIOS: list[dict] = [
     {
         "direction": "delegated",
         "phase": "awaiting_result",
+        "priority": 1,
+        "tags": ["dev", "eshop"],
         "counterpart_name": "Marek Procházka",
         "counterpart_email": "marek.prochazka@dodavatel.cz",
         "title": "Implementace platební brány v e-shopu",
@@ -96,6 +100,8 @@ SCENARIOS: list[dict] = [
     {
         "direction": "delegated",
         "phase": "in_progress",
+        "priority": 1,
+        "tags": ["smlouvy", "právo"],
         "counterpart_name": "Tomáš Černý",
         "counterpart_email": "tomas.cerny@pravnik.cz",
         "title": "Revize smlouvy s dodavatelem XY",
@@ -141,6 +147,8 @@ SCENARIOS: list[dict] = [
     {
         "direction": "mine",
         "phase": "new",
+        "priority": 1,
+        "tags": ["reporting", "CEO"],
         "counterpart_name": "Šéf",
         "counterpart_email": "ceo@firma.cz",
         "title": "Doplnit reporting o segment SaaS",
@@ -184,6 +192,8 @@ SCENARIOS: list[dict] = [
     {
         "direction": "mine",
         "phase": "blocked",
+        "priority": 2,
+        "tags": ["marketing", "Q4"],
         "counterpart_name": "Klára Svobodová",
         "counterpart_email": "klara.svobodova@firma.cz",
         "title": "Schválit rozpočet marketingu na Q4",
@@ -315,6 +325,11 @@ def seed_demo_data(db: Session, my_email: str = "torsten@firma.cz", my_name: str
         if "deadline_hours" in sc and sc["deadline_hours"] is not None:
             deadline = _h_future(sc["deadline_hours"])
 
+        overrides: dict = {}
+        if "priority" in sc:
+            overrides["priority"] = sc["priority"]
+        if "tags" in sc:
+            overrides["tags"] = sc["tags"]
         task = Task(
             thread_id=thread.id,
             direction=TaskDirection(sc["direction"]),
@@ -327,6 +342,7 @@ def seed_demo_data(db: Session, my_email: str = "torsten@firma.cz", my_name: str
             deadline=deadline,
             last_activity_at=_h_ago(sc["hours_ago"]),
             closed_at=_h_ago(0) if sc.get("closed") else None,
+            manual_overrides=overrides,
             extractor_meta={"demo": True, "confidence": 0.95},
         )
         db.add(task)

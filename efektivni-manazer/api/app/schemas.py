@@ -21,6 +21,7 @@ class TaskOut(BaseModel):
     closed_at: datetime | None
     created_at: datetime
     updated_at: datetime
+    manual_overrides: dict[str, Any] = Field(default_factory=dict)
 
 
 class TaskUpdate(BaseModel):
@@ -30,6 +31,9 @@ class TaskUpdate(BaseModel):
     deadline: datetime | None = None
     snoozed_until: datetime | None = None
     closed: bool | None = None
+    notes: str | None = None
+    priority: int | None = None  # 1=P1 critical, 2=P2 normal, 3=P3 low
+    tags: list[str] | None = None
 
 
 class TaskCreate(BaseModel):

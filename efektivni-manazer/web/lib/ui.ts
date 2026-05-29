@@ -72,6 +72,22 @@ export function formatRelative(iso: string | null): string {
   return `před ${Math.floor(diff / 86400)} dny`;
 }
 
+export const PRIORITY_LABEL: Record<number, string> = {
+  1: "P1 · vysoká",
+  2: "P2 · normální",
+  3: "P3 · nízká",
+};
+export const PRIORITY_DOT: Record<number, string> = {
+  1: "bg-rose-500",
+  2: "bg-amber-400",
+  3: "bg-zinc-400",
+};
+export const PRIORITY_TEXT: Record<number, string> = {
+  1: "text-rose-300",
+  2: "text-amber-300",
+  3: "text-zinc-300",
+};
+
 export function deadlineLabel(iso: string | null): { text: string; style: string } | null {
   if (!iso) return null;
   const d = new Date(iso);

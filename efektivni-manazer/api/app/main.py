@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .auth import ensure_master_password
 from .db import Base, SessionLocal, engine
 from . import models  # noqa: F401  (registrace modelů do Base)
-from .routers import auth, notifications, rules, settings_router, stats, tasks, threads
+from .routers import ai, auth, notifications, rules, settings_router, stats, tasks, threads
 from .services.sla import ensure_default_rules
 
 
@@ -35,6 +35,7 @@ app.include_router(rules.router)
 app.include_router(notifications.router)
 app.include_router(settings_router.router)
 app.include_router(stats.router)
+app.include_router(ai.router)
 
 
 @app.get("/healthz")

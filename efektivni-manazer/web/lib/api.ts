@@ -39,6 +39,12 @@ export type Task = {
   last_activity_at: string;
   snoozed_until: string | null;
   closed_at: string | null;
+  manual_overrides?: {
+    notes?: string;
+    priority?: number;
+    tags?: string[];
+    [k: string]: any;
+  };
 };
 
 export type Notification = {

@@ -99,6 +99,12 @@ def update_task(task_id: int, payload: TaskUpdate, db: Session = Depends(get_db)
         overrides["deadline"] = payload.deadline.isoformat()
     if payload.snoozed_until is not None:
         t.snoozed_until = payload.snoozed_until
+    if payload.notes is not None:
+        overrides["notes"] = payload.notes
+    if payload.priority is not None:
+        overrides["priority"] = max(1, min(3, int(payload.priority)))
+    if payload.tags is not None:
+        overrides["tags"] = [str(x).strip() for x in payload.tags if str(x).strip()]
     if payload.closed is True:
         t.closed_at = datetime.now(timezone.utc)
         t.phase = TaskPhase.done
