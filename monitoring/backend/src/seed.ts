@@ -352,6 +352,14 @@ type PersonSpec = {
   name: string; dept: string; persona: Persona;
   baseDiligence: number; lockProb: number; consistency: number;
   fridayMul: number; startHour: number; lunchOffset: number; rate: number;
+  // Demo extras – pro showcase scénáře
+  showcase?: 'hero' | 'villain' | 'newHire' | 'returnFromLeave' | 'hybridWorker';
+  /** Datum, od kdy se generují intervaly (jen pro newHire). Default = -29 dní zpět. */
+  startedDaysAgo?: number;
+  /** Týdenní rampa diligence (newHire/returning). Vrátí multiplier pro daný `weekFromStart`. */
+  rampFn?: (weekFromStart: number) => number;
+  /** HO clustering pattern (hybridWorker). True když daný den v týdnu = HO. dow: 0=Ne..6=So */
+  hybridHoDow?: Set<number>;
 };
 
 function genPeople(): PersonSpec[] {
@@ -481,6 +489,91 @@ function genPeople(): PersonSpec[] {
       target.consistency = c.persona.startsWith('cheater') ? 0.95 : target.consistency;
     }
   }
+
+  // ── Showcase personas: memorable lidé pro demo "story-mode" ─────────────
+  // Hardcoded konkrétní jména a profil. Admin při demu může říct:
+  // "Tady Lisa Svobodová z Vývoje, 92% – naše hvězda. A tady Boris Novotný
+  // ze Skladu, 28% + mouse jiggler – problém co řešíme."
+  // Tyto lidi PŘEPÍŠEM nad standardní distribuci.
+  function applyShowcase(index: number, spec: Partial<PersonSpec> & { name: string; dept: string }): void {
+    if (index >= people.length) return;
+    const target = people[index];
+    Object.assign(target, spec);
+  }
+
+  // Najdi prvního člověka v daném dept a aplikuj showcase
+  function applyByDept(dept: string, occurrence: number, spec: Partial<PersonSpec> & { name: string }): void {
+    let count = 0;
+    for (let i = 0; i < people.length; i++) {
+      if (people[i].dept === dept) {
+        if (count === occurrence) { applyShowcase(i, { ...spec, dept }); return; }
+        count++;
+      }
+    }
+  }
+
+  // HERO #1: Lisa Svobodová – Vývoj – 92 % top performer
+  applyByDept('Vývoj', 0, {
+    name: 'Lisa Svobodová', persona: 'top',
+    baseDiligence: 0.96, consistency: 0.90, lockProb: 0.04,
+    fridayMul: 0.92, showcase: 'hero',
+  });
+
+  // HERO #2: Marek Beneš – Audit – 95 % konzistentní
+  applyByDept('Audit', 0, {
+    name: 'Marek Beneš', persona: 'top',
+    baseDiligence: 0.97, consistency: 0.92, lockProb: 0.03,
+    fridayMul: 0.93, showcase: 'hero',
+  });
+
+  // VILLAIN #1: Boris Novotný – Sklad – 25 %, mouse jiggler
+  // Bude mít i evasion app activity (přidá se v seedEvasionActivity přes findCandidate)
+  applyByDept('Sklad', 0, {
+    name: 'Boris Novotný', persona: 'cheater_mouse',
+    baseDiligence: 0.95, consistency: 0.95, lockProb: 0,
+    fridayMul: 0.95, showcase: 'villain',
+  });
+
+  // VILLAIN #2: Karel Dvořák – Marketing – chronický slacker s evasion
+  applyByDept('Marketing', 0, {
+    name: 'Karel Dvořák', persona: 'slacker',
+    baseDiligence: 0.28, consistency: 0.20, lockProb: 0.25,
+    fridayMul: 0.65, showcase: 'villain',
+  });
+
+  // NEW HIRE: Anna Procházková – Personalistika – nastoupila před 12 dny
+  // Rampa: týden 1 = 0.55× diligence (učení), týden 2 = 0.80×, týden 3+ = 0.95×
+  applyByDept('Personalistika', 0, {
+    name: 'Anna Procházková', persona: 'normal',
+    baseDiligence: 0.82, consistency: 0.70, lockProb: 0.08,
+    fridayMul: 0.88, showcase: 'newHire',
+    startedDaysAgo: 12,
+    rampFn: (week) => week === 0 ? 0.55 : week === 1 ? 0.80 : 0.95,
+  });
+
+  // RETURN FROM LEAVE: Eva Procházková – Konstrukce – týden NEMOC, vrací se
+  applyByDept('Konstrukce', 0, {
+    name: 'Eva Procházková', persona: 'normal',
+    baseDiligence: 0.86, consistency: 0.75, lockProb: 0.06,
+    fridayMul: 0.90, showcase: 'returnFromLeave',
+  });
+
+  // HYBRID WORKER: Tomáš Kratochvíl – Vývoj – Po-St kancelář, Čt-Pá HO
+  applyByDept('Vývoj', 1, {
+    name: 'Tomáš Kratochvíl', persona: 'normal',
+    baseDiligence: 0.85, consistency: 0.78, lockProb: 0.07,
+    fridayMul: 0.88, showcase: 'hybridWorker',
+    hybridHoDow: new Set([4, 5]), // čt, pá
+  });
+
+  // Druhý hybrid – Markéta Holubová – Ekonomika
+  applyByDept('Ekonomika', 0, {
+    name: 'Markéta Holubová', persona: 'normal',
+    baseDiligence: 0.84, consistency: 0.72, lockProb: 0.09,
+    fridayMul: 0.85, showcase: 'hybridWorker',
+    hybridHoDow: new Set([2, 4]), // út, čt (alternativní pattern)
+  });
+
   return people;
 }
 
@@ -493,6 +586,11 @@ type Person = {
   lockProb: number; consistency: number;
   fridayMul: number; startHour: number; lunchOffset: number;
   monitors: number; workPool: Pick[]; siteBase: string;
+  // Showcase
+  showcase?: 'hero' | 'villain' | 'newHire' | 'returnFromLeave' | 'hybridWorker';
+  startedDaysAgo?: number;
+  rampFn?: (weekFromStart: number) => number;
+  hybridHoDow?: Set<number>;
 };
 
 async function main() {
@@ -583,6 +681,10 @@ async function main() {
         fridayMul: p.fridayMul,
         startHour: p.startHour,
         lunchOffset: p.lunchOffset,
+        showcase: p.showcase,
+        startedDaysAgo: p.startedDaysAgo,
+        rampFn: p.rampFn,
+        hybridHoDow: p.hybridHoDow,
         monitors: monitorsFor(p.dept),
         workPool: buildPool(p.dept),
         siteBase: siteBaseFor(p.dept),
@@ -619,23 +721,53 @@ async function main() {
   // Bez tohoto by každý člověk měl náhodné 1-denní výpadky a kalendář by vypadal jak švýcarský sýr.
   // S tímhle uvidíš v "Absences" view skutečné dovolenkové týdny.
   function planAbsences(c: Person): { day: number; type: 'NEMOC' | 'DOVOLENA' | 'HOME_OFFICE' }[] {
-    if (c.persona.startsWith('cheater')) return []; // cheateři jezdí vždy
+    if (c.persona.startsWith('cheater')) return [];
     const plan: { day: number; type: 'NEMOC' | 'DOVOLENA' | 'HOME_OFFICE' }[] = [];
+
+    // SHOWCASE: returnFromLeave – týdenní NEMOC v dnech 17-21 (před ~3 týdny)
+    if (c.showcase === 'returnFromLeave') {
+      for (let i = 0; i < 5; i++) plan.push({ day: 17 + i, type: 'NEMOC' });
+      return plan;
+    }
+    // SHOWCASE: hybridWorker – HO podle hybridHoDow (deterministicky kazdý den v týdnu)
+    if (c.showcase === 'hybridWorker' && c.hybridHoDow) {
+      const today = floorToDay(new Date());
+      for (let dayBack = 1; dayBack <= 29; dayBack++) {
+        const ds = addDays(today, -dayBack);
+        const dow = localDow(ds);
+        if (c.hybridHoDow.has(dow)) plan.push({ day: dayBack, type: 'HOME_OFFICE' });
+      }
+      return plan;
+    }
+    // SHOWCASE: newHire – nepřítomný před nástupem (žádný HO ani NEMOC, intervaly proste nebudou)
+    if (c.showcase === 'newHire') {
+      // 1 HO den po 2 týdnech (postupně zapracovává)
+      plan.push({ day: 3, type: 'HOME_OFFICE' });
+      return plan;
+    }
+    // SHOWCASE: hero – minimum absencí
+    if (c.showcase === 'hero') {
+      if (Math.random() < 0.30) plan.push({ day: 5 + Math.floor(Math.random() * 20), type: 'HOME_OFFICE' });
+      return plan;
+    }
+    // SHOWCASE: villain – občas nezprávně absent
+    if (c.showcase === 'villain') {
+      if (Math.random() < 0.5) plan.push({ day: 8, type: 'NEMOC' });
+      return plan;
+    }
+
     // 25 % šance na celý týden dovolené v posledních 30 dnech
     if (Math.random() < 0.25) {
       const start = 5 + Math.floor(Math.random() * 20);
       for (let i = 0; i < 5; i++) plan.push({ day: start + i, type: 'DOVOLENA' });
     }
-    // 12 % šance na 3-denní nemoc
     if (Math.random() < 0.12) {
       const start = 2 + Math.floor(Math.random() * 25);
       for (let i = 0; i < 3; i++) plan.push({ day: start + i, type: 'NEMOC' });
     }
-    // 5 % šance na další 1-denní nemoc
     if (Math.random() < 0.05) {
       plan.push({ day: 1 + Math.floor(Math.random() * 27), type: 'NEMOC' });
     }
-    // Home office: typicky 1-2 dny týdně (úterý nebo čtvrtek), persona "social_media" a "streamer" 3 dny
     const hoTargetDays = c.persona === 'social_media' || c.persona === 'streamer' ? 3 : c.persona === 'top' ? 1 : 2;
     let hoCount = 0;
     for (let attempt = 0; attempt < 30 && hoCount < hoTargetDays * 4; attempt++) {
@@ -667,7 +799,12 @@ async function main() {
       return false;
     })();
 
-    for (let dayBack = 0; dayBack < 30; dayBack++) {
+    // SHOWCASE: newHire – generujeme jen poslední `startedDaysAgo` dní (sparse data)
+    const maxDayBack = c.showcase === 'newHire' && c.startedDaysAgo != null
+      ? Math.min(30, c.startedDaysAgo)
+      : 30;
+
+    for (let dayBack = 0; dayBack < maxDayBack; dayBack++) {
       const dayStart = addDays(today, -dayBack);
       const lp = localParts(dayStart);
       const dow = localDow(dayStart);
@@ -695,7 +832,24 @@ async function main() {
       if (isHO) absences.push({ userId: c.id, date, type: 'HOME_OFFICE', source: 'OKBASE' });
 
       // Per-day variance
-      const dayMul = dayQualityHash(c.id, dayStart.getTime(), c.consistency);
+      let dayMul = dayQualityHash(c.id, dayStart.getTime(), c.consistency);
+
+      // SHOWCASE: newHire rampa – multiplikátor podle týdne od nástupu
+      if (c.showcase === 'newHire' && c.rampFn && c.startedDaysAgo != null) {
+        const daysSinceStart = c.startedDaysAgo - dayBack;
+        const weekFromStart = Math.max(0, Math.floor(daysSinceStart / 7));
+        dayMul *= c.rampFn(weekFromStart);
+      }
+      // SHOWCASE: returnFromLeave rampa – pomalu zpět do tempa
+      if (c.showcase === 'returnFromLeave') {
+        // dayBack < 17 = po návratu (5 dní nemoci 17-21)
+        if (dayBack < 17) {
+          const daysBack = 17 - dayBack;
+          const rampWeek = Math.floor(daysBack / 7);
+          const mul = rampWeek === 0 ? 0.85 : rampWeek === 1 ? 0.92 : 0.98;
+          dayMul *= mul;
+        }
+      }
       // Den v týdnu multiplikátor:
       //   víkend = velmi krátká aktivita (40 % škála, jen pár hodin)
       //   pátek = fridayMul, pondělí lehký warmup
