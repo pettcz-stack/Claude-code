@@ -831,6 +831,13 @@ export const en: typeof cs = {
     labelRoboticRegularity: 'Robotically regular pattern',
     labelEvasionSoftware: 'Anti-monitoring software',
     labelAfterHours: 'After-hours activity',
+    detailMouseJiggler: 'Prolonged mouse movement without a single keystroke and without switching apps – likely a mouse jiggler.',
+    detailKeyboardWeight: 'Continuous typing with unnaturally regular rhythm, no mouse activity and no app change – likely an object on the keyboard or a key simulator.',
+    detailNoAppSwitch: 'Over {hours} h of uninterrupted activity in a single application without a single switch – atypical for normal office work.',
+    detailRoboticRegularity: 'Activity has a machine-like regular pattern – nearly identical values over a long period, likely automated input.',
+    detailEvasionSoftwareSingular: 'Use of anti-monitoring software ({minutes} min): {apps}. Likely cheating – mouse jiggler, AutoHotkey script, Caffeine, or an attempt to kill the agent. This user\'s activity measurement is unreliable.',
+    detailEvasionSoftwareMore: 'Use of anti-monitoring software ({minutes} min): {apps} and more. Likely cheating – mouse jiggler, AutoHotkey script, Caffeine, or an attempt to kill the agent. This user\'s activity measurement is unreliable.',
+    detailAfterHoursActivity: 'Activity outside business hours: {nights} nights, total {minutes} min after 9 PM. Could be workaholism, data exfiltration, or a bot running after shift.',
   },
   calendar: {
     activeTotal: 'Total active',

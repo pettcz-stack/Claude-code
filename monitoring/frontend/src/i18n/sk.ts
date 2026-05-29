@@ -820,6 +820,13 @@ export const sk: typeof cs = {
     labelRoboticRegularity: 'Roboticky pravidelný vzor',
     labelEvasionSoftware: 'Obchádzanie monitoringu',
     labelAfterHours: 'Aktivita mimo pracovný čas',
+    detailMouseJiggler: 'Dlhodobý pohyb myši bez jediného stlačenia klávesnice a bez prepínania aplikácií — pravdepodobne použitý simulátor pohybu myši (mouse jiggler).',
+    detailKeyboardWeight: 'Trvalé písanie s neprirodzene pravidelným rytmom, bez používania myši a bez zmeny aktívnej aplikácie — pravdepodobne predmet položený na klávesnici alebo program simulujúci stláčanie kláves.',
+    detailNoAppSwitch: 'Viac ako {hours} h súvislej aktivity v jednej aplikácii bez jediného prepnutia — netypické pre bežnú kancelársku prácu.',
+    detailRoboticRegularity: 'Aktivita má strojovo pravidelný vzor — takmer identické hodnoty po dlhú dobu, pravdepodobne automatizácia vstupu.',
+    detailEvasionSoftwareSingular: 'Použitie programu na obchádzanie sledovania ({minutes} min): {apps}. Pravdepodobné podvádzanie.',
+    detailEvasionSoftwareMore: 'Použitie programu na obchádzanie sledovania ({minutes} min): {apps} a ďalšie. Pravdepodobné podvádzanie.',
+    detailAfterHoursActivity: 'Aktivita mimo pracovnej doby: {nights} nocí, celkom {minutes} min po 21:00.',
   },
   calendar: {
     activeTotal: 'Aktívne celkom',

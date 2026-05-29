@@ -20,6 +20,19 @@ export function IntegrityPanel({ userId, from, to }: { userId: string; from: str
     };
     return map[type] ?? type;
   };
+  // Překlad detailCode → lokalizovaný text (sdílí klíče s alerts.detail*)
+  const detailFor = (code: string, params?: Record<string, number | string>): string => {
+    const p = params ?? {};
+    let key: string;
+    if (code === 'EVASION_SOFTWARE_DETAIL') {
+      key = (p.more && Number(p.more) > 0) ? 'alerts.detailEvasionSoftwareMore' : 'alerts.detailEvasionSoftwareSingular';
+    } else {
+      key = `alerts.detail${code.replace(/_DETAIL$/, '').split('_').map((s) => s.charAt(0) + s.slice(1).toLowerCase()).join('')}`;
+    }
+    const strParams: Record<string, string> = {};
+    for (const k of Object.keys(p)) strParams[k] = String(p[k]);
+    return t(key, strParams);
+  };
 
   if (!r) return null;
 
@@ -52,7 +65,7 @@ export function IntegrityPanel({ userId, from, to }: { userId: string; from: str
             <span className={`chip ${f.severity === 'high' ? 'chip-nonwork' : 'chip-neutral'}`}>{f.severity === 'high' ? t('integrity.severityHigh') : t('integrity.severityMedium')}</span>
             <div>
               <div className="text-sm font-medium">{labelFor(f.type)}</div>
-              <div className="text-xs muted">{f.detail}</div>
+              <div className="text-xs muted">{detailFor(f.detailCode, f.detailParams)}</div>
               <div className="mt-0.5 text-xs muted-2">{t('integrity.affectedApprox', { time: minutesToHm(f.affectedMinutes) })}</div>
             </div>
           </div>

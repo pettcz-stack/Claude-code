@@ -820,6 +820,13 @@ export const pl: typeof cs = {
     labelRoboticRegularity: 'Robotyczny regularny wzorzec',
     labelEvasionSoftware: 'Obchodzenie monitoringu',
     labelAfterHours: 'Aktywność po godzinach pracy',
+    detailMouseJiggler: 'Długotrwały ruch myszy bez ani jednego naciśnięcia klawisza i bez zmiany aplikacji – prawdopodobnie mouse jiggler.',
+    detailKeyboardWeight: 'Ciągłe pisanie z nienaturalnie regularnym rytmem, bez myszy i zmiany aplikacji – prawdopodobnie przedmiot na klawiaturze lub symulator klawiszy.',
+    detailNoAppSwitch: 'Ponad {hours} h ciągłej aktywności w jednej aplikacji bez przełączenia – nietypowe dla pracy biurowej.',
+    detailRoboticRegularity: 'Aktywność ma maszynowo regularny wzorzec – niemal identyczne wartości przez długi czas, prawdopodobnie automatyzacja.',
+    detailEvasionSoftwareSingular: 'Użycie oprogramowania obchodzącego monitoring ({minutes} min): {apps}. Prawdopodobne oszustwo.',
+    detailEvasionSoftwareMore: 'Użycie oprogramowania obchodzącego monitoring ({minutes} min): {apps} i inne. Prawdopodobne oszustwo.',
+    detailAfterHoursActivity: 'Aktywność poza godzinami pracy: {nights} nocy, łącznie {minutes} min po 21:00.',
   },
   calendar: {
     activeTotal: 'Łącznie aktywny',

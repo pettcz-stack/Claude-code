@@ -820,6 +820,13 @@ export const de: typeof cs = {
     labelRoboticRegularity: 'Roboterhaft regelmäßiges Muster',
     labelEvasionSoftware: 'Monitoring-Umgehung',
     labelAfterHours: 'Aktivität außerhalb der Arbeitszeit',
+    detailMouseJiggler: 'Anhaltende Mausbewegung ohne einen einzigen Tastendruck und ohne App-Wechsel — wahrscheinlich Maus-Jiggler.',
+    detailKeyboardWeight: 'Dauerhaftes Tippen mit unnatürlich regelmäßigem Rhythmus, ohne Maus und ohne App-Wechsel — wahrscheinlich Gegenstand auf der Tastatur oder Tastatursimulator.',
+    detailNoAppSwitch: 'Über {hours} h ununterbrochene Aktivität in einer App ohne Wechsel — untypisch für Büroarbeit.',
+    detailRoboticRegularity: 'Aktivität hat ein maschinenartiges regelmäßiges Muster — nahezu identische Werte über lange Zeit, wahrscheinlich automatisierte Eingabe.',
+    detailEvasionSoftwareSingular: 'Verwendung von Anti-Monitoring-Software ({minutes} min): {apps}. Wahrscheinliche Manipulation — Maus-Jiggler, AutoHotkey-Skript, Caffeine oder Versuch, den Agenten zu beenden. Aktivitätsmessung dieses Benutzers ist unzuverlässig.',
+    detailEvasionSoftwareMore: 'Verwendung von Anti-Monitoring-Software ({minutes} min): {apps} u. a. Wahrscheinliche Manipulation — Maus-Jiggler, AutoHotkey-Skript, Caffeine oder Versuch, den Agenten zu beenden.',
+    detailAfterHoursActivity: 'Aktivität außerhalb der Arbeitszeit: {nights} Nächte, insgesamt {minutes} min nach 21:00. Kann Workaholismus, Datenexfiltration oder ein Bot nach der Schicht sein.',
   },
   calendar: {
     activeTotal: 'Aktiv insgesamt',

@@ -10,7 +10,13 @@ export type IntegrityFlag = {
   type: 'MOUSE_JIGGLER' | 'KEYBOARD_WEIGHT' | 'NO_APP_SWITCH' | 'ROBOTIC_REGULARITY'
       | 'EVASION_SOFTWARE' | 'AFTER_HOURS_ACTIVITY';
   severity: 'high' | 'medium';
-  detail: string;
+  /**
+   * Strukturovaný kód pro detail flagu + parametry pro interpolaci v UI.
+   * Frontend překládá podle locale. Stejný kód = stejný typ flagu (může mít
+   * varianty: např. NO_APP_SWITCH má params.hours).
+   */
+  detailCode: string;
+  detailParams?: Record<string, number | string>;
   affectedMinutes: number;
 };
 
@@ -71,44 +77,18 @@ export async function computeIntegrity(userId: string, from: Date, to: Date): Pr
     const ksCv = cv(ksValues);
     const mouseCv = cv(mouseValues);
 
-    // A) Simulátor myši / mouse jiggler
     if (mouseOnly.length / total > 0.8 && distinctApps <= 1) {
-      flags.push({
-        type: 'MOUSE_JIGGLER',
-        severity: 'high',
-        detail: 'Dlouhodobý pohyb myši bez jediného úhozu a bez přepínání aplikací – pravděpodobně simulátor myši (mouse jiggler).',
-        affectedMinutes: minutesOf(mouseOnly.length),
-      });
+      flags.push({ type: 'MOUSE_JIGGLER', severity: 'high', detailCode: 'MOUSE_JIGGLER_DETAIL', affectedMinutes: minutesOf(mouseOnly.length) });
     }
-
-    // B) Předmět na klávesnici / simulátor kláves
     if (keysOnly.length / total > 0.8 && distinctApps <= 1 && ksCv < 0.15) {
-      flags.push({
-        type: 'KEYBOARD_WEIGHT',
-        severity: 'high',
-        detail: 'Trvalé psaní s nepřirozeně pravidelným tempem, bez myši a beze změny aplikace – pravděpodobně předmět na klávesnici nebo simulátor kláves.',
-        affectedMinutes: minutesOf(keysOnly.length),
-      });
+      flags.push({ type: 'KEYBOARD_WEIGHT', severity: 'high', detailCode: 'KEYBOARD_WEIGHT_DETAIL', affectedMinutes: minutesOf(keysOnly.length) });
     }
-
-    // C) Žádné přepínání aplikací po velmi dlouhou dobu
     if (longestSameApp >= 24) {
-      flags.push({
-        type: 'NO_APP_SWITCH',
-        severity: 'medium',
-        detail: `Více než ${Math.round((longestSameApp * 5) / 60)} h souvislé aktivity bez jediného přepnutí aplikace – netypické pro běžnou práci.`,
-        affectedMinutes: minutesOf(longestSameApp),
-      });
+      const hours = Math.round((longestSameApp * 5) / 60);
+      flags.push({ type: 'NO_APP_SWITCH', severity: 'medium', detailCode: 'NO_APP_SWITCH_DETAIL', detailParams: { hours }, affectedMinutes: minutesOf(longestSameApp) });
     }
-
-    // D) Roboticky pravidelné vstupy (nízká variabilita)
     if ((ksValues.length >= 12 && ksCv < 0.08) || (mouseValues.length >= 12 && mouseCv < 0.08)) {
-      flags.push({
-        type: 'ROBOTIC_REGULARITY',
-        severity: 'medium',
-        detail: 'Aktivita má strojově pravidelný vzor (téměř identické hodnoty po dlouhou dobu) – možná automatizace vstupu.',
-        affectedMinutes: minutesOf(Math.max(ksValues.length, mouseValues.length)),
-      });
+      flags.push({ type: 'ROBOTIC_REGULARITY', severity: 'medium', detailCode: 'ROBOTIC_REGULARITY_DETAIL', affectedMinutes: minutesOf(Math.max(ksValues.length, mouseValues.length)) });
     }
   }
 
@@ -205,24 +185,28 @@ export async function detectAlerts(from: Date, to: Date, department?: string | s
     if (ev && ev.minutes >= 10) {
       const sev: 'high' | 'medium' = ev.minutes >= 60 ? 'high' : 'medium';
       const apps = [...ev.apps].slice(0, 4).join(', ');
+      const minutes = Math.round(ev.minutes);
       r.flags.push({
         type: 'EVASION_SOFTWARE',
         severity: sev,
-        detail: `Použití software obcházejícího monitoring (${Math.round(ev.minutes)} min): ${apps}${ev.apps.size > 4 ? ' …' : ''}. Pravděpodobné podvádění – mouse jiggler / AHK skript / Caffeine / pokus o killnutí agenta. Měření aktivity tohoto uživatele je nedůvěryhodné.`,
-        affectedMinutes: Math.round(ev.minutes),
+        detailCode: 'EVASION_SOFTWARE_DETAIL',
+        detailParams: { minutes, apps, more: ev.apps.size > 4 ? 1 : 0 },
+        affectedMinutes: minutes,
       });
       r.riskScore = Math.min(100, r.riskScore + (sev === 'high' ? 75 : 40));
-      r.suspicious = true; // jakákoli evasion = suspicious
+      r.suspicious = true;
     }
 
     // AFTER_HOURS_ACTIVITY — > 4 noci za období s aktivitou po 21:00 = medium
     const ah = afterHoursByUser.get(u.id);
     if (ah && ah.nights.size >= 4 && ah.minutes >= 60) {
+      const minutes = Math.round(ah.minutes);
       r.flags.push({
         type: 'AFTER_HOURS_ACTIVITY',
         severity: 'medium',
-        detail: `Aktivita mimo pracovní dobu: ${ah.nights.size} nocí, celkem ${Math.round(ah.minutes)} min po 21:00. Může jít o workaholic, ale i o data exfil nebo bota běžícího po směně.`,
-        affectedMinutes: Math.round(ah.minutes),
+        detailCode: 'AFTER_HOURS_ACTIVITY_DETAIL',
+        detailParams: { nights: ah.nights.size, minutes },
+        affectedMinutes: minutes,
       });
       r.riskScore = Math.min(100, r.riskScore + 20);
     }
@@ -266,16 +250,17 @@ export function computeIntegrityFromIntervals(
     const mouseCv = cv(mouseValues);
 
     if (mouseOnly.length / total > 0.8 && distinctApps <= 1) {
-      flags.push({ type: 'MOUSE_JIGGLER', severity: 'high', detail: 'Dlouhodobý pohyb myši bez jediného úhozu a bez přepínání aplikací – pravděpodobně simulátor myši (mouse jiggler).', affectedMinutes: minutesOf(mouseOnly.length) });
+      flags.push({ type: 'MOUSE_JIGGLER', severity: 'high', detailCode: 'MOUSE_JIGGLER_DETAIL', affectedMinutes: minutesOf(mouseOnly.length) });
     }
     if (keysOnly.length / total > 0.8 && distinctApps <= 1 && ksCv < 0.15) {
-      flags.push({ type: 'KEYBOARD_WEIGHT', severity: 'high', detail: 'Trvalé psaní s nepřirozeně pravidelným tempem, bez myši a beze změny aplikace – pravděpodobně předmět na klávesnici nebo simulátor kláves.', affectedMinutes: minutesOf(keysOnly.length) });
+      flags.push({ type: 'KEYBOARD_WEIGHT', severity: 'high', detailCode: 'KEYBOARD_WEIGHT_DETAIL', affectedMinutes: minutesOf(keysOnly.length) });
     }
     if (longestSameApp >= 24) {
-      flags.push({ type: 'NO_APP_SWITCH', severity: 'medium', detail: `Více než ${Math.round((longestSameApp * 5) / 60)} h souvislé aktivity bez jediného přepnutí aplikace – netypické pro běžnou práci.`, affectedMinutes: minutesOf(longestSameApp) });
+      const hours = Math.round((longestSameApp * 5) / 60);
+      flags.push({ type: 'NO_APP_SWITCH', severity: 'medium', detailCode: 'NO_APP_SWITCH_DETAIL', detailParams: { hours }, affectedMinutes: minutesOf(longestSameApp) });
     }
     if ((ksValues.length >= 12 && ksCv < 0.08) || (mouseValues.length >= 12 && mouseCv < 0.08)) {
-      flags.push({ type: 'ROBOTIC_REGULARITY', severity: 'medium', detail: 'Aktivita má strojově pravidelný vzor (téměř identické hodnoty po dlouhou dobu) – možná automatizace vstupu.', affectedMinutes: minutesOf(Math.max(ksValues.length, mouseValues.length)) });
+      flags.push({ type: 'ROBOTIC_REGULARITY', severity: 'medium', detailCode: 'ROBOTIC_REGULARITY_DETAIL', affectedMinutes: minutesOf(Math.max(ksValues.length, mouseValues.length)) });
     }
   }
 

@@ -159,7 +159,13 @@ export type CostResult = {
 };
 export type ClaimRow = { id: string; userId: string; target: string; targetKind: string; suggested: string; note: string | null; status: string; createdAt: string };
 
-export type IntegrityFlag = { type: string; severity: 'high' | 'medium'; detail: string; affectedMinutes: number };
+export type IntegrityFlag = {
+  type: string;
+  severity: 'high' | 'medium';
+  detailCode: string;
+  detailParams?: Record<string, number | string>;
+  affectedMinutes: number;
+};
 export type IntegrityResult = { userId: string; riskScore: number; suspicious: boolean; flags: IntegrityFlag[] };
 export type AlertItem = { userId: string; displayName: string | null; department: string | null; riskScore: number; suspicious: boolean; flags: IntegrityFlag[] };
 

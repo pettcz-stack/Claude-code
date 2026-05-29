@@ -24,6 +24,29 @@ async function clearAlert(key: string): Promise<void> {
   await prisma.sentAlert.deleteMany({ where: { key } });
 }
 
+/** Pomocný překlad detail kódů do češtiny pro e-mailové notifikace.
+ *  E-mail = server-side, žádné i18n hooks. Pro produkční nasazení v jiném
+ *  jazyce by se přidal locale setting v alerts settings (out of scope teď). */
+function detailToCzech(code: string, params?: Record<string, number | string>): string {
+  const p = params ?? {};
+  switch (code) {
+    case 'MOUSE_JIGGLER_DETAIL':
+      return 'Dlouhodobý pohyb myši bez jediného úhozu klávesnice a bez přepínání aplikací — pravděpodobně použitý simulátor pohybu myši.';
+    case 'KEYBOARD_WEIGHT_DETAIL':
+      return 'Trvalé psaní s nepřirozeně pravidelným rytmem, bez používání myši a beze změny aktivní aplikace.';
+    case 'NO_APP_SWITCH_DETAIL':
+      return `Více než ${p.hours ?? '?'} h souvislé aktivity v jedné aplikaci bez jediného přepnutí.`;
+    case 'ROBOTIC_REGULARITY_DETAIL':
+      return 'Aktivita má strojově pravidelný vzor — téměř identické hodnoty po dlouhou dobu.';
+    case 'EVASION_SOFTWARE_DETAIL':
+      return `Použití programu pro obcházení sledování (${p.minutes ?? '?'} min): ${p.apps ?? ''}${Number(p.more) > 0 ? ' a další' : ''}.`;
+    case 'AFTER_HOURS_ACTIVITY_DETAIL':
+      return `Aktivita mimo pracovní dobu: ${p.nights ?? '?'} nocí, celkem ${p.minutes ?? '?'} min po 21:00.`;
+    default:
+      return code;
+  }
+}
+
 function isWorkHours(d = new Date()): boolean {
   const dow = d.getDay();
   const h = d.getHours();
@@ -54,7 +77,7 @@ export async function runAlertChecks(): Promise<AlertRunResult> {
       continue;
     }
     if (await shouldSend('integrity:' + u.id, 24 * 60 * 60 * 1000)) {
-      const flags = r.flags.map((f) => `<li><b>${escapeHtml(LABELS[f.type] ?? f.type)}</b> (${f.severity}) – ${escapeHtml(f.detail)}</li>`).join('');
+      const flags = r.flags.map((f) => `<li><b>${escapeHtml(LABELS[f.type] ?? f.type)}</b> (${f.severity}) – ${escapeHtml(detailToCzech(f.detailCode, f.detailParams))}</li>`).join('');
       await sendMail(
         to,
         `[Monitoring] Podezření na nepovolené praktiky – ${u.displayName ?? u.id}`,
