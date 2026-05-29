@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
+    "lint:no-ai": "node ../tools/check-no-ai.mjs",
     "test": "vitest run"
   },
   "dependencies": {

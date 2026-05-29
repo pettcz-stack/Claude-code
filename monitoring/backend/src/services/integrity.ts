@@ -1,3 +1,7 @@
+/* NO AI / NO LLM POLICY: Veškerá detekce (mouse jiggler, AHK bot, evasion SW,
+ * after-hours, robotic regularity) je deterministická pravidla a statistika
+ * (CV – coefficient of variation, ratio thresholds). Žádné externí AI API.
+ * Pravidlo: monitoring/docs/ARCHITECTURE_NO_AI.md */
 import { prisma } from '../db.js';
 import { demoUserWhere } from './demoFilter.js';
 import { deptWhere } from './accessControl.js';

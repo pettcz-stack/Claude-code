@@ -51,6 +51,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Architecture check (no AI/LLM API integrations)
+        run: npm run lint:no-ai
+
       - name: Typecheck + build
         run: npm run build
 
@@ -90,6 +93,9 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Architecture check (no AI/LLM API integrations)
+        run: npm run lint:no-ai
 
       - name: Typecheck + build
         run: npm run build

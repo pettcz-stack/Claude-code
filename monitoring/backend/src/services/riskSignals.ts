@@ -1,3 +1,11 @@
+/* ──────────────────────────────────────────────────────────────────────────
+ * NO AI / NO LLM POLICY: Tento soubor – stejně jako celý produkční backend –
+ * NEVOLÁ žádné externí AI/LLM API. Všechny "predikce" jsou DETERMINISTICKÁ
+ * pravidla nad agregovanými daty (sumy, průměry, percentily, kompozitní váhy).
+ *
+ * Pravidlo: monitoring/docs/ARCHITECTURE_NO_AI.md
+ * CI lint:  tools/check-no-ai.mjs (běží jako "npm run lint:no-ai")
+ * ────────────────────────────────────────────────────────────────────────── */
 import { prisma } from '../db.js';
 import { addDays, floorToDay, localDow } from './tz.js';
 import { demoUserWhere } from './demoFilter.js';

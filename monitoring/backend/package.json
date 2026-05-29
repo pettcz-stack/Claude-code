@@ -17,7 +17,8 @@
     "seed": "tsx src/seed.ts",
     "simulate": "tsx src/bin/simulate-agent.ts",
     "test": "vitest run",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "lint:no-ai": "node ../tools/check-no-ai.mjs"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
