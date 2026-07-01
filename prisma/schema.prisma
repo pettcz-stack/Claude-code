@@ -1,0 +1,75 @@
+// MVP běží na SQLite kvůli nulové instalaci. Pro produkci přepni provider na
+// "postgresql" a využij PostGIS pro geo-dotazy (viz README).
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Listing {
+  id           Int    @id @default(autoincrement())
+  source       String // "sreality" | "idnes"
+  externalId   String
+  url          String
+  title        String
+
+  dealType     String // prodej | pronajem | neznamy
+  propertyType String // byt | dum | pozemek | komercni | ostatni
+  layout       String? // "2+kk"
+  areaM2       Float?
+
+  price        Int? // aktuální cena v Kč; null = na vyžádání
+  pricePerM2   Float?
+  currency     String @default("CZK")
+
+  locality     String?
+  city         String?
+  lat          Float?
+  lon          Float?
+
+  dedupKey     String
+
+  // active = stále vidíme; removed = X dní nespatřeno (odhad prodeje/stažení)
+  status       String   @default("active")
+  firstSeenAt  DateTime @default(now())
+  lastSeenAt   DateTime @default(now())
+  removedAt    DateTime?
+  // poslední známá cena v okamžiku, kdy inzerát zmizel (odhad prodejní ceny)
+  lastPrice    Int?
+
+  priceHistory PriceHistory[]
+
+  @@unique([source, externalId])
+  @@index([propertyType, dealType])
+  @@index([city])
+  @@index([status])
+  @@index([dedupKey])
+}
+
+model PriceHistory {
+  id         Int      @id @default(autoincrement())
+  listingId  Int
+  listing    Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  price      Int
+  pricePerM2 Float?
+  seenAt     DateTime @default(now())
+
+  @@index([listingId])
+}
+
+// Záznam o každém běhu collectoru — pro přehled a debugging.
+model CollectRun {
+  id          Int      @id @default(autoincrement())
+  source      String
+  startedAt   DateTime @default(now())
+  finishedAt  DateTime?
+  fetched     Int      @default(0)
+  created     Int      @default(0)
+  updated     Int      @default(0)
+  priceChanges Int     @default(0)
+  errors      Int      @default(0)
+  note        String?
+}

@@ -1,0 +1,56 @@
+[
+  {
+    "hash_id": 1001,
+    "name": "Prodej bytu 2+kk 56 m²",
+    "price": 6720000,
+    "gps": { "lat": 50.0755, "lon": 14.4378 },
+    "seo": { "locality": "praha-stare-mesto" },
+    "category_main_cb": 1,
+    "category_type_cb": 1
+  },
+  {
+    "hash_id": 1002,
+    "name": "Prodej bytu 3+1 78 m²",
+    "price": 8500000,
+    "gps": { "lat": 50.08, "lon": 14.43 },
+    "seo": { "locality": "praha-vinohrady" },
+    "category_main_cb": 1,
+    "category_type_cb": 1
+  },
+  {
+    "hash_id": 1003,
+    "name": "Prodej bytu 1+kk 32 m²",
+    "price": 3200000,
+    "gps": { "lat": 49.1951, "lon": 16.6068 },
+    "seo": { "locality": "brno-stred" },
+    "category_main_cb": 1,
+    "category_type_cb": 1
+  },
+  {
+    "hash_id": 1004,
+    "name": "Prodej bytu 4+kk 110 m²",
+    "price": 9900000,
+    "gps": { "lat": 49.2, "lon": 16.61 },
+    "seo": { "locality": "brno-kralovo-pole" },
+    "category_main_cb": 1,
+    "category_type_cb": 1
+  },
+  {
+    "hash_id": 1005,
+    "name": "Pronájem bytu 2+kk 48 m²",
+    "price": 18000,
+    "gps": { "lat": 50.076, "lon": 14.44 },
+    "seo": { "locality": "praha-zizkov" },
+    "category_main_cb": 1,
+    "category_type_cb": 2
+  },
+  {
+    "hash_id": 1006,
+    "name": "Prodej rodinného domu 5+kk 180 m²",
+    "price": 14500000,
+    "gps": { "lat": 49.59, "lon": 17.25 },
+    "seo": { "locality": "olomouc" },
+    "category_main_cb": 2,
+    "category_type_cb": 1
+  }
+]

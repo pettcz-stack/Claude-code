@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Realitní cenová mapa</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: system-ui, sans-serif; color: #1a1a1a; }
+      header { padding: 12px 16px; background: #0f172a; color: #fff; }
+      header h1 { margin: 0; font-size: 18px; }
+      header p { margin: 4px 0 0; font-size: 12px; opacity: 0.8; }
+      .layout { display: flex; height: calc(100vh - 58px); }
+      #map { flex: 1; }
+      aside {
+        width: 320px; padding: 16px; overflow-y: auto;
+        border-left: 1px solid #e2e8f0; background: #f8fafc;
+      }
+      .controls label { display: block; font-size: 13px; margin: 10px 0 4px; font-weight: 600; }
+      select { width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; }
+      .stat { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; margin-top: 10px; }
+      .stat .big { font-size: 22px; font-weight: 700; }
+      .stat .lbl { font-size: 12px; color: #64748b; }
+      .legend { font-size: 12px; line-height: 1.8; }
+      .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; }
+      .note { font-size: 11px; color: #94a3b8; margin-top: 16px; line-height: 1.5; }
+      table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+      td { padding: 3px 0; }
+      td:last-child { text-align: right; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Realitní cenová mapa</h1>
+      <p>Nabídkové ceny ze Sreality · cena za m² podle lokality</p>
+    </header>
+    <div class="layout">
+      <div id="map"></div>
+      <aside>
+        <div class="controls">
+          <label for="deal">Typ obchodu</label>
+          <select id="deal">
+            <option value="prodej">Prodej</option>
+            <option value="pronajem">Pronájem</option>
+          </select>
+          <label for="prop">Typ nemovitosti</label>
+          <select id="prop">
+            <option value="byt">Byty</option>
+            <option value="dum">Domy</option>
+            <option value="pozemek">Pozemky</option>
+          </select>
+        </div>
+
+        <div class="stat">
+          <div class="big" id="activeCount">–</div>
+          <div class="lbl">aktivních inzerátů celkem</div>
+        </div>
+        <div class="stat">
+          <div class="big" id="cityCount">–</div>
+          <div class="lbl">měst/obcí na mapě</div>
+        </div>
+
+        <h3 style="font-size: 14px; margin: 16px 0 4px;">Nejdražší lokality (medián Kč/m²)</h3>
+        <table id="topTable"></table>
+
+        <h3 style="font-size: 14px; margin: 16px 0 4px;">Legenda (Kč/m²)</h3>
+        <div class="legend" id="legend"></div>
+
+        <p class="note">
+          Pozor: jde o <strong>nabídkové</strong> ceny z inzerce, ne o
+          realizované prodejní ceny. Velikost bodu = počet inzerátů, barva =
+          medián ceny za m².
+        </p>
+      </aside>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      const map = L.map("map").setView([49.8, 15.5], 7); // střed ČR
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap",
+        maxZoom: 19,
+      }).addTo(map);
+
+      let layer = L.layerGroup().addTo(map);
+
+      // Barevná škála podle ceny/m²
+      const BANDS = [
+        { max: 40000, color: "#22c55e", label: "< 40 tis." },
+        { max: 70000, color: "#84cc16", label: "40–70 tis." },
+        { max: 100000, color: "#eab308", label: "70–100 tis." },
+        { max: 150000, color: "#f97316", label: "100–150 tis." },
+        { max: Infinity, color: "#ef4444", label: "> 150 tis." },
+      ];
+      function colorFor(ppm2) {
+        return (BANDS.find((b) => ppm2 < b.max) || BANDS[BANDS.length - 1]).color;
+      }
+      function radiusFor(count) {
+        return Math.max(6, Math.min(28, 5 + Math.sqrt(count) * 2));
+      }
+      function fmt(n) {
+        return n == null ? "–" : new Intl.NumberFormat("cs-CZ").format(n);
+      }
+
+      function renderLegend() {
+        document.getElementById("legend").innerHTML = BANDS.map(
+          (b) => `<div><i style="background:${b.color}"></i>${b.label}</div>`,
+        ).join("");
+      }
+
+      async function load() {
+        const deal = document.getElementById("deal").value;
+        const prop = document.getElementById("prop").value;
+
+        const [points, overview] = await Promise.all([
+          fetch(`/api/price-map?dealType=${deal}&propertyType=${prop}`).then((r) => r.json()),
+          fetch("/api/stats/overview").then((r) => r.json()),
+        ]);
+
+        document.getElementById("activeCount").textContent = fmt(overview.totalActive);
+        document.getElementById("cityCount").textContent = fmt(points.length);
+
+        layer.clearLayers();
+        for (const p of points) {
+          if (p.medianPricePerM2 == null) continue;
+          L.circleMarker([p.lat, p.lon], {
+            radius: radiusFor(p.count),
+            color: colorFor(p.medianPricePerM2),
+            fillColor: colorFor(p.medianPricePerM2),
+            fillOpacity: 0.7,
+            weight: 1,
+          })
+            .bindPopup(
+              `<strong>${p.city}</strong><br>` +
+                `medián: <strong>${fmt(p.medianPricePerM2)} Kč/m²</strong><br>` +
+                `průměr: ${fmt(p.meanPricePerM2)} Kč/m²<br>` +
+                `inzerátů: ${p.count}`,
+            )
+            .addTo(layer);
+        }
+
+        const top = [...points]
+          .filter((p) => p.medianPricePerM2 != null && p.count >= 3)
+          .sort((a, b) => b.medianPricePerM2 - a.medianPricePerM2)
+          .slice(0, 10);
+        document.getElementById("topTable").innerHTML = top
+          .map((p) => `<tr><td>${p.city}</td><td>${fmt(p.medianPricePerM2)}</td></tr>`)
+          .join("");
+      }
+
+      renderLegend();
+      document.getElementById("deal").addEventListener("change", load);
+      document.getElementById("prop").addEventListener("change", load);
+      load();
+    </script>
+  </body>
+</html>

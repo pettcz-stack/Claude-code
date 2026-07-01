@@ -1,0 +1,80 @@
+import { Router } from "express";
+import { prisma } from "../db.js";
+import {
+  getPriceMap,
+  getOverview,
+  getSoldEstimates,
+} from "../analytics/priceMap.js";
+
+export const api = Router();
+
+api.get("/health", (_req, res) => {
+  res.json({ ok: true });
+});
+
+api.get("/stats/overview", async (_req, res, next) => {
+  try {
+    res.json(await getOverview());
+  } catch (e) {
+    next(e);
+  }
+});
+
+api.get("/price-map", async (req, res, next) => {
+  try {
+    const dealType = typeof req.query.dealType === "string" ? req.query.dealType : undefined;
+    const propertyType =
+      typeof req.query.propertyType === "string" ? req.query.propertyType : undefined;
+    res.json(await getPriceMap({ dealType, propertyType }));
+  } catch (e) {
+    next(e);
+  }
+});
+
+api.get("/sold-estimates", async (req, res, next) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 200, 1000);
+    res.json(await getSoldEstimates(limit));
+  } catch (e) {
+    next(e);
+  }
+});
+
+api.get("/listings", async (req, res, next) => {
+  try {
+    const where: Record<string, unknown> = {};
+    if (typeof req.query.status === "string") where.status = req.query.status;
+    else where.status = "active";
+    if (typeof req.query.dealType === "string") where.dealType = req.query.dealType;
+    if (typeof req.query.propertyType === "string")
+      where.propertyType = req.query.propertyType;
+    if (typeof req.query.city === "string") where.city = req.query.city;
+
+    const limit = Math.min(Number(req.query.limit) || 100, 1000);
+    const listings = await prisma.listing.findMany({
+      where,
+      orderBy: { lastSeenAt: "desc" },
+      take: limit,
+    });
+    res.json(listings);
+  } catch (e) {
+    next(e);
+  }
+});
+
+api.get("/listings/:id", async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const listing = await prisma.listing.findUnique({
+      where: { id },
+      include: { priceHistory: { orderBy: { seenAt: "asc" } } },
+    });
+    if (!listing) {
+      res.status(404).json({ error: "nenalezeno" });
+      return;
+    }
+    res.json(listing);
+  } catch (e) {
+    next(e);
+  }
+});
