@@ -71,12 +71,45 @@ npm test        # jednotkové testy normalizace a statistik (bez sítě a DB)
 | GET | `/api/sold-estimates?limit=` | Zmizelé inzeráty = odhady prodeje + doba na trhu |
 | GET | `/api/listings?status=&dealType=&propertyType=&city=&limit=` | Seznam inzerátů |
 | GET | `/api/listings/:id` | Detail inzerátu + historie cen |
+| GET | `/api/realized-prices?propertyType=&kuCode=&limit=` | Realizované ceny z katastru |
+| GET | `/api/calibration?minCount=` | Koeficient nabídka→prodej po městě a typu |
+
+## Realizované ceny z katastru (ČÚZK / WSDP) — prototyp
+
+Zatímco inzerce dává **nabídkové** ceny, katastr eviduje **skutečné realizované**
+kupní ceny (data ČÚZK od 1. 1. 2014). Projekt obsahuje prototyp napojení přes
+webové služby dálkového přístupu (**WSDP**), sestavu *cenové údaje dle
+katastrálního území* (`GenerujCenoveUdajeDleKu`).
+
+```bash
+# 1) do .env doplň CUZK_WSDP_USER, CUZK_WSDP_PASSWORD a CUZK_TARGET_KU
+#    (kódy katastrálních území, oddělené čárkou)
+# 2) stažení realizovaných cen pro cílová KÚ:
+npm run collect:cuzk
+# 3) kalibrace nabídka→prodej:
+curl "http://localhost:3000/api/calibration"
+```
+
+**Stav prototypu / co ověřit na (zkušebním) účtu:**
+- Účet WSDP je zdarma; platí se ~50 Kč za sestavu (viz vyhláška 358/2013 Sb.).
+  Doporučeno začít na **zkušebním WSDP** a na 2–3 KÚ ověřit **skutečnou
+  účtovací jednotku** i tvar odpovědi.
+- `src/collectors/cuzk/wsdp.ts` je **kostra SOAP klienta** — namespace, názvy
+  operací a envelope je nutné doladit dle reálného WSDL. Alternativa: volat
+  hotovou knihovnu **PyWSDP** (Python) a tento klient brát jako referenci.
+- Parser (`parse.ts`) čte očekávanou strukturu XML; selektory případně uprav
+  dle skutečné odpovědi. Logika parseru i kalibrace je pokrytá testy.
+- Kalibrace je zatím **hrubá** (absolutní ceny na úrovni město × typ). Přesnější
+  vyžaduje obohatit realizované záznamy o plochu z popisných údajů KN a párovat
+  po Kč/m² (viz roadmapa).
 
 ## Denní spuštění (cron)
 
 ```cron
-# každý den ve 4:00
+# každý den ve 4:00 – inzerce
 0 4 * * * cd /cesta/k/app && /usr/bin/npm run collect >> /var/log/reality.log 2>&1
+# 1× měsíčně – realizované ceny z katastru (nová řízení)
+0 5 1 * * cd /cesta/k/app && /usr/bin/npm run collect:cuzk >> /var/log/cuzk.log 2>&1
 ```
 
 ## Právní upozornění
@@ -93,8 +126,9 @@ npm test        # jednotkové testy normalizace a statistik (bez sítě a DB)
 
 - **Reality.idnes collector** — HTML scraping (cheerio); rozhraní `RawListing`
   je připravené, stačí dodat `collectIdnes()`.
-- **Katastr nemovitostí (ČÚZK)** — import realizovaných cen pro kalibraci
-  „nabídková → prodejní". Tohle je pro developing klíčové.
+- **Katastr nemovitostí (ČÚZK)** — ✅ prototyp napojení (WSDP, sestava dle KÚ,
+  kalibrace nabídka→prodej). Dál: doladit SOAP dle WSDL na zkušebním účtu,
+  obohatit záznamy o plochu a párovat po Kč/m², rozšířit pokrytí KÚ.
 - **PostgreSQL + PostGIS** — geo-dotazy, hexbin/heatmapy, agregace po PSČ/MČ
   místo po názvu města. (Změň `provider` v `prisma/schema.prisma` a `DATABASE_URL`.)
 - **Geokódování** — doplnění GPS u inzerátů bez souřadnic (např. Nominatim).

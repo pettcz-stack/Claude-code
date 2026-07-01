@@ -73,3 +73,41 @@ model CollectRun {
   errors      Int      @default(0)
   note        String?
 }
+
+// Realizovaná (skutečná kupní) cena z katastru — WSDP sestava
+// "Údaje o dosažených cenách nemovitostí" (data ČÚZK od 1. 1. 2014).
+model RealizedPrice {
+  id           Int    @id @default(autoincrement())
+  source       String @default("cuzk")
+
+  kuCode       String // kód katastrálního území
+  kuName       String?
+
+  // parcela | stavba | jednotka | pravo_stavby (originál z katastru)
+  cadastreType String
+  // náš zjednodušený typ: byt | dum | pozemek | ostatni (best-effort mapování)
+  propertyType String
+
+  // identifikace nemovitosti v rámci KÚ (parcelní číslo / číslo stavby/jednotky)
+  parcelId     String?
+
+  price        Int    // realizovaná cena v Kč (za nemovitost nebo skupinu)
+  // je-li cena společná pro skupinu nemovitostí, kolik jich ve skupině je
+  groupSize    Int    @default(1)
+
+  rizeniId     String? // číslo řízení (V-…)
+  listinaRef   String? // odkaz na listinu
+  dealDate     DateTime? // datum řízení / vkladu
+
+  lat          Float?
+  lon          Float?
+  city         String?
+
+  // stabilní klíč pro deduplikaci opakovaných importů (řízení + nemovitost)
+  rawKey       String @unique
+  importedAt   DateTime @default(now())
+
+  @@index([kuCode])
+  @@index([propertyType])
+  @@index([city])
+}

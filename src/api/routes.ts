@@ -5,11 +5,41 @@ import {
   getOverview,
   getSoldEstimates,
 } from "../analytics/priceMap.js";
+import { getCalibration } from "../analytics/calibration.js";
 
 export const api = Router();
 
 api.get("/health", (_req, res) => {
   res.json({ ok: true });
+});
+
+// Kalibrace nabídka→prodej (medián inzerce vs. medián katastru) po městě a typu.
+api.get("/calibration", async (req, res, next) => {
+  try {
+    const minCount = Math.max(1, Number(req.query.minCount) || 5);
+    res.json(await getCalibration(minCount));
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Realizované ceny z katastru (poslední importované).
+api.get("/realized-prices", async (req, res, next) => {
+  try {
+    const where: Record<string, unknown> = {};
+    if (typeof req.query.propertyType === "string")
+      where.propertyType = req.query.propertyType;
+    if (typeof req.query.kuCode === "string") where.kuCode = req.query.kuCode;
+    const limit = Math.min(Number(req.query.limit) || 200, 1000);
+    const rows = await prisma.realizedPrice.findMany({
+      where,
+      orderBy: { dealDate: "desc" },
+      take: limit,
+    });
+    res.json(rows);
+  } catch (e) {
+    next(e);
+  }
 });
 
 api.get("/stats/overview", async (_req, res, next) => {

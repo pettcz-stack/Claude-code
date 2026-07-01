@@ -13,6 +13,7 @@
     "build": "tsc -p tsconfig.json",
     "collect": "tsx src/jobs/daily.ts",
     "collect:dry": "tsx src/jobs/daily.ts --dry-run",
+    "collect:cuzk": "tsx src/jobs/cuzk.ts",
     "ingest:fixture": "tsx scripts/ingest-fixture.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -23,6 +24,7 @@
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "express": "^4.21.2",
+    "fast-xml-parser": "^4.5.1",
     "undici": "^6.21.0",
     "zod": "^3.24.1"
   },

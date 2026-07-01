@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
+  <soapenv:Body>
+    <sestavy:vratSestavuResponse xmlns:sestavy="http://katastr.cuzk.cz/sestavy/types/v2.9">
+      <sestavy:cenoveUdaje kuKod="732541" kuNazev="Smíchov">
+        <sestavy:zaznam>
+          <sestavy:typ>jednotka</sestavy:typ>
+          <sestavy:jednotka>1234/5</sestavy:jednotka>
+          <sestavy:cena>6300000</sestavy:cena>
+          <sestavy:pocetNemovitosti>1</sestavy:pocetNemovitosti>
+          <sestavy:rizeni>V-1201/2024</sestavy:rizeni>
+          <sestavy:datum>2024-05-03</sestavy:datum>
+          <sestavy:lat>50.0721</sestavy:lat>
+          <sestavy:lon>14.4012</sestavy:lon>
+        </sestavy:zaznam>
+        <sestavy:zaznam>
+          <sestavy:typ>jednotka</sestavy:typ>
+          <sestavy:jednotka>1250/2</sestavy:jednotka>
+          <sestavy:cena>7 900 000</sestavy:cena>
+          <sestavy:pocetNemovitosti>1</sestavy:pocetNemovitosti>
+          <sestavy:rizeni>V-1330/2024</sestavy:rizeni>
+          <sestavy:datum>2024-06-18</sestavy:datum>
+        </sestavy:zaznam>
+        <sestavy:zaznam>
+          <sestavy:typ>parcela</sestavy:typ>
+          <sestavy:parcela>2001/7</sestavy:parcela>
+          <sestavy:cena>2450000</sestavy:cena>
+          <sestavy:pocetNemovitosti>1</sestavy:pocetNemovitosti>
+          <sestavy:rizeni>V-1402/2024</sestavy:rizeni>
+          <sestavy:datum>2024-07-01</sestavy:datum>
+        </sestavy:zaznam>
+        <sestavy:zaznam>
+          <sestavy:typ>stavba</sestavy:typ>
+          <sestavy:stavba>č.p. 442</sestavy:stavba>
+          <sestavy:cena>0</sestavy:cena>
+          <sestavy:rizeni>V-1500/2024</sestavy:rizeni>
+        </sestavy:zaznam>
+      </sestavy:cenoveUdaje>
+    </sestavy:vratSestavuResponse>
+  </soapenv:Body>
+</soapenv:Envelope>
